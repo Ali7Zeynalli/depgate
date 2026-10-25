@@ -91,7 +91,7 @@ func Scan(dir, repoRoot string) (issues []report.DockerIssue, files []string) {
 			continue
 		}
 		health = health || composeHasHealthcheck(src)
-		issues = append(issues, checkCompose(f.rel, src)...)
+		issues = append(issues, checkComposeAt(f.rel, src, filepath.Dir(f.path))...)
 	}
 	for _, f := range dfs {
 		files = append(files, f.rel)

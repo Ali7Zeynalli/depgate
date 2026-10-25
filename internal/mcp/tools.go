@@ -59,6 +59,11 @@ var tools = map[string]tool{
 			"version": map[string]any{"type": "string", "description": "Exact version or range; default latest."}},
 		req: []string{"name"},
 		run: runCheck},
+	"get_docker_issues": {readOK: true,
+		desc: "Dockerfile, docker-compose and image findings of a project: security mistakes (root user, secrets, exposed databases, docker.sock…), Compose Specification problems (unknown keys, undeclared volumes or networks, broken depends_on) and outdated or end-of-life images, each with file, line, why and the line to use.",
+		props: map[string]any{"project": projectProp,
+			"severity": map[string]any{"type": "string", "enum": []string{"high", "medium", "low", "all"}, "description": "Minimum severity (default: all)."}},
+		run: runDocker},
 	"scan_project": {
 		desc:  "Scan the project again (after you changed dependencies) and return the new status. Reads files only.",
 		props: map[string]any{"project": projectProp},
@@ -94,7 +99,7 @@ func str(args map[string]any, k string) string {
 }
 
 func (s *Server) load(ctx context.Context, args map[string]any) (target, *report.Project, error) {
-	t, err := s.resolve(str(args, "project"))
+	t, err := s.resolve(ctx, str(args, "project"))
 	if err != nil {
 		return t, nil, err
 	}
@@ -165,7 +170,7 @@ func status(t target, p *report.Project) string {
 		for _, d := range p.Docker {
 			c[d.Severity]++
 		}
-		fmt.Fprintf(&b, "\n## Docker\n- %d high, %d medium, %d low issues in %s\n", c["high"], c["medium"], c["low"], strings.Join(p.DockerFiles, ", "))
+		fmt.Fprintf(&b, "\n## Docker\n- %d high, %d medium, %d low issues in %s (get_docker_issues)\n", c["high"], c["medium"], c["low"], strings.Join(p.DockerFiles, ", "))
 	}
 	b.WriteString("\nNext: get_fix_plan for the full task, get_code_changes <package> for code edits, check_package before adding a package.\n")
 	return b.String()
@@ -219,9 +224,13 @@ func runList(ctx context.Context, s *Server, args map[string]any) (string, error
 	s.Store.Reload()
 	es := s.Store.Projects()
 	if len(es) == 0 {
-		return "DepGate has no projects yet. Add them in the DepGate UI (http://127.0.0.1:7777), or pass a project path to any tool.", nil
+		msg := "DepGate has no projects in " + s.Store.Dir + " yet. Add them in the DepGate UI, or pass a project path to any tool."
+		if s.Hint != "" {
+			msg += "\n\n" + s.Hint
+		}
+		return msg, nil
 	}
-	cur, _ := s.resolve("")
+	cur, _ := s.resolve(ctx, "")
 	groups := map[string][]string{}
 	var order []string
 	for _, e := range es {
@@ -566,7 +575,7 @@ func runCheck(ctx context.Context, s *Server, args map[string]any) (string, erro
 	}
 	in := decide.CheckInput{Direct: map[string]string{}}
 	mgr := "npm"
-	if t, err := s.resolve(str(args, "project")); err == nil {
+	if t, err := s.resolve(ctx, str(args, "project")); err == nil {
 		if p, err := s.reportOf(ctx, t); err == nil {
 			mgr = or(p.Manager, "npm")
 			if p.Node != nil {
@@ -632,7 +641,7 @@ func install(mgr, spec string) string {
 // ---------- scan_project ----------
 
 func runScan(ctx context.Context, s *Server, args map[string]any) (string, error) {
-	t, err := s.resolve(str(args, "project"))
+	t, err := s.resolve(ctx, str(args, "project"))
 	if err != nil {
 		return "", err
 	}
@@ -641,4 +650,43 @@ func runScan(ctx context.Context, s *Server, args map[string]any) (string, error
 		return "", err
 	}
 	return "Scanned.\n\n" + status(t, p), nil
+}
+
+// ---------- get_docker_issues ----------
+
+func runDocker(ctx context.Context, s *Server, args map[string]any) (string, error) {
+	_, p, err := s.load(ctx, args)
+	if err != nil {
+		return "", err
+	}
+	if len(p.DockerFiles) == 0 {
+		return "No Dockerfile or compose file in " + p.Name + " (or its repo root).", nil
+	}
+	min := map[string]int{"high": 0, "medium": 1, "low": 2}
+	limit := 2
+	if v, ok := min[str(args, "severity")]; ok {
+		limit = v
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "# Docker — %s\nFiles: %s\n\n", p.Name, strings.Join(p.DockerFiles, ", "))
+	n := 0
+	for _, d := range p.Docker {
+		if min[d.Severity] > limit {
+			continue
+		}
+		n++
+		fmt.Fprintf(&b, "- [%s] %s:%d", d.Severity, d.File, d.Line)
+		if d.Service != "" {
+			fmt.Fprintf(&b, " (%s)", d.Service)
+		}
+		fmt.Fprintf(&b, " %s — %s — %s", d.Rule, d.Title.En, d.Detail.En)
+		if d.Fix != "" {
+			fmt.Fprintf(&b, "\n  → `%s`", strings.ReplaceAll(d.Fix, "\n", " ⏎ "))
+		}
+		b.WriteString("\n")
+	}
+	if n == 0 {
+		b.WriteString("No issues at this severity.\n")
+	}
+	return b.String(), nil
 }

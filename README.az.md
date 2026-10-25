@@ -54,10 +54,12 @@ DEPGATE_UID=$(id -u) DEPGATE_GID=$(id -g) docker compose up -d
 
 `http://127.0.0.1:7777` aç, parol seç və ev qovluğunun istənilən yerindən layihə əlavə et.
 
-AI agentini layihəyə qoş ([MCP](#mcp)-yə bax):
+AI agentini layihəyə qoş ([MCP](#mcp)-yə bax). Ən asan yol interfeysdəki **AI agent (MCP)** düyməsidir, orada əmr layihə yolu və token ilə hazır olur. Əl ilə belədir:
 
 ```bash
-cd ~/projects/shop && claude mcp add depgate -s project -- depgate mcp --project "$PWD"
+cd ~/projects/shop && claude mcp add --transport http depgate -s local \
+  "http://127.0.0.1:7777/mcp?project=$PWD" --header "Authorization: Bearer $(depgate --print-token)"
+# Docker-də token:  docker exec depgate depgate --print-token
 ```
 
 Faydalı olsa, ⭐ başqa developerlərin onu tapmasına kömək edir.
@@ -100,10 +102,22 @@ Hər ikisini kopyalaya və ya `.md` kimi yükləyə bilərsən; DepGate onları 
 `depgate mcp` [Model Context Protocol](https://modelcontextprotocol.io) server-idir. Claude Code, Cursor, VS Code və ya istənilən MCP klienti DepGate-dən özü soruşur, sənin promptu kopyalayıb yapışdırmağına ehtiyac qalmır. Hər layihə üçün ayrıca işləyir: alətlər agentin açıldığı layihəyə (və ya `--project` ilə verilənə) aiddir. Hər çağırışda başqa layihə də göstərmək olar: yol, paket adı və ya monorepo içində qovluq, məsələn `apps/api`.
 
 ```bash
-cd ~/projects/shop && claude mcp add depgate -s project -- depgate mcp --project "$PWD"
-# DepGate Docker-dədirsə:
-claude mcp add depgate -s project -- docker exec -i depgate depgate mcp --project "$PWD"
+# HTTP ilə işləyən DepGate-ə (tövsiyə: interfeyslə eyni data, Docker-də də işləyir)
+cd ~/projects/shop && claude mcp add --transport http depgate -s local \
+  "http://127.0.0.1:7777/mcp?project=$PWD" --header "Authorization: Bearer $(depgate --print-token)"
+# Docker-də token:  docker exec depgate depgate --print-token
+# və ya stdio ilə, agent DepGate-i özü işə salır
+cd ~/projects/shop && claude mcp add depgate -s local -- depgate mcp --project "$PWD"
 ```
+
+**Agent məlumatı haradan alır**
+
+| Qoşulma | Data | Nə vaxt |
+|---|---|---|
+| **HTTP** — DepGate token-i ilə `http://127.0.0.1:7777/mcp?project=…` | işləyən DepGate server: interfeysdəki eyni layihələr və hesabatlar | həmişə tövsiyə olunur. DepGate Docker-də işləyəndə və agent başqa kompüterdə olanda da istifadə et. Başqa kompüter üçün DepGate-i `--addr 0.0.0.0 --allow-host <ad>` ilə başlat və token-i gizli saxla |
+| **stdio** — `depgate mcp --project …` | lokal data qovluğu (`~/.config/depgate`), `docker exec -i depgate depgate mcp` ilə isə konteynerin datası | server işləmir; CI; offline |
+
+stdio lokal layihə tapmasa və eyni vaxtda DepGate server işləyirsə, bunu deyir və HTTP qoşulmasını tövsiyə edir. `/mcp` yalnız `Authorization: Bearer` token-i qəbul edir (brauzer sessiyası işləmir). Yad `Origin` başlığını rədd edir və yalnız DepGate-in icazə verilən qovluqlarını oxuyur.
 
 Hər layihə və qovluqdakı **AI agent (MCP)** düyməsi bu əmrləri yolu doldurulmuş halda göstərir. Cursor və digər kliyentlər üçün JSON da orada var.
 
@@ -115,6 +129,7 @@ Hər layihə və qovluqdakı **AI agent (MCP)** düyməsi bu əmrləri yolu dold
 | `get_code_changes` | bir paket üçün: dəyişəcək `fayl:sətir` yerləri, codemod, əl ilə yoxlamalar, release notes |
 | `get_ai_rules` | kod yazmaq üçün dəqiq stack və versiya qaydaları |
 | `check_package` | **hər quraşdırmadan əvvəl**: `ad@versiya` təhlükəsizdirmi — zəifliklər, zərərli paket, silinmiş və ya təzə çıxmış versiya, install skriptləri, provenance, Node və peer uyğunluğu — və əvəzinə hansı versiya |
+| `get_docker_issues` | Dockerfile, compose və image tapıntıları: fayl, sətir, səbəb və əvəzinə yazılacaq sətir |
 | `scan_project` | dəyişiklikdən sonra yenidən skan edib təsdiqləmək |
 | `list_projects` | DepGate-in bildiyi bütün layihələr |
 
@@ -126,17 +141,17 @@ Server DepGate-in data qovluğunu istifadə edir, yəni interfeysdəki layihəl�
 
 Bəzi paketlər həmişə birlikdə buraxılır: `react` + `react-dom` (+ uyğun `@types/react`), `next` + `eslint-config-next`, əsas `@nestjs/*` paketləri, `@angular/*`, Vue, Storybook, Nx, Prisma, typescript-eslint, Tiptap. Onlardan biri yeni versiyaya keçməlidirsə və ya versiyaları bir-birindən ayrılıbsa, DepGate bir kart göstərir: hər paket, onun hədəf versiyası və hamısı üçün bir əmr. Öz versiya xətti olan paketlər (məsələn `@nestjs/config`) qrupa salınmır.
 
-### 🐳 Docker təhlükəsizliyi
+### 🐳 Docker: təhlükəsizlik, Compose standartı, image-lər
 
-Layihədəki və repo kökündəki Dockerfile və compose faylları 25 qayda ilə yoxlanır. Bunlara daxildir:
-- konteynerin root ilə işləməsi, `latest` teqləri;
-- `ENV`/`ARG`/`environment` içində sirlər;
-- `npm ci` əvəzinə `npm install`, `curl | sh`;
-- `.dockerignore`-un olmaması (bu halda `.env` image-ə düşə bilər);
-- `privileged`, Docker socket-in konteynerə bağlanması;
-- bütün interfeyslərə açılmış verilənlər bazası, host şəbəkəsi və ya PID, söndürülmüş seccomp/AppArmor.
+Layihədəki və repo kökündəki Dockerfile və compose faylları üç cür yoxlanır. Hər tapıntıda fayl, sətir, servis və əvəzinə yazılacaq sətir göstərilir; sirlərin dəyəri heç vaxt göstərilmir.
 
-Hər tapıntıda fayl, sətir, servis və təklif olunan sətir göstərilir; sirlərin dəyəri heç vaxt göstərilmir.
+- **Təhlükəsizlik** (25 qayda): konteynerin root ilə işləməsi, `latest` teqləri, `ENV`/`ARG`/`environment` içində sirlər, `npm ci` əvəzinə `npm install`, `curl | sh`, `.dockerignore`-un olmaması (bu halda `.env` image-ə düşə bilər), `privileged`, Docker socket-in konteynerə bağlanması, bütün interfeyslərə açılmış verilənlər bazası, host şəbəkəsi və ya PID, söndürülmüş seccomp/AppArmor və s.
+- **Compose Specification:** bilinməyən və ya səhv yazılmış açarlar (`enviroment` → `environment`), istifadə olunan, amma elan olunmamış volume və şəbəkələr, mövcud olmayan servisə `depends_on`, healthcheck-i olmayan servisə `condition: service_healthy`, olmayan `env_file` və build qovluqları, köhnəlmiş `version:` açarı, köhnə `links`. Bundan əlavə production üçün çatışmayan əsaslar da göstərilir: healthcheck, restart siyasəti, yaddaş limiti.
+- **Image-lər** ([endoflife.date](https://endoflife.date) əsasında): dəstəyi bitmiş xətlər (`redis:6.2`, `postgres:12`, `python:3.8`), dörd ay içində bitəcək xətlər, ən son patch-dən geri qalan sabit versiyalar (`postgres:15.2` → `15.14`) və dəstəyi bitmiş OS variantları (`node:18-buster`, `…-alpine3.16`). Bu yoxlama postgres, redis, nginx, python, mysql, mariadb, mongo, php, golang, ruby, rabbitmq, elasticsearch, alpine, debian, ubuntu və başqaları üçün işləyir. Node.js image-ləri Node.js kartında yoxlanır.
+
+DepGate image-ləri yükləmir. Ona görə image-in *içindəki* sistem paketlərinin CVE-lərini sıralaya bilmir; bunun üçün Trivy kimi image skaneri lazımdır. Dəstəyi bitmiş base image və ya OS isə o CVE-lərin heç vaxt düzəlməyəcəyinin ən güclü əlamətidir.
+
+![Docker](docs/docker.png)
 
 <a id="nə-yoxlayır"></a>
 ## Nə yoxlayır
@@ -167,6 +182,7 @@ Hər qərar açıq və pulsuz mənbələrə əsaslanır. **Mənbələr** düymə
 | [deps.dev](https://deps.dev) | paketin bütün versiyaları və buraxılış tarixləri (hədəf versiya, gözləmə müddəti) |
 | [npm registry](https://www.npmjs.com) | hədəf versiyanın `engines`, peer asılılıqları, install skriptləri, provenance, deprecated qeydi; lockfile-dakı versiyanın hələ mövcud olub-olmadığı |
 | [GitHub releases](https://docs.github.com/en/rest/releases/releases) | major yeniləmələrdə versiyan ilə hədəf arasındakı release-lərin breaking changes bölmələri |
+| [endoflife.date](https://endoflife.date) | istifadə etdiyin Docker image-lərinin dəstək müddəti və son patch versiyaları |
 | [Node.js releases](https://nodejs.org/en/about/previous-releases) + [Node.js Security WG](https://github.com/nodejs/security-wg) | Node.js versiyaları, təhlükəsizlik relizləri, EOL tarixləri və dəqiq versiyana aid CVE-lər |
 
 Kompüterində oxunanlar heç yerə göndərilmir: `package.json`, lockfile, mənbə faylların («Kodunda nə dəyişəcək» üçün), Dockerfile və compose faylları, `.nvmrc` / `.node-version` / `engines` / CI faylları, `.npmrc`, `.dockerignore`.
@@ -230,6 +246,7 @@ depgate mcp --project DIR    # AI agentlər üçün MCP server (stdio)
 | `--root` | Gəzilə bilən qovluq (təkrarlana bilər; `DEPGATE_ROOTS`) | ev qovluğu |
 | `--data` | Siyahı, hesabatlar, parol hash-ı (`DEPGATE_DATA`) | `~/.config/depgate` |
 | `--allow-host` | Əlavə icazəli `Host` adı, məsələn lokal şəbəkə adı (təkrarlana bilər) | — |
+| `--print-token` | API/MCP token-ini çap et (Docker: `docker exec depgate depgate --print-token`) | — |
 | `--reset-password` | Parolu unut; növbəti açılışda yenisi istənir | — |
 | `--no-auth` | Parolu söndür (yalnız 127.0.0.1; tövsiyə olunmur) | söndürülüb |
 | `--no-open` | Brauzeri avtomatik açmır | açır |
@@ -250,7 +267,7 @@ depgate mcp --project DIR    # AI agentlər üçün MCP server (stdio)
 
 ## Kənara nə gedir
 
-Kompüterindən yalnız açıq paket məlumatı çıxır: paket adları və versiyalar (OSV, npm, deps.dev), CVE nömrələri (EPSS) və major yeniləməsi olan paketlərin GitHub repo adları (release notes üçün). Kod, fayl yolları, layihə adları və `.env` faylları heç vaxt getmir. Cavablar `~/.cache/depgate/` qovluğunda keşlənir.
+Kompüterindən yalnız açıq paket məlumatı çıxır: paket adları və versiyalar (OSV, npm, deps.dev), CVE nömrələri (EPSS), major yeniləməsi olan paketlərin GitHub repo adları (release notes üçün) və Docker image-lərinin məhsul adları (endoflife.date). Kod, fayl yolları, layihə adları və `.env` faylları heç vaxt getmir. Cavablar `~/.cache/depgate/` qovluğunda keşlənir.
 
 Veb interfeys `127.0.0.1`-də işləyir (Docker-də host-un `127.0.0.1`-inə açılır) və parolla qorunur. Həmçinin `Host` başlığını yoxlayır və sərt Content Security Policy göndərir. Qovluq gəzmə icazəli köklərlə məhdudlaşır və DepGate layihələri yalnız oxuyur.
 

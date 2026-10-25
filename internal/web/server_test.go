@@ -181,3 +181,30 @@ func TestNoAuth(t *testing.T) {
 	e.expect(e.do("GET", "/api/state", "", true), 200, "no-auth state")
 	e.expect(e.do("GET", "/api/state", "", false), 403, "custom header still required")
 }
+
+func TestMCPEndpointAuth(t *testing.T) {
+	called := false
+	s := &Server{Token: "tok-0123456789abcdef", NoAuth: false, MCP: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { called = true; w.WriteHeader(200) })}
+	h := s.Handler()
+	do := func(hdr map[string]string) int {
+		req := httptest.NewRequest("POST", "http://127.0.0.1:7777/mcp", strings.NewReader("{}"))
+		for k, v := range hdr {
+			req.Header.Set(k, v)
+		}
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec.Code
+	}
+	if c := do(nil); c != 401 || called {
+		t.Fatalf("no token: %d", c)
+	}
+	if c := do(map[string]string{"Authorization": "Bearer wrong"}); c != 401 || called {
+		t.Fatalf("wrong token: %d", c)
+	}
+	if c := do(map[string]string{"Authorization": "Bearer tok-0123456789abcdef", "Origin": "https://evil.example"}); c != 403 || called {
+		t.Fatalf("foreign origin: %d", c)
+	}
+	if c := do(map[string]string{"Authorization": "Bearer tok-0123456789abcdef"}); c != 200 || !called {
+		t.Fatalf("valid: %d", c)
+	}
+}

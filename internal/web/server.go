@@ -14,6 +14,7 @@ import (
 	"io/fs"
 	"net"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -42,6 +43,8 @@ type Server struct {
 	NoAuth bool
 	// AllowHosts are extra Host header names (without port) accepted besides localhost.
 	AllowHosts []string
+	// MCP serves the Model Context Protocol at /mcp for AI agents (Bearer token only).
+	MCP http.Handler
 }
 
 // Listen binds addr:port, trying the next ports when busy.
@@ -140,6 +143,10 @@ func (s *Server) Handler() http.Handler {
 		}
 		writeJSON(w, http.StatusOK, l)
 	})
+	mux.HandleFunc("GET /api/mcp", func(w http.ResponseWriter, r *http.Request) {
+		// what the "AI agent (MCP)" dialog needs to build a connection for this server
+		writeJSON(w, http.StatusOK, map[string]any{"enabled": s.MCP != nil, "token": s.Token})
+	})
 	mux.Handle("GET /", static)
 
 	// ---- authentication (reachable without a session) ----
@@ -210,6 +217,23 @@ func (s *Server) Handler() http.Handler {
 		if r.URL.Path == "/healthz" { // container health check: no data
 			w.Header().Set("Content-Type", "text/plain")
 			_, _ = io.WriteString(w, "ok\n")
+			return
+		}
+		if r.URL.Path == "/mcp" && s.MCP != nil {
+			// agents, not browsers: token only, and a browser origin must be this server
+			if o := r.Header.Get("Origin"); o != "" {
+				u, err := url.Parse(o)
+				if err != nil || !s.hostOK(u.Host) {
+					http.Error(w, "forbidden origin", http.StatusForbidden)
+					return
+				}
+			}
+			if !s.bearer(r) {
+				w.Header().Set("WWW-Authenticate", `Bearer realm="depgate"`)
+				http.Error(w, "Authorization: Bearer <DepGate token> required", http.StatusUnauthorized)
+				return
+			}
+			s.MCP.ServeHTTP(w, r)
 			return
 		}
 		w.Header().Set("X-Content-Type-Options", "nosniff")
