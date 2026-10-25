@@ -598,7 +598,7 @@ func runMCP(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		cl := &http.Client{Timeout: 700 * time.Millisecond}
 		if resp, err := cl.Get("http://127.0.0.1:7777/healthz"); err == nil {
 			resp.Body.Close()
-			hint = "A DepGate server is running at http://127.0.0.1:7777 with its own data (for example in Docker). To see its projects, connect the agent over HTTP instead: open a project in the DepGate UI and use the \"AI agent (MCP)\" button."
+			hint = "A DepGate server is running at http://127.0.0.1:7777 with its own data (for example in Docker). To see its projects, connect the agent over HTTP instead: open a project in the DepGate UI, section \"AI & MCP\", button \"Connection command\"."
 			fmt.Fprintln(stderr, "depgate mcp:", hint)
 		}
 	}

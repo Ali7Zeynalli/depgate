@@ -22,7 +22,7 @@ type Info struct {
 // Catalog lists every source, in the order the UI shows them.
 var Catalog = []Info{
 	{ID: "osv", Name: "OSV.dev", Home: "https://osv.dev",
-		Use:    i18n.F("Zəifliklər (CVE/GHSA) və zərərli paketlər — GitHub Advisory Database və OpenSSF Malicious Packages bura daxildir", "Vulnerabilities (CVE/GHSA) and malicious packages — includes the GitHub Advisory Database and OpenSSF Malicious Packages"),
+		Use:    i18n.F("Zəifliklər (CVE/GHSA) və zərərli paketlər — GitHub Advisory Database və OpenSSF Malicious Packages bura daxildir; Caddy versiyasının zəiflikləri də buradan (Go vulndb)", "Vulnerabilities (CVE/GHSA) and malicious packages — includes the GitHub Advisory Database and OpenSSF Malicious Packages; also the vulnerabilities of your Caddy version (Go vulndb)"),
 		prefix: []string{"https://api.osv.dev/"}},
 	{ID: "npmaudit", Name: "npm advisories (npm audit)", Home: "https://docs.npmjs.com/cli/commands/npm-audit",
 		Use:    i18n.F("npm audit-in mənbəyi: GitHub Advisory Database birbaşa, zərərli paketlər daxil — OSV-nin hələ almadığı qeydləri tutur", "The source of npm audit: the GitHub Advisory Database directly, malware included — catches records OSV has not imported yet"),
@@ -40,8 +40,11 @@ var Catalog = []Info{
 		Use:    i18n.F("Hədəf versiyanın engines, peer asılılıqları, install script-ləri, provenance və deprecated qeydi; lockfile-dakı versiyanın npm-dən silinib-silinmədiyi", "The target version's engines, peer dependencies, install scripts, provenance and deprecation; whether the locked version was removed from npm"),
 		prefix: []string{"https://registry.npmjs.org/"}},
 	{ID: "github", Name: "GitHub releases", Home: "https://docs.github.com/en/rest/releases/releases",
-		Use:    i18n.F("Major yeniləmələrdə cari və hədəf versiya arasındakı release-lərin «breaking changes» bölmələri (DEPGATE_GITHUB_TOKEN limiti artırır)", "The breaking-change sections of the releases between your version and the target, for major updates (DEPGATE_GITHUB_TOKEN raises the limit)"),
+		Use:    i18n.F("Major yeniləmələrdə cari və hədəf versiya arasındakı release-lərin «breaking changes» bölmələri və Caddy-nin son versiyası (DEPGATE_GITHUB_TOKEN limiti artırır)", "The breaking-change sections of the releases between your version and the target, for major updates, and the latest Caddy release (DEPGATE_GITHUB_TOKEN raises the limit)"),
 		prefix: []string{githubAPI}},
+	{ID: "nginx", Name: "nginx security advisories", Home: NginxAdvisoriesURL,
+		Use:    i18n.F("nginx-in rəsmi zəiflik siyahısı: hansı versiyalar zəifdir, hansında düzəlib — Docker-dəki nginx image versiyası buna görə yoxlanır", "nginx's own advisory list: which versions are vulnerable and which fix them — the nginx image version in your Docker files is checked against it"),
+		prefix: []string{"https://nginx.org/"}},
 	{ID: "endoflife", Name: "endoflife.date", Home: "https://endoflife.date",
 		Use:    i18n.F("Docker image-lərinin (postgres, redis, nginx, python, alpine, debian…) dəstək müddəti və son patch versiyaları", "Support dates and latest patch releases of the Docker images you use (postgres, redis, nginx, python, alpine, debian…)"),
 		prefix: []string{eolAPI}},

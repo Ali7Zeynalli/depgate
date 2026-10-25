@@ -82,7 +82,9 @@ type Project struct {
 	Bundles     []Bundle      `json:"bundles,omitempty"` // packages that must move together (react + react-dom, @nestjs/*, ...)
 	Docker      []DockerIssue `json:"docker,omitempty"`  // Dockerfile / compose findings
 	DockerFiles []string      `json:"dockerFiles,omitempty"`
-	AIRules     *AIRules      `json:"aiRules,omitempty"` // version-aware instructions for AI coding agents
+	Server      []DockerIssue `json:"server,omitempty"`      // nginx / Caddy config and version findings
+	ServerFiles []string      `json:"serverFiles,omitempty"` // nginx / Caddy configs that were checked
+	AIRules     *AIRules      `json:"aiRules,omitempty"`     // version-aware instructions for AI coding agents
 }
 
 // Bundle is a family of packages released in lockstep; updating one without

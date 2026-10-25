@@ -60,7 +60,7 @@ var tools = map[string]tool{
 		req: []string{"name"},
 		run: runCheck},
 	"get_docker_issues": {readOK: true,
-		desc: "Dockerfile, docker-compose and image findings of a project: security mistakes (root user, secrets, exposed databases, docker.sock…), Compose Specification problems (unknown keys, undeclared volumes or networks, broken depends_on) and outdated or end-of-life images, each with file, line, why and the line to use.",
+		desc: "Dockerfile, docker-compose and image findings of a project: security mistakes (root user, secrets, exposed databases, docker.sock…), Compose Specification problems (unknown keys, undeclared volumes or networks, broken depends_on) and outdated or end-of-life images, plus nginx and Caddy: config rules (old TLS, weak ciphers, missing HSTS/security headers, alias traversal, autoindex/browse, exposed Caddy admin API…) and known vulnerabilities of the nginx/Caddy image version — each with file, line, why and the line to use.",
 		props: map[string]any{"project": projectProp,
 			"severity": map[string]any{"type": "string", "enum": []string{"high", "medium", "low", "all"}, "description": "Minimum severity (default: all)."}},
 		run: runDocker},
@@ -171,6 +171,13 @@ func status(t target, p *report.Project) string {
 			c[d.Severity]++
 		}
 		fmt.Fprintf(&b, "\n## Docker\n- %d high, %d medium, %d low issues in %s (get_docker_issues)\n", c["high"], c["medium"], c["low"], strings.Join(p.DockerFiles, ", "))
+	}
+	if len(p.Server) > 0 {
+		c := map[string]int{}
+		for _, d := range p.Server {
+			c[d.Severity]++
+		}
+		fmt.Fprintf(&b, "\n## Web server (nginx / Caddy)\n- %d high, %d medium, %d low issues (get_docker_issues)\n", c["high"], c["medium"], c["low"])
 	}
 	b.WriteString("\nNext: get_fix_plan for the full task, get_code_changes <package> for code edits, check_package before adding a package.\n")
 	return b.String()
@@ -528,7 +535,7 @@ func plan(ps []*report.Project) string {
 			return fs[i].Priority > fs[j].Priority
 		})
 		var dock []report.DockerIssue
-		for _, d := range p.Docker {
+		for _, d := range append(append([]report.DockerIssue(nil), p.Docker...), p.Server...) {
 			if d.Severity != "low" {
 				dock = append(dock, d)
 			}
@@ -553,7 +560,11 @@ func plan(ps []*report.Project) string {
 		}
 		for _, d := range dock {
 			tasks++
-			fmt.Fprintf(&b, "- Docker [%s] %s:%d %s — %s%s\n", d.Severity, d.File, d.Line, d.Service, d.Title.En, prefix(" → `", d.Fix)+map[bool]string{true: "`", false: ""}[d.Fix != ""])
+			kind := "Docker"
+			if strings.HasPrefix(d.Rule, "nginx-") || strings.HasPrefix(d.Rule, "caddy-") {
+				kind = "Web server"
+			}
+			fmt.Fprintf(&b, "- %s [%s] %s:%d %s — %s%s\n", kind, d.Severity, d.File, d.Line, d.Service, d.Title.En, prefix(" → `", d.Fix)+map[bool]string{true: "`", false: ""}[d.Fix != ""])
 		}
 		if len(dock) > 0 {
 			b.WriteString("\n")
@@ -659,8 +670,8 @@ func runDocker(ctx context.Context, s *Server, args map[string]any) (string, err
 	if err != nil {
 		return "", err
 	}
-	if len(p.DockerFiles) == 0 {
-		return "No Dockerfile or compose file in " + p.Name + " (or its repo root).", nil
+	if len(p.DockerFiles) == 0 && len(p.ServerFiles) == 0 && len(p.Server) == 0 {
+		return "No Dockerfile, compose file, nginx or Caddy config in " + p.Name + " (or its repo root).", nil
 	}
 	min := map[string]int{"high": 0, "medium": 1, "low": 2}
 	limit := 2
@@ -670,7 +681,12 @@ func runDocker(ctx context.Context, s *Server, args map[string]any) (string, err
 	var b strings.Builder
 	fmt.Fprintf(&b, "# Docker — %s\nFiles: %s\n\n", p.Name, strings.Join(p.DockerFiles, ", "))
 	n := 0
-	for _, d := range p.Docker {
+	all := p.Docker
+	if len(p.Server) > 0 || len(p.ServerFiles) > 0 {
+		all = append(append([]report.DockerIssue(nil), p.Docker...), p.Server...)
+		fmt.Fprintf(&b, "Web server configs (nginx / Caddy): %s\n\n", or(strings.Join(p.ServerFiles, ", "), "none — image versions only"))
+	}
+	for _, d := range all {
 		if min[d.Severity] > limit {
 			continue
 		}

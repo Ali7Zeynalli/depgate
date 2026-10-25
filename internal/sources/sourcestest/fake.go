@@ -21,19 +21,21 @@ type Version struct {
 }
 
 type Fake struct {
-	Now      time.Time
-	Vulns    map[string]*sources.Vuln
-	Versions map[string][]Version
-	Manifest map[string]map[string]any // "name@ver"
-	EPSS     map[string]float64
-	KEV      []string
-	Node     []sources.NodeRelease
-	Schedule map[string]sources.NodeLine
-	NpmAdv   map[string][]sources.NpmAdvisory // npm bulk advisory answers by package
-	Removed  map[string]bool                  // "name@ver" npm no longer serves
-	NodeCore map[string]sources.NodeVuln      // Node.js security WG core vulnerabilities
-	Releases map[string][]sources.Release     // GitHub releases by "owner/repo"
-	EOL      map[string][]map[string]any      // endoflife.date cycles (original API format) by product
+	Now       time.Time
+	Vulns     map[string]*sources.Vuln
+	Versions  map[string][]Version
+	Manifest  map[string]map[string]any // "name@ver"
+	EPSS      map[string]float64
+	KEV       []string
+	Node      []sources.NodeRelease
+	Schedule  map[string]sources.NodeLine
+	NpmAdv    map[string][]sources.NpmAdvisory // npm bulk advisory answers by package
+	Removed   map[string]bool                  // "name@ver" npm no longer serves
+	NodeCore  map[string]sources.NodeVuln      // Node.js security WG core vulnerabilities
+	Releases  map[string][]sources.Release     // GitHub releases by "owner/repo"
+	EOL       map[string][]map[string]any      // endoflife.date cycles (original API format) by product
+	NginxHTML string                           // nginx.org security advisories page
+	OSVQuery  map[string][]string              // OSV /v1/query answers by "ecosystem|name|version"
 	// Match decides whether a vuln applies to name@version (set to decide.Affects by callers).
 	Match func(v *sources.Vuln, name, version string) bool
 
@@ -41,7 +43,7 @@ type Fake struct {
 }
 
 func New(now time.Time) *Fake {
-	return &Fake{Now: now, Vulns: map[string]*sources.Vuln{}, Versions: map[string][]Version{}, Manifest: map[string]map[string]any{}, EPSS: map[string]float64{}, Schedule: map[string]sources.NodeLine{}, NpmAdv: map[string][]sources.NpmAdvisory{}, Removed: map[string]bool{}, NodeCore: map[string]sources.NodeVuln{}, Releases: map[string][]sources.Release{}, EOL: map[string][]map[string]any{}}
+	return &Fake{Now: now, Vulns: map[string]*sources.Vuln{}, Versions: map[string][]Version{}, Manifest: map[string]map[string]any{}, EPSS: map[string]float64{}, Schedule: map[string]sources.NodeLine{}, NpmAdv: map[string][]sources.NpmAdvisory{}, Removed: map[string]bool{}, NodeCore: map[string]sources.NodeVuln{}, Releases: map[string][]sources.Release{}, EOL: map[string][]map[string]any{}, OSVQuery: map[string][]string{}}
 }
 
 // Old returns versions published long ago (past any cooldown).
@@ -117,6 +119,24 @@ func (f *Fake) Do(ctx context.Context, method, u string, body []byte, _ map[stri
 			out.Results = append(out.Results, r)
 		}
 		return json.Marshal(out)
+	case strings.HasSuffix(u, "api.osv.dev/v1/query"):
+		var q struct {
+			Package struct{ Name, Ecosystem string } `json:"package"`
+			Version string                           `json:"version"`
+		}
+		if err := json.Unmarshal(body, &q); err != nil {
+			return nil, err
+		}
+		var vs []map[string]string
+		for _, id := range f.OSVQuery[q.Package.Ecosystem+"|"+q.Package.Name+"|"+q.Version] {
+			vs = append(vs, map[string]string{"id": id})
+		}
+		return json.Marshal(map[string]any{"vulns": vs})
+	case strings.HasPrefix(u, "https://nginx.org/"):
+		if f.NginxHTML == "" {
+			return nil, sources.ErrNotFound
+		}
+		return []byte(f.NginxHTML), nil
 	case strings.Contains(u, "api.osv.dev/v1/vulns/"):
 		id, _ := url.PathUnescape(u[strings.LastIndex(u, "/")+1:])
 		if v, ok := f.Vulns[id]; ok {

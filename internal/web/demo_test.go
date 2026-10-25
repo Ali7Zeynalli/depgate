@@ -52,6 +52,11 @@ func TestServeDemo(t *testing.T) {
 	f.Releases["vercel/next.js"] = []sources.Release{{Tag: "v15.0.0", URL: "https://github.com/vercel/next.js/releases/tag/v15.0.0", Body: "## Breaking changes\n- Async Request APIs: cookies, headers, draftMode, params and searchParams are now async\n- fetch, GET route handlers and the client router cache are no longer cached by default\n- React 19 is the minimum for the App Router"}}
 	f.EOL["postgresql"] = []map[string]any{{"cycle": "17", "eol": "2029-11-08", "latest": "17.6"}, {"cycle": "15", "eol": "2027-11-11", "latest": "15.14"}}
 	f.EOL["redis"] = []map[string]any{{"cycle": "8.2", "eol": false, "latest": "8.2.2"}, {"cycle": "7.4", "eol": "2026-11-18", "latest": "7.4.6"}, {"cycle": "6.2", "eol": "2025-02-28", "latest": "6.2.20"}}
+	f.EOL["nginx"] = []map[string]any{{"cycle": "1.31", "eol": false, "latest": "1.31.7"}, {"cycle": "1.30", "eol": false, "latest": "1.30.6"}, {"cycle": "1.25", "eol": "2024-04-23", "latest": "1.25.5"}}
+	f.NginxHTML = `<ul>
+<li><p>Buffer overflow when using map and regex<br>Severity: <b>major</b><br><a href="https://nginx.org/en/security_advisories.html">Advisory</a><br><a href="#">CVE-2026-42533</a><br>Not vulnerable: 1.31.3+, 1.30.4+<br>Vulnerable: 0.9.6-1.31.2</p></li>
+<li><p>Memory disclosure when using ngx_http_slice_module<br>Severity: medium<br><a href="https://nginx.org/en/security_advisories.html">Advisory</a><br><a href="#">CVE-2026-60005</a><br>Not vulnerable: 1.31.3+, 1.30.4+<br>Vulnerable: 1.15.8-1.31.2</p></li>
+</ul>`
 	f.Manifest["axios@1.6.8"] = map[string]any{"name": "axios", "version": "1.6.8", "dependencies": map[string]string{"follow-redirects": "^1.15.6"}}
 	f.Node = []sources.NodeRelease{{Version: "v22.23.4", LTS: "Jod", Security: true}, {Version: "v22.20.0", LTS: "Jod"}}
 	f.Schedule = map[string]sources.NodeLine{"v22": {LTS: "2024-10-29", End: "2027-04-30"}}

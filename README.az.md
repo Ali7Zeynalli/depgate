@@ -155,6 +155,18 @@ DepGate image-ləri yükləmir. Ona görə image-in *içindəki* sistem paketlə
 
 ![Docker](docs/docker.png)
 
+### 🌐 Veb server: nginx və Caddy
+
+Layihədə nginx konfiqurasiyası (`nginx.conf`, `nginx/`, `conf.d/`, `sites-*/` qovluqlarındakı fayllar, `*.conf.template`) və ya `Caddyfile` varsa, **Veb server** bölməsi görünür. DepGate konfiqurasiyaları bir neçə qovluq dərinliyə qədər oxuyur (`node_modules`, build qovluqları və başqa workspace-lər keçilir). Dockerfile və compose fayllarındakı nginx / Caddy image-lərinə də baxır:
+
+- **Versiyanın məlum zəiflikləri.** nginx: image teqi (`nginx:1.25.3-alpine`, `nginx:1.27`, `nginxinc/nginx-unprivileged`) [nginx-in öz təhlükəsizlik siyahısı](https://nginx.org/en/security_advisories.html) ilə yoxlanır, «Not vulnerable» sətirləri də nəzərə alınır. DepGate hamısını düzəldən ən kiçik versiyanı təklif edir. Caddy: versiya OSV.dev-də (Go vulndb, `github.com/caddyserver/caddy/v2`) yoxlanır, son buraxılışdan geri qalan Caddy xətti də göstərilir. Üzən teqlər (`stable`, `latest`, `2`) yoxlanmır.
+- **nginx konfiqurasiyası:** SSLv3 / TLS 1.0 / 1.1, zəif şifrlər (RC4, 3DES, MD5, NULL, EXPORT), `autoindex on`, `alias` ilə yol keçidi (off-by-slash), location-dakı `add_header`-ın server başlıqlarını səssizcə silməsi, başlıqlarda və yönləndirmələrdə `$uri` (CRLF injection), `proxy_set_header Host $http_host`, istifadəçinin idarə etdiyi `proxy_pass` hədəfi (SSRF), HSTS-siz HTTPS, `X-Content-Type-Options` / frame qorunması / `Referrer-Policy` olmaması, söndürülməmiş `server_tokens`. Snippet fayllarının `include`-u izlənir, ona görə snippet-də saxlanan başlıqlar da sayılır.
+- **Caddyfile:** localhost-dan kənara açıq admin API, `file_server browse`, `protocols tls1.0/1.1`, upstream-ə `tls_insecure_skip_verify`, ictimai domendə `tls internal`, `debug`, HSTS, `nosniff`, `Referrer-Policy` və ya `-Server` olmayan ictimai saytlar. Snippet-lər (`import`) açılır; DepGate-in görə bilmədiyi import olanda başlıq yoxlamaları təxmin etmək əvəzinə susur.
+
+Qaydalar [gixy](https://github.com/yandex/gixy) (nginx konfiqurasiya xətaları), [Mozilla SSL Configuration](https://ssl-config.mozilla.org/), [OWASP Secure Headers](https://owasp.org/www-project-secure-headers/), nginx və Caddy sənədlərinə əsaslanır. Bunlar fayllar üzərində mətn yoxlamalarıdır: tətbiqin özünün göndərdiyi başlığı görmürlər.
+
+![Web server](docs/webserver.png)
+
 <a id="nə-yoxlayır"></a>
 ## Nə yoxlayır
 
@@ -168,6 +180,7 @@ DepGate image-ləri yükləmir. Ona görə image-in *içindəki* sistem paketlə
 - **Hədəf versiyada təchizat zənciri siqnalları:** yeni install skripti, itən npm provenance, fərqli dərc edən, dəyişən repo linki.
 - **Node.js runtime:** Dockerfile, `.nvmrc`, `.node-version`, `.tool-versions`, `engines`, GitHub Actions; təhlükəsizlik relizləri, EOL tarixləri və dəqiq versiyana aid CVE-lər.
 - **Docker:** Dockerfile və compose təhlükəsizliyi (yuxarıya bax).
+- **Veb server:** nginx və Caddy konfiqurasiyaları və istifadə etdiyin nginx / Caddy versiyasının məlum zəiflikləri (yuxarıya bax).
 - **Layihə gigiyenası:** lockfile commit olunub, install skriptləri söndürülüb, gözləmə müddəti ayarlanıb, Node versiyası hər yerdə eynidir.
 
 <a id="mənbələr"></a>
@@ -177,17 +190,18 @@ Hər qərar açıq və pulsuz mənbələrə əsaslanır. **Mənbələr** düymə
 
 | Mənbə | Nə üçün |
 |---|---|
-| [OSV.dev](https://osv.dev) | zəifliklər (CVE/GHSA) və zərərli paketlər — GitHub Advisory Database və OpenSSF Malicious Packages daxil |
+| [OSV.dev](https://osv.dev) | zəifliklər (CVE/GHSA) və zərərli paketlər — GitHub Advisory Database və OpenSSF Malicious Packages daxil; Caddy versiyasının zəiflikləri də (Go vulndb) |
 | [npm advisories](https://docs.npmjs.com/cli/commands/npm-audit) | `npm audit`-in mənbəyi: GitHub Advisory Database birbaşa, zərərli paketlər daxil — OSV-nin hələ almadığı qeydləri tutur |
 | [CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog) | real hücumlarda istifadə olunan zəifliklər (prioriteti qaldırır) |
 | [FIRST EPSS](https://www.first.org/epss/) | yaxın 30 gündə istismar ehtimalı (prioritetə təsir edir) |
 | [deps.dev](https://deps.dev) | paketin bütün versiyaları və buraxılış tarixləri (hədəf versiya, gözləmə müddəti) |
 | [npm registry](https://www.npmjs.com) | hədəf versiyanın `engines`, peer asılılıqları, install skriptləri, provenance, deprecated qeydi; lockfile-dakı versiyanın hələ mövcud olub-olmadığı |
-| [GitHub releases](https://docs.github.com/en/rest/releases/releases) | major yeniləmələrdə versiyan ilə hədəf arasındakı release-lərin breaking changes bölmələri |
+| [GitHub releases](https://docs.github.com/en/rest/releases/releases) | major yeniləmələrdə versiyan ilə hədəf arasındakı release-lərin breaking changes bölmələri; Caddy-nin son versiyası |
+| [nginx security advisories](https://nginx.org/en/security_advisories.html) | hansı nginx versiyalarının zəif olduğu və hansında düzəldiyi |
 | [endoflife.date](https://endoflife.date) | istifadə etdiyin Docker image-lərinin dəstək müddəti və son patch versiyaları |
 | [Node.js releases](https://nodejs.org/en/about/previous-releases) + [Node.js Security WG](https://github.com/nodejs/security-wg) | Node.js versiyaları, təhlükəsizlik relizləri, EOL tarixləri və dəqiq versiyana aid CVE-lər |
 
-Kompüterində oxunanlar heç yerə göndərilmir: `package.json`, lockfile, mənbə faylların («Kodunda nə dəyişəcək» üçün), Dockerfile və compose faylları, `.nvmrc` / `.node-version` / `engines` / CI faylları, `.npmrc`, `.dockerignore`.
+Kompüterində oxunanlar heç yerə göndərilmir: `package.json`, lockfile, mənbə faylların («Kodunda nə dəyişəcək» üçün), Dockerfile və compose faylları, nginx konfiqurasiyaları və Caddyfile-lar, `.nvmrc` / `.node-version` / `engines` / CI faylları, `.npmrc`, `.dockerignore`.
 
 **Dəqiqlik.** `TestCompareNpmAudit` testi məlum zəif asılılıqları olan bir layihəni skan edir. Sonra `npm audit`-in tapdığı hər advisory-nin DepGate hesabatında da olduğunu yoxlayır (yazılan vaxt 71/71). Test GitHub Actions-da hər həftə işləyir (`accuracy` workflow). Lokal işlətmək üçün: `DEPGATE_LIVE=1 go test -run TestCompareNpmAudit -v ./internal/scan`.
 
