@@ -1,0 +1,30 @@
+name: Bug report
+description: Something is wrong or a recommendation looks incorrect
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: DepGate version
+      description: Output of `depgate --version`
+    validations:
+      required: true
+  - type: dropdown
+    id: manager
+    attributes:
+      label: Package manager / lockfile
+      options: [npm, pnpm, yarn v1, yarn berry, bun, no lockfile]
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened and what did you expect?
+      description: For a wrong recommendation include the package, current and suggested versions.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: A small package.json + lockfile, or the relevant part of `depgate --json`. Remove anything private.
