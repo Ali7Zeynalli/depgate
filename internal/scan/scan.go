@@ -130,6 +130,7 @@ func One(ctx context.Context, d *decide.Data, dir string, opt Options) report.Pr
 	findings, errs := decide.Packages(ctx, d, in, dopt)
 	p.Findings = findings
 	p.Bundles = decide.Bundles(ctx, d, in, p.Findings, dopt)
+	decide.Migrations(ctx, d, abs, p.Findings)
 	directs := map[string]string{}
 	for _, x := range lr.Packages {
 		if v, err := semver.Parse(x.Version); x.Direct && err == nil {

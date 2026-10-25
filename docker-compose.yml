@@ -42,6 +42,8 @@ services:
       - DEPGATE_ROOTS=${HOME}
       # optional: set the password here instead of in the browser (min. 8 characters)
       - DEPGATE_PASSWORD=${DEPGATE_PASSWORD:-}
+      # optional: GitHub token (no scopes needed) for release notes beyond 60 requests an hour
+      - DEPGATE_GITHUB_TOKEN=${DEPGATE_GITHUB_TOKEN:-}
     volumes:
       # your home, read-only, at the same path
       - ${HOME}:${HOME}:ro

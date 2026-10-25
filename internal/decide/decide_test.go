@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -28,6 +30,7 @@ type fake struct {
 	epss     map[string]float64        // cve -> score
 	npm      map[string][]sources.NpmAdvisory
 	removed  map[string]bool // "name@ver" -> 404 on the registry
+	releases map[string][]sources.Release
 	calls    map[string]int
 }
 
@@ -38,7 +41,7 @@ type fakeVer struct {
 }
 
 func newFake() *fake {
-	return &fake{vulns: map[string]*sources.Vuln{}, versions: map[string][]fakeVer{}, mans: map[string]map[string]any{}, epss: map[string]float64{}, npm: map[string][]sources.NpmAdvisory{}, removed: map[string]bool{}, calls: map[string]int{}}
+	return &fake{vulns: map[string]*sources.Vuln{}, versions: map[string][]fakeVer{}, mans: map[string]map[string]any{}, epss: map[string]float64{}, npm: map[string][]sources.NpmAdvisory{}, removed: map[string]bool{}, releases: map[string][]sources.Release{}, calls: map[string]int{}}
 }
 
 func old(vs ...string) []fakeVer {
@@ -137,6 +140,9 @@ func (f *fake) Do(ctx context.Context, method, u string, body []byte, _ map[stri
 			})
 		}
 		return json.Marshal(map[string]any{"versions": items})
+	case strings.Contains(u, "api.github.com/repos/"):
+		repo := strings.SplitN(strings.TrimPrefix(u, "https://api.github.com/repos/"), "/releases", 2)[0]
+		return json.Marshal(f.releases[repo])
 	case strings.HasSuffix(u, "/security/advisories/bulk"):
 		var req map[string][]string
 		_ = json.Unmarshal(body, &req)
@@ -586,5 +592,47 @@ func TestBundleAlignedIsQuiet(t *testing.T) {
 		lockfile.Package{Name: "react-dom", Version: "19.2.0", Direct: true})}
 	if bs := Bundles(context.Background(), NewData(f), in, nil, Options{CooldownDays: 3, Now: now}); len(bs) != 0 {
 		t.Fatalf("aligned family reported: %+v", bs)
+	}
+}
+
+func TestMigrationsTargetAndPlan(t *testing.T) {
+	dir := t.TempDir()
+	for p, c := range map[string]string{
+		"package.json":             `{"scripts":{"lint":"next lint"}}`,
+		"middleware.ts":            "export function middleware() {}",
+		"app/blog/[slug]/page.tsx": "export default function Page({ params }) {\n  return params.slug\n}",
+	} {
+		full := filepath.Join(dir, p)
+		_ = os.MkdirAll(filepath.Dir(full), 0o755)
+		_ = os.WriteFile(full, []byte(c), 0o644)
+	}
+	f := newFake()
+	f.mans["next@16.0.3"] = map[string]any{"name": "next", "version": "16.0.3", "repository": map[string]string{"url": "git+https://github.com/vercel/next.js.git"}}
+	f.releases["vercel/next.js"] = []sources.Release{
+		{Tag: "v16.0.0", URL: "https://github.com/vercel/next.js/releases/tag/v16.0.0", Body: "## Breaking changes\n- middleware renamed to proxy"},
+		{Tag: "v15.0.0", Body: "## Features\n- nothing breaking here"},
+		{Tag: "v16.1.0-canary.1", Prerelease: true, Body: "## Breaking\n- canary"},
+	}
+	fs := []report.Finding{{Pkg: "next", Direct: true, Current: "14.2.3", Target: "14.2.25", Latest: "16.0.3", Need: report.NeedNow, Impact: report.ImpactNo, Group: report.GroupNowEasy}}
+	d := NewData(f)
+	Migrations(context.Background(), d, dir, fs)
+	x := fs[0]
+	if len(x.Migrate) != 1 || !x.Migrate[0].Plan || x.Migrate[0].To != "16.0.3" {
+		t.Fatalf("migrate %+v", x.Migrate)
+	}
+	m := x.Migrate[0]
+	if m.Hits != 3 || len(m.Steps) != 2 || len(m.Notes) != 1 || m.Notes[0].Version != "16.0.0" {
+		t.Fatalf("hits=%d steps=%d notes=%+v", m.Hits, len(m.Steps), m.Notes)
+	}
+	// a plan migration must not change today's answer
+	if x.Impact != report.ImpactNo || x.Group != report.GroupNowEasy {
+		t.Fatalf("plan changed impact: %s %s", x.Impact, x.Group)
+	}
+
+	// moving to the major now: impact becomes yes and the card moves group
+	fs = []report.Finding{{Pkg: "next", Direct: true, Current: "14.2.3", Target: "16.0.3", Latest: "16.0.3", Need: report.NeedNow, Impact: report.ImpactMaybe, Group: report.GroupNowCode}}
+	Migrations(context.Background(), d, dir, fs)
+	if fs[0].Impact != report.ImpactYes || fs[0].Migrate[0].Plan || !contains(fs[0].ImpactWhy, "3") {
+		t.Fatalf("target migration %+v", fs[0])
 	}
 }

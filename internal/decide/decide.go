@@ -20,10 +20,12 @@ import (
 
 // Data bundles the shared data sources (one per run, shared by all projects).
 type Data struct {
-	F    sources.Fetcher
-	OSV  *sources.OSV
-	Node *sources.NodeData
-	KEV  map[string]bool
+	// GitHubLeft caps release-note lookups per scan (unauthenticated GitHub allows 60 an hour)
+	GitHubLeft int32
+	F          sources.Fetcher
+	OSV        *sources.OSV
+	Node       *sources.NodeData
+	KEV        map[string]bool
 
 	mu    sync.Mutex
 	pkgs  map[string]*pkgEntry
@@ -45,7 +47,7 @@ type manEntry struct {
 }
 
 func NewData(f sources.Fetcher) *Data {
-	return &Data{F: f, OSV: sources.NewOSV(f), pkgs: map[string]*pkgEntry{}, mans: map[string]*manEntry{}, epss: map[string]float64{}, epssQ: map[string]bool{}}
+	return &Data{GitHubLeft: 25, F: f, OSV: sources.NewOSV(f), pkgs: map[string]*pkgEntry{}, mans: map[string]*manEntry{}, epss: map[string]float64{}, epssQ: map[string]bool{}}
 }
 
 // Pkg returns the cached version list of a package.

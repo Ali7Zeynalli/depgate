@@ -610,6 +610,9 @@ func diffWhy(a, b semver.Version) i18n.T {
 
 func prefixed(p string, t i18n.T) i18n.T { return i18n.T{Az: p + t.Az, En: p + t.En} }
 
+// GroupOf places a finding by its two answers.
+func GroupOf(n report.Need, i report.Impact) report.Group { return groupOf(n, i) }
+
 func groupOf(n report.Need, i report.Impact) report.Group {
 	switch n {
 	case report.NeedNow, report.NeedSoon:

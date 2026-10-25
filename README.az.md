@@ -113,6 +113,16 @@ Qovluq əlavə edəndə (monorepo və ya bir neçə layihənin olduğu qovluq) s
 ![AI prompt](docs/ai-prompt.png)
 ![AI rules](docs/ai-rules.png)
 
+## Kodunda nə dəyişəcək
+
+"Koda təsir: Bəli" yazmaq kifayət deyil, ona görə DepGate **harada** dəyişəcəyini də göstərir. Yeniləmə sənədləşdirilmiş breaking reliz-dən keçirsə, layihənin öz fayllarını oxuyur və dəyişməli olan hər yeri sıralayır. Oxuma kompüterində gedir, heç nə göndərilmir. Hər yer üçün `fayl:sətir`, sətrin özü, niyə sınacağı və əvəzinə nə yazmaq lazım olduğu göstərilir. Əl ilə yoxlanmalı olan şeylər və mövcud olanda rəsmi codemod da yazılır.
+
+Əhatə olunanlar: Next.js 15 və 16, React 18 və 19, TanStack Query 5, ESLint 9, Tailwind CSS 4, Express 5, NestJS 11, Zod 4, Prisma 7, React Router 6 və 7, həmçinin Angular, Nx, Storybook və Expo-nun rəsmi upgrade alətləri. Major yeniləməsi olan digər paketlər üçün DepGate sənin versiyan ilə hədəf arasındakı GitHub release-lərin "Breaking changes" bölmələrini göstərir. GitHub saatda 60 sorğu limiti qoyur, `DEPGATE_GITHUB_TOKEN` bu limiti artırır.
+
+Təklif olunan hədəfdən sonra daha yeni major varsa, bağlı **"Yeni major-a keçsən"** bölməsi o keçidin nələrə toxunacağını göstərir, ki onu planlaya biləsən. Axtarış mətn nümunələrinə əsaslanır: hər yeri yoxla, sonra build və testləri işlət. Bunların hamısı AI promptuna da düşür.
+
+![Kod dəyişiklikləri](docs/code-changes.png)
+
 ## Birlikdə yenilə, Docker, AI qaydaları
 
 DepGate heç bir faylı dəyişmir. Aşağıdakıların hamısını yalnız göstərir və təklif edir; tətbiq etmək sənin (və ya AI agentinin) işidir.
@@ -133,6 +143,7 @@ Hər qərar açıq və pulsuz mənbələrə əsaslanır. İnterfeysdəki **Mənb
 | [FIRST EPSS](https://www.first.org/epss/) | yaxın 30 gündə istismar ehtimalı (prioritetə təsir edir) |
 | [deps.dev](https://deps.dev) | paketin bütün versiyaları və buraxılış tarixləri (hədəf versiya, gözləmə müddəti) |
 | [npm registry](https://www.npmjs.com) | hədəf versiyanın `engines`, peer asılılıqları, install skriptləri, provenance, deprecated qeydi |
+| [GitHub releases](https://docs.github.com/en/rest/releases/releases) | major yeniləmələrdə versiyan ilə hədəf arasındakı release-lərin breaking changes bölmələri |
 | [Node.js releases](https://nodejs.org/en/about/previous-releases) + [Node.js Security WG](https://github.com/nodejs/security-wg) | Node.js versiyaları, təhlükəsizlik relizləri, EOL tarixləri və dəqiq versiyana aid CVE-lər |
 
 Əlavə mənbə tələb etməyən iki yoxlama:

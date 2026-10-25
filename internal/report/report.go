@@ -220,6 +220,46 @@ type Finding struct {
 	Fix        *Fix     `json:"fix,omitempty"`
 	Advisories []Adv    `json:"advisories,omitempty"`
 	Warnings   []i18n.T `json:"warnings,omitempty"` // cooldown, approximate, ...
+	// what changes in the project's own code when moving to Target (and, for
+	// planning, to the newest major)
+	Migrate []Migration `json:"migrate,omitempty"`
+}
+
+// Migration describes the code changes for one move cur → To.
+type Migration struct {
+	To    string        `json:"to"`
+	Plan  bool          `json:"plan,omitempty"` // to the newest major, beyond the suggested target
+	Steps []MigStep     `json:"steps,omitempty"`
+	Hits  int           `json:"hits"` // places in the project's code, all steps
+	Notes []ReleaseNote `json:"notes,omitempty"`
+	// NotesErr is set when release notes could not be loaded (rate limit, no GitHub repo)
+	NotesErr string `json:"notesErr,omitempty"`
+}
+
+// MigStep is one documented breaking change set (e.g. "Next.js 16").
+type MigStep struct {
+	Topic   string    `json:"topic"`
+	Docs    string    `json:"docs"`
+	Codemod string    `json:"codemod,omitempty"` // official automatic migration command
+	Hits    []CodeHit `json:"hits,omitempty"`
+	Checks  []i18n.T  `json:"checks,omitempty"` // things to verify by hand (no pattern can find them)
+}
+
+// CodeHit is one place in the project's code that needs a change.
+type CodeHit struct {
+	File string `json:"file"` // relative to the project dir
+	Line int    `json:"line"`
+	Code string `json:"code"` // the line, trimmed
+	Rule string `json:"rule"`
+	Msg  i18n.T `json:"msg"`
+	Fix  string `json:"fix,omitempty"`
+}
+
+// ReleaseNote is the breaking part of one upstream release.
+type ReleaseNote struct {
+	Version  string `json:"version"`
+	URL      string `json:"url"`
+	Breaking string `json:"breaking"` // markdown excerpt
 }
 
 // Fix is the concrete remediation DepGate suggests (never executed).
