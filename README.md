@@ -148,6 +148,15 @@ Terminal messages are in English; set `DEPGATE_LANG=az` for Azerbaijani.
 - **Node.js runtime:** Dockerfile, `.nvmrc`, `.node-version`, `.tool-versions`, `engines`, GitHub Actions; security releases and end-of-life dates.
 - **Project hygiene:** lockfile committed, install scripts disabled, release cooldown configured, consistent Node.js version.
 
+## Folders and AI prompt
+
+Add a folder (a monorepo or a folder of projects) and it shows up as one entry in the sidebar with its projects nested below it. Click the folder name to open an overview of every project: a table of the projects, then all findings by category. A finding that appears in several projects is shown once, with every project that has it and the command to run in each one.
+
+**AI prompt** (on a folder or a single project) writes one task for Claude Code, Cursor or another agent: every package to change, where it is, which version to move to and why, the advisories, the code impact, the exact command, plus rules (malware first, safest minimum version, run build and tests) and what to report back. Copy it or download it as `.md`.
+
+![Folder overview](docs/folder-overview.png)
+![AI prompt](docs/ai-prompt.png)
+
 ## Data sources
 
 Every decision is based on public, free sources. The **Sources** button in the UI lists them, what each one is used for, and how many requests each one answered in the last scan (or whether it failed). The same list is linked under every project.
