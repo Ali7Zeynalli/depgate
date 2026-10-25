@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Ali7Zeynalli/depgate/internal/i18n"
 	"github.com/Ali7Zeynalli/depgate/internal/lockfile"
 	"github.com/Ali7Zeynalli/depgate/internal/report"
 	"github.com/Ali7Zeynalli/depgate/internal/semver"
@@ -206,7 +207,7 @@ func TestCooldownWarning(t *testing.T) {
 	f.versions["left-pad"] = append(old("1.3.0"), fakeVer{v: "1.3.1", age: 5 * time.Hour})
 	got := run(t, f, Input{Lock: lock("npm", lockfile.Package{Name: "left-pad", Version: "1.3.0", Direct: true})})
 	x := got["left-pad@1.3.0"]
-	if x.Target != "1.3.1" || len(x.Warnings) == 0 || !strings.Contains(x.Warnings[0], "5 saat") {
+	if x.Target != "1.3.1" || len(x.Warnings) == 0 || !strings.Contains(x.Warnings[0].Az, "5 saat") || !strings.Contains(x.Warnings[0].En, "5 hours") {
 		t.Fatalf("got target %s warnings %v", x.Target, x.Warnings)
 	}
 }
@@ -387,9 +388,9 @@ func TestCVSS(t *testing.T) {
 	}
 }
 
-func contains(ss []string, sub string) bool {
+func contains(ss []i18n.T, sub string) bool {
 	for _, s := range ss {
-		if strings.Contains(s, sub) {
+		if strings.Contains(s.Az, sub) && strings.Contains(s.En, sub) {
 			return true
 		}
 	}

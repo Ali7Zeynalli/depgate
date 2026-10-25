@@ -3,6 +3,7 @@ package scan
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -149,4 +150,43 @@ func keys(m map[string]report.Finding) []string {
 		out = append(out, k)
 	}
 	return out
+}
+
+// Every human-facing sentence must exist in both languages.
+func TestBilingual(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	rep := Run(context.Background(), Demo(), []string{copyFixture(t, "npm-v3")}, Options{Version: "test", Now: now})
+	b, _ := json.Marshal(rep)
+	var v any
+	_ = json.Unmarshal(b, &v)
+	n := 0
+	var walk func(x any, path string)
+	walk = func(x any, path string) {
+		switch m := x.(type) {
+		case map[string]any:
+			az, okA := m["az"]
+			en, okE := m["en"]
+			if okA || okE {
+				if (az == "") != (en == "") {
+					t.Errorf("%s: one language missing: az=%q en=%q", path, az, en)
+				}
+				if az != "" && az == en {
+					t.Errorf("%s: not translated: %q", path, az)
+				}
+				n++
+				return
+			}
+			for k, c := range m {
+				walk(c, path+"."+k)
+			}
+		case []any:
+			for i, c := range m {
+				walk(c, fmt.Sprintf("%s[%d]", path, i))
+			}
+		}
+	}
+	walk(v, "report")
+	if n < 20 {
+		t.Fatalf("only %d bilingual sentences found", n)
+	}
 }

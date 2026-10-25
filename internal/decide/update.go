@@ -2,9 +2,9 @@ package decide
 
 import (
 	"context"
-	"fmt"
 	"time"
 
+	"github.com/Ali7Zeynalli/depgate/internal/i18n"
 	"github.com/Ali7Zeynalli/depgate/internal/report"
 	"github.com/Ali7Zeynalli/depgate/internal/semver"
 )
@@ -17,7 +17,7 @@ func updateFinding(ctx context.Context, d *Data, it *instance, in Input, opt Opt
 		Key: "update:" + name + "@" + cur.String(), Need: report.NeedNone, Impact: report.ImpactNo, Group: report.GroupOK}
 	info, err := d.Pkg(ctx, name)
 	if err != nil {
-		f.Why = append(f.Why, "Versiya məlumatı yüklənmədi")
+		f.Why = append(f.Why, i18n.F("Versiya məlumatı yüklənmədi", "Version data unavailable"))
 		f.Impact = report.ImpactUnknown
 		return f, err
 	}
@@ -31,7 +31,7 @@ func updateFinding(ctx context.Context, d *Data, it *instance, in Input, opt Opt
 		if pv.Version == cur.String() && pv.Deprecated {
 			curDep = pv.Reason
 			if curDep == "" {
-				curDep = "səbəb göstərilməyib"
+				curDep = "—"
 			}
 		}
 	}
@@ -58,7 +58,7 @@ func updateFinding(ctx context.Context, d *Data, it *instance, in Input, opt Opt
 	case curDep != "":
 		f.Kind, f.Key = "deprecated", "deprecated:"+name+"@"+cur.String()
 		f.Need = report.NeedSoon
-		f.Why = append(f.Why, "Bu versiya deprecated-dir: "+firstLine(curDep))
+		f.Why = append(f.Why, i18n.F("Bu versiya deprecated-dir: %s", "This version is deprecated: %s", firstLine(curDep)))
 		t := inMajor
 		if t == nil {
 			t = overall
@@ -70,7 +70,7 @@ func updateFinding(ctx context.Context, d *Data, it *instance, in Input, opt Opt
 			f.ImpactWhy = append(f.ImpactWhy, diffWhy(cur, t.v))
 		} else {
 			f.Impact = report.ImpactYes
-			f.ImpactWhy = append(f.ImpactWhy, "Daha yeni versiya yoxdur — paket tərk edilib, alternativə keç")
+			f.ImpactWhy = append(f.ImpactWhy, i18n.F("Daha yeni versiya yoxdur — paket tərk edilib, alternativə keç", "No newer version — the package is abandoned, switch to an alternative"))
 		}
 	case inMajor != nil:
 		f.Kind = "update"
@@ -78,10 +78,10 @@ func updateFinding(ctx context.Context, d *Data, it *instance, in Input, opt Opt
 		f.Target = inMajor.v.String()
 		f.Fix = &report.Fix{Strategy: "upgrade", Command: installCmd(in.Mgr, name, f.Target, it.pkg.Dev, true)}
 		f.Impact = report.ImpactNo
-		f.Why = append(f.Why, "Eyni major-da daha yeni versiya var")
+		f.Why = append(f.Why, i18n.F("Eyni major-da daha yeni versiya var", "A newer version exists in the same major"))
 		f.ImpactWhy = append(f.ImpactWhy, diffWhy(cur, inMajor.v))
 		if overall != nil && semver.Diff(cur, overall.v) == "major" {
-			f.Why = append(f.Why, fmt.Sprintf("Yeni major da var: %s — ayrıca planla", overall.v))
+			f.Why = append(f.Why, i18n.F("Yeni major da var: %s — ayrıca planla", "A new major exists too: %s — plan it separately", overall.v))
 		}
 	case overall != nil:
 		f.Kind = "update"
@@ -89,10 +89,10 @@ func updateFinding(ctx context.Context, d *Data, it *instance, in Input, opt Opt
 		f.Target = overall.v.String()
 		f.Fix = &report.Fix{Strategy: "upgrade", Command: installCmd(in.Mgr, name, f.Target, it.pkg.Dev, true)}
 		f.Impact = report.ImpactYes
-		f.Why = append(f.Why, "Yalnız yeni major var — təcili deyil, planla")
+		f.Why = append(f.Why, i18n.F("Yalnız yeni major var — təcili deyil, planla", "Only a new major exists — not urgent, plan it"))
 		f.ImpactWhy = append(f.ImpactWhy, diffWhy(cur, overall.v))
 	default:
-		f.Why = append(f.Why, "Ən son versiyadadır")
+		f.Why = append(f.Why, i18n.F("Ən son versiyadadır", "Up to date"))
 		return f, nil
 	}
 	if f.Target != "" {
@@ -101,7 +101,7 @@ func updateFinding(ctx context.Context, d *Data, it *instance, in Input, opt Opt
 		}
 	}
 	if in.Lock.Approximate {
-		f.Warnings = append(f.Warnings, "Lockfile yoxdur — versiya təxminidir")
+		f.Warnings = append(f.Warnings, i18n.F("Lockfile yoxdur — versiya təxminidir", "No lockfile — version is approximate"))
 	}
 	f.Group = groupOf(f.Need, f.Impact)
 	return f, nil

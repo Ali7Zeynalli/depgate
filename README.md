@@ -31,7 +31,7 @@ Or download a prebuilt binary (Linux, macOS, Windows; amd64, arm64) from [Releas
 depgate
 ```
 
-Opens `http://127.0.0.1:7777`. Click **+ Add project**, browse your folders (folders with a `package.json` are marked as projects) and add one — or a whole folder: every project below it, monorepo workspaces included, is added and scanned in the background.
+Opens `http://127.0.0.1:7777`. The dashboard is bilingual (English / Azerbaijani): it follows your browser language and the **AZ / EN** button switches instantly, no rescan needed. Click **+ Add project**, browse your folders (folders with a `package.json` are marked as projects) and add one — or a whole folder: every project below it, monorepo workspaces included, is added and scanned in the background.
 
 DepGate remembers your projects and their last reports (`~/.config/depgate`), so next time everything is already there. Per project: **Scan**, **Remove**; for all: **Scan all**. Running `depgate` inside a project folder (or `depgate ~/projects`) adds it right away.
 
@@ -78,6 +78,8 @@ depgate --offline            # no network, cache only
 | `--depth` | Project discovery depth | 3 |
 | `--cooldown` | Skip versions younger than N days as targets | 3 |
 | `--json`, `--view`, `--ci`, `--fail-on`, `--push`, `--token` | One-shot modes above | — |
+
+Terminal messages are in English; set `DEPGATE_LANG=az` for Azerbaijani.
 
 ## What it checks
 

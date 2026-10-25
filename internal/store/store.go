@@ -49,7 +49,7 @@ func Open(dir string) (*Store, error) {
 			Projects []Entry `json:"projects"`
 		}
 		if err := json.Unmarshal(b, &doc); err != nil {
-			return nil, errors.New("projects.json oxunmadı: " + err.Error())
+			return nil, errors.New("cannot read projects.json: " + err.Error())
 		}
 		s.projects = doc.Projects
 	case !os.IsNotExist(err):

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Ali7Zeynalli/depgate/internal/i18n"
 	"github.com/Ali7Zeynalli/depgate/internal/report"
 	"github.com/Ali7Zeynalli/depgate/internal/semver"
 	"github.com/Ali7Zeynalli/depgate/internal/sources"
@@ -100,12 +101,12 @@ func EvalNode(srcs []report.NodeSource, nd *sources.NodeData, now time.Time) *re
 	n.Mismatch = len(lines) > 1
 	if n.Line == 0 {
 		// only an engines range: nothing pinned
-		n.Why = append(n.Why, "Node versiyası heç yerdə sabitlənməyib (yalnız engines aralığı)")
+		n.Why = append(n.Why, i18n.F("Node versiyası heç yerdə sabitlənməyib (yalnız engines aralığı)", "Node.js is not pinned anywhere (only an engines range)"))
 		n.Need = report.NeedOptional
 		return n
 	}
 	if nd == nil {
-		n.Why = append(n.Why, "Node.js buraxılış məlumatı yüklənmədi (offline?)")
+		n.Why = append(n.Why, i18n.F("Node.js buraxılış məlumatı yüklənmədi (offline?)", "Node.js release data unavailable (offline?)"))
 		n.Impact = report.ImpactUnknown
 		return n
 	}
@@ -136,7 +137,7 @@ func EvalNode(srcs []report.NodeSource, nd *sources.NodeData, now time.Time) *re
 			}
 		}
 	} else {
-		n.Why = append(n.Why, fmt.Sprintf("Yalnız xətt göstərilib (node %d): hər build-də fərqli versiya düşə bilər; dəqiq versiyanı sabitlə", n.Line))
+		n.Why = append(n.Why, i18n.F("Yalnız xətt göstərilib (node %d): hər build-də fərqli versiya düşə bilər; dəqiq versiyanı sabitlə", "Only a line is given (node %d): each build may get a different version; pin an exact version", n.Line))
 	}
 
 	// EOL
@@ -153,30 +154,30 @@ func EvalNode(srcs []report.NodeSource, nd *sources.NodeData, now time.Time) *re
 	switch {
 	case n.DaysToEOL != nil && *n.DaysToEOL < 0:
 		n.Need, n.Impact = report.NeedNow, report.ImpactYes
-		n.Why = append(n.Why, fmt.Sprintf("Node %d xəttinin dəstəyi %s tarixində bitib — təhlükəsizlik düzəlişləri artıq çıxmır", n.Line, n.EOL))
+		n.Why = append(n.Why, i18n.F("Node %d xəttinin dəstəyi %s tarixində bitib — təhlükəsizlik düzəlişləri artıq çıxmır", "Node %d reached end of life on %s — no more security fixes", n.Line, n.EOL))
 		if n.NextLTS > 0 {
-			n.Why = append(n.Why, fmt.Sprintf("Node %d LTS-ə keç: major dəyişiklikdir, build və testləri yoxla", n.NextLTS))
+			n.Why = append(n.Why, i18n.F("Node %d LTS-ə keç: major dəyişiklikdir, build və testləri yoxla", "Move to Node %d LTS: a major change, verify build and tests", n.NextLTS))
 			cmdVer = latestOfLine(nd, n.NextLTS)
 		}
 	case n.SecurityFix != "":
 		n.Need, n.Impact = report.NeedNow, report.ImpactNo
-		n.Why = append(n.Why, fmt.Sprintf("%s → %s: xəttdə təhlükəsizlik relizi var (eyni major, kod dəyişmir)", n.Version, n.LatestInLine))
+		n.Why = append(n.Why, i18n.F("%s → %s: xəttdə təhlükəsizlik relizi var (eyni major, kod dəyişmir)", "%s → %s: a security release exists in this line (same major, no code change)", n.Version, n.LatestInLine))
 	case n.DaysToEOL != nil && *n.DaysToEOL <= 90:
 		n.Need, n.Impact = report.NeedSoon, report.ImpactYes
-		n.Why = append(n.Why, fmt.Sprintf("Node %d xəttinin dəstəyi %d gün sonra bitir (%s)", n.Line, *n.DaysToEOL, n.EOL))
+		n.Why = append(n.Why, i18n.F("Node %d xəttinin dəstəyi %d gün sonra bitir (%s)", "Node %d reaches end of life in %d days (%s)", n.Line, *n.DaysToEOL, n.EOL))
 		if n.NextLTS > 0 {
 			cmdVer = latestOfLine(nd, n.NextLTS)
 		}
 	case n.Version != "" && n.LatestInLine != "" && n.Version != n.LatestInLine:
 		n.Need = report.NeedOptional
-		n.Why = append(n.Why, fmt.Sprintf("Xəttdə daha yeni versiya var: %s", n.LatestInLine))
+		n.Why = append(n.Why, i18n.F("Xəttdə daha yeni versiya var: %s", "A newer version exists in this line: %s", n.LatestInLine))
 	case n.Version == "":
 		n.Need = report.NeedOptional
 	default:
-		n.Why = append(n.Why, "Xəttin ən son versiyasıdır")
+		n.Why = append(n.Why, i18n.F("Xəttin ən son versiyasıdır", "Latest version of this line"))
 	}
 	if n.Line%2 == 1 {
-		n.Why = append(n.Why, fmt.Sprintf("Node %d tək nömrəli xətdir — LTS olmur, production üçün tövsiyə edilmir", n.Line))
+		n.Why = append(n.Why, i18n.F("Node %d tək nömrəli xətdir — LTS olmur, production üçün tövsiyə edilmir", "Node %d is an odd-numbered line — never LTS, not recommended for production", n.Line))
 		if n.Need == report.NeedNone || n.Need == report.NeedOptional {
 			n.Need = report.NeedSoon
 		}
@@ -187,7 +188,7 @@ func EvalNode(srcs []report.NodeSource, nd *sources.NodeData, now time.Time) *re
 			ls = append(ls, l)
 		}
 		sort.Ints(ls)
-		n.Why = append(n.Why, fmt.Sprintf("Fərqli fayllar fərqli xətlər göstərir: %v", ls))
+		n.Why = append(n.Why, i18n.F("Fərqli fayllar fərqli xətlər göstərir: %v", "Files disagree on the Node line: %v", ls))
 	}
 	if cmdVer != "" && n.Need != report.NeedNone {
 		if dockerSrc != "" {

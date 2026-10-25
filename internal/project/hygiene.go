@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Ali7Zeynalli/depgate/internal/i18n"
 	"github.com/Ali7Zeynalli/depgate/internal/report"
 )
 
@@ -21,14 +22,14 @@ func Hygiene(dir, repoRoot, manager, lockKind string, nodeMismatch bool, cooldow
 
 	// 1. lockfile present (and not ignored by git)
 	lockOK := lockKind != "none" && lockKind != ""
-	c := report.Check{ID: "lockfile", OK: lockOK, Title: "Lockfile var"}
+	c := report.Check{ID: "lockfile", OK: lockOK, Title: i18n.F("Lockfile var", "Lockfile present")}
 	if !lockOK {
-		c.Detail = "Lockfile olmadan versiyalar dəqiq bilinmir, dolayı paketlər yoxlanmır və hər install fərqli versiya gətirə bilər."
+		c.Detail = i18n.F("Lockfile olmadan versiyalar dəqiq bilinmir, dolayı paketlər yoxlanmır və hər install fərqli versiya gətirə bilər.", "Without a lockfile versions are not exact, transitive packages are not checked and every install can bring different versions.")
 		c.Fix = map[string]string{"npm": "npm install --package-lock-only", "pnpm": "pnpm install --lockfile-only", "yarn": "yarn install --mode=update-lockfile", "bun": "bun install --save-text-lockfile"}[manager]
 	} else if gi, _ := ReadFirst(dirs, ".gitignore"); gi != "" && ignoresLockfile(gi) {
 		c.OK = false
-		c.Detail = ".gitignore lockfile-ı repodan çıxarır — CI və server başqa versiyalar quraşdıra bilər."
-		c.Fix = ".gitignore-dan lockfile sətrini sil və lockfile-ı commit et"
+		c.Detail = i18n.F(".gitignore lockfile-ı repodan çıxarır — CI və server başqa versiyalar quraşdıra bilər. Lockfile sətrini .gitignore-dan sil və lockfile-ı commit et.", ".gitignore keeps the lockfile out of the repo — CI and servers may install other versions. Remove the lockfile line from .gitignore and commit the lockfile.")
+		c.Fix = "git add -f <lockfile>"
 		c.File = ".gitignore"
 	}
 	out = append(out, c)
@@ -46,16 +47,18 @@ func Hygiene(dir, repoRoot, manager, lockKind string, nodeMismatch bool, cooldow
 		// pnpm 10+ blocks dependency build scripts by default unless listed in onlyBuiltDependencies
 		scriptsOff = scriptsOff || strings.Contains(ws, "onlyBuiltDependencies") || strings.Contains(npmrc, "only-built-dependencies")
 	}
-	c = report.Check{ID: "install-scripts", OK: scriptsOff, Title: "Install skriptləri söndürülüb"}
+	c = report.Check{ID: "install-scripts", OK: scriptsOff, Title: i18n.F("Install skriptləri söndürülüb", "Install scripts disabled")}
 	if !scriptsOff {
-		c.Detail = "Supply-chain hücumlarının çoxu preinstall/postinstall skriptləri ilə işə düşür."
+		c.Detail = i18n.F("Supply-chain hücumlarının çoxu preinstall/postinstall skriptləri ilə işə düşür.", "Most supply-chain attacks run through preinstall/postinstall scripts.")
 		switch manager {
 		case "yarn":
 			c.Fix, c.File = "enableScripts: false", ".yarnrc.yml"
 		case "pnpm":
-			c.Fix, c.File = "pnpm 10+: skriptlər standart olaraq bloklanır; lazım olanları pnpm-workspace.yaml-da onlyBuiltDependencies ilə icazə ver", "pnpm-workspace.yaml"
+			c.Detail = i18n.F("pnpm 10+ skriptləri standart olaraq bloklayır; lazım olanlara pnpm-workspace.yaml-da onlyBuiltDependencies ilə icazə ver.", "pnpm 10+ blocks scripts by default; allow the ones you need with onlyBuiltDependencies in pnpm-workspace.yaml.")
+			c.Fix, c.File = "onlyBuiltDependencies:\n  - esbuild", "pnpm-workspace.yaml"
 		case "bun":
-			c.Fix, c.File = "bun standart olaraq yalnız trustedDependencies-dəki paketlərin skriptlərini işlədir", "package.json"
+			c.Detail = i18n.F("bun standart olaraq yalnız trustedDependencies-dəki paketlərin skriptlərini işlədir.", "bun only runs scripts of packages listed in trustedDependencies by default.")
+			c.File = "package.json"
 			c.OK = true
 		default:
 			c.Fix, c.File = "ignore-scripts=true", ".npmrc"
@@ -71,7 +74,7 @@ func Hygiene(dir, repoRoot, manager, lockKind string, nodeMismatch bool, cooldow
 	case "pnpm":
 		ws, _ := ReadFirst(dirs, "pnpm-workspace.yaml")
 		cool = regexp.MustCompile(`(?m)^\s*minimumReleaseAge:\s*[1-9]`).MatchString(ws) || iniHas(npmrc, "minimum-release-age")
-		fix, file = "minimumReleaseAge: "+minutes+"   # dəqiqə; pnpm 10.16+ (v11-də standart 1440)", "pnpm-workspace.yaml"
+		fix, file = "minimumReleaseAge: "+minutes+"   # minutes; pnpm 10.16+", "pnpm-workspace.yaml"
 	case "yarn":
 		y, _ := ReadFirst(dirs, ".yarnrc.yml")
 		cool = strings.Contains(y, "npmMinimalAgeGate")
@@ -79,23 +82,22 @@ func Hygiene(dir, repoRoot, manager, lockKind string, nodeMismatch bool, cooldow
 	case "bun":
 		b, _ := ReadFirst(dirs, "bunfig.toml")
 		cool = strings.Contains(b, "minimumReleaseAge")
-		fix, file = "[install]\nminimumReleaseAge = "+strconv.Itoa(cooldownDays*86400)+"   # saniyə; bun 1.3+", "bunfig.toml"
+		fix, file = "[install]\nminimumReleaseAge = "+strconv.Itoa(cooldownDays*86400)+"   # seconds; bun 1.3+", "bunfig.toml"
 	default:
 		cool = iniHas(npmrc, "min-release-age")
-		fix, file = "min-release-age="+strconv.Itoa(cooldownDays)+"   # gün; npm 11.10+", ".npmrc"
+		fix, file = "min-release-age="+strconv.Itoa(cooldownDays)+"   # days; npm 11.10+", ".npmrc"
 	}
-	c = report.Check{ID: "cooldown", OK: cool, Title: "Yeni versiyalar üçün gözləmə müddəti"}
+	c = report.Check{ID: "cooldown", OK: cool, Title: i18n.F("Yeni versiyalar üçün gözləmə müddəti", "Release cooldown for new versions")}
 	if !cool {
-		c.Detail = "Ələ keçirilmiş versiyalar adətən saatlar içində silinir; bir neçə günlük gözləmə onları quraşdırmağın qarşısını alır."
+		c.Detail = i18n.F("Ələ keçirilmiş versiyalar adətən saatlar içində silinir; bir neçə günlük gözləmə onları quraşdırmağın qarşısını alır.", "Compromised versions are usually removed within hours; waiting a few days keeps them out of your installs.")
 		c.Fix, c.File = fix, file
 	}
 	out = append(out, c)
 
 	// 4. Node version pinned consistently
-	c = report.Check{ID: "node-pin", OK: !nodeMismatch, Title: "Node versiyası hər yerdə eynidir"}
+	c = report.Check{ID: "node-pin", OK: !nodeMismatch, Title: i18n.F("Node versiyası hər yerdə eynidir", "Same Node.js version everywhere")}
 	if nodeMismatch {
-		c.Detail = "Dockerfile, .nvmrc, engines və CI fərqli Node xətləri göstərir."
-		c.Fix = "Hamısını eyni LTS xəttinə gətir"
+		c.Detail = i18n.F("Dockerfile, .nvmrc, engines və CI fərqli Node xətləri göstərir — hamısını eyni LTS xəttinə gətir.", "Dockerfile, .nvmrc, engines and CI name different Node lines — align them on one LTS line.")
 	}
 	out = append(out, c)
 	_ = npmrcPath

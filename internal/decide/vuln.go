@@ -3,11 +3,11 @@ package decide
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/Ali7Zeynalli/depgate/internal/i18n"
 	"github.com/Ali7Zeynalli/depgate/internal/report"
 	"github.com/Ali7Zeynalli/depgate/internal/semver"
 	"github.com/Ali7Zeynalli/depgate/internal/sources"
@@ -236,8 +236,8 @@ func vulnFinding(ctx context.Context, d *Data, it *instance, in Input, g *graph,
 		f.Kind = "malware"
 		f.Key = "malware:" + name + "@" + f.Current
 		f.Need, f.Priority, f.Severity = report.NeedNow, 100, "critical"
-		f.Why = append(f.Why, "Bu versiya zərərli paket kimi qeydə alınıb (OpenSSF/OSV: "+f.Advisories[0].ID+")")
-		f.Why = append(f.Why, "Dərhal: node_modules-u sil, npm/GitHub/bulud token-lərini və .env sirlərini dəyiş, CI loglarını yoxla")
+		f.Why = append(f.Why, i18n.F("Bu versiya zərərli paket kimi qeydə alınıb (OpenSSF/OSV: %s)", "This version is recorded as a malicious package (OpenSSF/OSV: %s)", f.Advisories[0].ID))
+		f.Why = append(f.Why, i18n.F("Dərhal: node_modules-u sil, npm/GitHub/bulud token-lərini və .env sirlərini dəyiş, CI loglarını yoxla", "Right now: delete node_modules, rotate npm/GitHub/cloud tokens and .env secrets, review CI logs"))
 		// clean version: highest clean below, else lowest clean above
 		var below *cand
 		for i := range cs {
@@ -251,22 +251,22 @@ func vulnFinding(ctx context.Context, d *Data, it *instance, in Input, g *graph,
 			f.Target = below.v.String()
 			f.Fix = &report.Fix{Strategy: "upgrade", Command: installCmd(in.Mgr, name, f.Target, it.pkg.Dev, it.pkg.Direct)}
 			f.Impact = impactOfDiff(cur, below.v)
-			f.ImpactWhy = append(f.ImpactWhy, "Əvvəlki təmiz versiyaya qayıt: "+f.Target)
+			f.ImpactWhy = append(f.ImpactWhy, i18n.F("Əvvəlki təmiz versiyaya qayıt: %s", "Go back to the previous clean version: %s", f.Target))
 		default:
 			if p, _, _, ok := pickSafe(cs, cur, clean, cooldown, opt.Now); ok {
 				f.Target = p.v.String()
 				f.Fix = &report.Fix{Strategy: "upgrade", Command: installCmd(in.Mgr, name, f.Target, it.pkg.Dev, it.pkg.Direct)}
 				f.Impact = impactOfDiff(cur, p.v)
 			} else {
-				f.Fix = &report.Fix{Strategy: "remove", Command: removeCmd(in.Mgr, name), Note: "Paketin bütün versiyaları zərərlidir — sil və alternativ tap"}
+				f.Fix = &report.Fix{Strategy: "remove", Command: removeCmd(in.Mgr, name), Note: i18n.F("Paketin bütün versiyaları zərərlidir — sil və alternativ tap", "Every version of this package is malicious — remove it and find an alternative")}
 				f.Impact = report.ImpactYes
-				f.ImpactWhy = append(f.ImpactWhy, "Paket tamamilə silinməlidir: onu istifadə edən kodu dəyiş")
+				f.ImpactWhy = append(f.ImpactWhy, i18n.F("Paket tamamilə silinməlidir: onu istifadə edən kodu dəyiş", "The package must be removed: change the code that uses it"))
 			}
 		}
 		if !it.pkg.Direct {
 			f.Fix = overrideFix(in.Mgr, name, f.Target)
 			if f.Target == "" {
-				f.Fix.Note = "Zərərli paketi gətirən valideyni (" + f.Chain[0] + ") sil və ya dəyiş"
+				f.Fix.Note = i18n.F("Zərərli paketi gətirən valideyni (%s) sil və ya dəyiş", "Remove or replace the parent that pulls in the malicious package (%s)", f.Chain[0])
 			}
 		}
 		f.Group = groupOf(f.Need, f.Impact)
@@ -277,7 +277,7 @@ func vulnFinding(ctx context.Context, d *Data, it *instance, in Input, g *graph,
 	effSev := sev
 	if it.pkg.Dev && effSev > 1 {
 		effSev--
-		f.Why = append(f.Why, "Yalnız devDependencies-dədir (build/test) — production-a getmir, severity bir pillə aşağı salındı")
+		f.Why = append(f.Why, i18n.F("Yalnız devDependencies-dədir (build/test) — production-a getmir, severity bir pillə aşağı salındı", "Only in devDependencies (build/test) — not shipped to production, severity lowered one step"))
 	}
 	if effSev >= 3 {
 		f.Need = report.NeedNow
@@ -285,15 +285,15 @@ func vulnFinding(ctx context.Context, d *Data, it *instance, in Input, g *graph,
 		f.Need = report.NeedSoon
 	}
 	top := f.Advisories[0]
-	f.Why = append([]string{fmt.Sprintf("%s boşluq: %s", top.Severity, top.ID)}, f.Why...)
+	f.Why = append([]i18n.T{i18n.F("%s boşluq: %s", "%s vulnerability: %s", top.Severity, top.ID)}, f.Why...)
 	if len(f.Advisories) > 1 {
-		f.Why = append(f.Why, fmt.Sprintf("Cəmi %d advisory bu versiyaya aiddir", len(f.Advisories)))
+		f.Why = append(f.Why, i18n.F("Cəmi %d advisory bu versiyaya aiddir", "%d advisories affect this version", len(f.Advisories)))
 	}
 	if kev {
-		f.Why = append(f.Why, "CISA KEV: real hücumlarda istifadə olunur")
+		f.Why = append(f.Why, i18n.F("CISA KEV: real hücumlarda istifadə olunur", "CISA KEV: exploited in real attacks"))
 	}
 	if epss >= 0.01 {
-		f.Why = append(f.Why, "EPSS "+pct(epss)+": yaxın 30 gündə istismar ehtimalı")
+		f.Why = append(f.Why, i18n.F("EPSS %s: yaxın 30 gündə istismar ehtimalı", "EPSS %s: probability of exploitation in the next 30 days", pct(epss)))
 	}
 	f.Priority = priority(sev, kev, epss, it.pkg.Dev, in.Lock.Approximate)
 
@@ -304,25 +304,25 @@ func vulnFinding(ctx context.Context, d *Data, it *instance, in Input, g *graph,
 		target, sameMajor, young, haveTarget = p.v, sm, yg, true
 		if yg && !p.pub.IsZero() {
 			h := int(opt.Now.Sub(p.pub).Hours())
-			f.Warnings = append(f.Warnings, fmt.Sprintf("%s cəmi %d saat əvvəl çıxıb (gözləmə müddəti %d gün) — təcili deyilsə bir neçə gün gözlə", p.v, h, opt.CooldownDays))
+			f.Warnings = append(f.Warnings, i18n.F("%s cəmi %d saat əvvəl çıxıb (gözləmə müddəti %d gün) — təcili deyilsə bir neçə gün gözlə", "%s was published only %d hours ago (cooldown %d days) — unless urgent, wait a few days", p.v, h, opt.CooldownDays))
 		}
 	} else if fx, ok := fixedAbove(it.vulns, name, cur); ok && len(cs) == 0 {
 		target, haveTarget, sameMajor = fx, true, semver.Diff(cur, fx) != "major"
-		f.Warnings = append(f.Warnings, "Versiya siyahısı yüklənmədi — hədəf OSV-nin «fixed» məlumatından götürüldü")
+		f.Warnings = append(f.Warnings, i18n.F("Versiya siyahısı yüklənmədi — hədəf OSV-nin «fixed» məlumatından götürüldü", "Version list unavailable — target taken from OSV's \"fixed\" data"))
 	}
 	_ = young
 	if !haveTarget {
 		f.Impact = report.ImpactUnknown
-		f.Why = append(f.Why, "Hələ bu boşluğu düzəldən versiya yoxdur")
+		f.Why = append(f.Why, i18n.F("Hələ bu boşluğu düzəldən versiya yoxdur", "No version fixes this vulnerability yet"))
 		if !it.pkg.Direct {
-			f.ImpactWhy = append(f.ImpactWhy, "Valideyn paketin ("+f.Chain[0]+") alternativini və ya advisory-dəki müvəqqəti həlli yoxla")
+			f.ImpactWhy = append(f.ImpactWhy, i18n.F("Valideyn paketin (%s) alternativini və ya advisory-dəki müvəqqəti həlli yoxla", "Consider an alternative to the parent package (%s) or the workaround in the advisory", f.Chain[0]))
 		}
 		f.Group = groupOf(f.Need, report.ImpactYes)
 		return f, errs
 	}
 	f.Target = target.String()
 	if !sameMajor {
-		f.Why = append(f.Why, "Düzəliş yalnız yeni major xəttindədir")
+		f.Why = append(f.Why, i18n.F("Düzəliş yalnız yeni major xəttindədir", "The fix is only in a new major version"))
 	}
 
 	if it.pkg.Direct {
@@ -334,7 +334,7 @@ func vulnFinding(ctx context.Context, d *Data, it *instance, in Input, g *graph,
 		errs = append(errs, transitiveFix(ctx, d, &f, it, in, g, target, clean, cooldown, opt)...)
 	}
 	if in.Lock.Approximate {
-		f.Warnings = append(f.Warnings, "Lockfile yoxdur — versiya təxminidir (aralığın minimumu)")
+		f.Warnings = append(f.Warnings, i18n.F("Lockfile yoxdur — versiya təxminidir (aralığın minimumu)", "No lockfile — version is approximate (lowest in range)"))
 	}
 	f.Group = groupOf(f.Need, f.Impact)
 	return f, errs
@@ -369,9 +369,9 @@ func transitiveFix(ctx context.Context, d *Data, f *report.Finding, it *instance
 		}
 	}
 	if allAccept {
-		f.Fix = &report.Fix{Strategy: "relock", Command: relockCmd(mgr, name), Note: "Valideyn paketlərin aralığı " + target.String() + "-u artıq qəbul edir — yalnız lockfile yenilənir"}
+		f.Fix = &report.Fix{Strategy: "relock", Command: relockCmd(mgr, name), Note: i18n.F("Valideyn paketlərin aralığı %s versiyasını artıq qəbul edir — yalnız lockfile yenilənir", "The parents' ranges already allow %s — only the lockfile changes", target.String())}
 		f.Impact = report.ImpactNo
-		f.ImpactWhy = append(f.ImpactWhy, "Heç bir package.json dəyişmir; dolayı paket valideynin icazə verdiyi aralıqda yenilənir")
+		f.ImpactWhy = append(f.ImpactWhy, i18n.F("Heç bir package.json dəyişmir; dolayı paket valideynin icazə verdiyi aralıqda yenilənir", "No package.json changes; the transitive package moves within the range its parent allows"))
 		return errs
 	}
 	// 2. upgrade the direct parent when it is the immediate parent
@@ -380,9 +380,9 @@ func transitiveFix(ctx context.Context, d *Data, f *report.Finding, it *instance
 		if pcur, ok := installedDirect(in, parent); ok {
 			if pt, err := parentUpgrade(ctx, d, parent, pcur, name, clean, cooldown, opt.Now); err == nil && pt != nil {
 				f.Fix = &report.Fix{Strategy: "parent", Parent: parent, Command: installCmd(mgr, parent, pt.String(), isDev(in, parent), true),
-					Note: fmt.Sprintf("%s %s → %s təmiz %s gətirir", parent, pcur, pt, name)}
+					Note: i18n.F("%s %s → %s təmiz %s gətirir", "%s %s → %s brings a clean %s", parent, pcur, pt, name)}
 				f.Impact = impactOfDiff(pcur, *pt)
-				f.ImpactWhy = append(f.ImpactWhy, parent+": "+diffWhy(pcur, *pt))
+				f.ImpactWhy = append(f.ImpactWhy, prefixed(parent+": ", diffWhy(pcur, *pt)))
 				errs = append(errs, checkTarget(ctx, d, f, in, parent, pcur.String(), pt.String())...)
 				return errs
 			} else if err != nil {
@@ -393,7 +393,7 @@ func transitiveFix(ctx context.Context, d *Data, f *report.Finding, it *instance
 	// 3. override
 	f.Fix = overrideFix(mgr, name, target.String())
 	f.Impact = report.ImpactMaybe
-	f.ImpactWhy = append(f.ImpactWhy, fmt.Sprintf("Override: %s rəsmən %s istəmir — build və testlə yoxla; valideyn yenilənəndə override-ı sil", strings.Join(parents, ", "), target))
+	f.ImpactWhy = append(f.ImpactWhy, i18n.F("Override: %s rəsmən %s istəmir — build və testlə yoxla; valideyn yenilənəndə override-ı sil", "Override: %s does not officially ask for %s — verify with build and tests; remove the override once the parent updates", strings.Join(parents, ", "), target))
 	return errs
 }
 
@@ -491,7 +491,7 @@ func checkTarget(ctx context.Context, d *Data, f *report.Finding, in Input, name
 		if r, err := semver.ParseRange(e); err == nil {
 			if nv, err := semver.Parse(in.NodeVersion); err == nil && !r.Contains(nv) {
 				f.Impact = report.ImpactYes
-				f.ImpactWhy = append(f.ImpactWhy, fmt.Sprintf("%s@%s Node %s istəyir, layihədə Node %s — əvvəlcə Node-u yenilə", name, target, e, in.NodeVersion))
+				f.ImpactWhy = append(f.ImpactWhy, i18n.F("%s@%s Node %s istəyir, layihədə Node %s — əvvəlcə Node-u yenilə", "%s@%s needs Node %s, the project uses Node %s — upgrade Node first", name, target, e, in.NodeVersion))
 			}
 		}
 	}
@@ -508,7 +508,7 @@ func checkTarget(ctx context.Context, d *Data, f *report.Finding, in Input, name
 		if f.Impact == report.ImpactNo {
 			f.Impact = report.ImpactMaybe
 		}
-		f.ImpactWhy = append(f.ImpactWhy, fmt.Sprintf("Peer münaqişəsi: %s@%s %s %s istəyir, layihədə %s", name, target, peer, rng, pv))
+		f.ImpactWhy = append(f.ImpactWhy, i18n.F("Peer münaqişəsi: %s@%s %s %s istəyir, layihədə %s", "Peer conflict: %s@%s wants %s %s, the project has %s", name, target, peer, rng, pv))
 	}
 	// supply-chain signals
 	cm, err := d.Manifest(ctx, name, cur)
@@ -516,16 +516,16 @@ func checkTarget(ctx context.Context, d *Data, f *report.Finding, in Input, name
 		return nil
 	}
 	if s := tm.InstallScripts(); len(s) > 0 && len(cm.InstallScripts()) == 0 {
-		f.Warnings = append(f.Warnings, "Şübhəli: "+target+" versiyasında yeni install skripti var ("+strings.Join(s, ", ")+") — yeniləmədən əvvəl yoxla")
+		f.Warnings = append(f.Warnings, i18n.F("Şübhəli: %s versiyasında yeni install skripti var (%s) — yeniləmədən əvvəl yoxla", "Suspicious: %s adds an install script (%s) — review before updating", target, strings.Join(s, ", ")))
 	}
 	if cm.HasProvenance() && !tm.HasProvenance() {
-		f.Warnings = append(f.Warnings, "Şübhəli: "+cur+" provenance ilə dərc olunub, "+target+" isə provenance-sızdır")
+		f.Warnings = append(f.Warnings, i18n.F("Şübhəli: %s provenance ilə dərc olunub, %s isə provenance-sızdır", "Suspicious: %s was published with provenance, %s without", cur, target))
 	}
 	if cm.NpmUser.Name != "" && tm.NpmUser.Name != "" && cm.NpmUser.Name != tm.NpmUser.Name {
-		f.Warnings = append(f.Warnings, fmt.Sprintf("Diqqət: versiyanı fərqli hesab dərc edib (%s → %s)", cm.NpmUser.Name, tm.NpmUser.Name))
+		f.Warnings = append(f.Warnings, i18n.F("Diqqət: versiyanı fərqli hesab dərc edib (%s → %s)", "Note: published by a different account (%s → %s)", cm.NpmUser.Name, tm.NpmUser.Name))
 	}
 	if a, b := normRepo(cm.RepoURL()), normRepo(tm.RepoURL()); a != "" && a != b {
-		f.Warnings = append(f.Warnings, "Şübhəli: repo linki dəyişib ("+a+" → "+orDash(b)+")")
+		f.Warnings = append(f.Warnings, i18n.F("Şübhəli: repo linki dəyişib (%s → %s)", "Suspicious: repository URL changed (%s → %s)", a, orDash(b)))
 	}
 	return nil
 }
@@ -576,16 +576,18 @@ func impactOfDiff(a, b semver.Version) report.Impact {
 	return report.ImpactNo
 }
 
-func diffWhy(a, b semver.Version) string {
+func diffWhy(a, b semver.Version) i18n.T {
 	switch semver.Diff(a, b) {
 	case "major":
-		return fmt.Sprintf("%s → %s major yeniləmədir: API dəyişə bilər, miqrasiya bələdçisini oxu", a, b)
+		return i18n.F("%s → %s major yeniləmədir: API dəyişə bilər, miqrasiya bələdçisini oxu", "%s → %s is a major update: the API may change, read the migration guide", a, b)
 	case "minor":
-		return fmt.Sprintf("%s → %s minor yeniləmədir: semver-ə görə geriyə uyğun", a, b)
+		return i18n.F("%s → %s minor yeniləmədir: semver-ə görə geriyə uyğun", "%s → %s is a minor update: backwards compatible per semver", a, b)
 	default:
-		return fmt.Sprintf("%s → %s patch yeniləmədir: yalnız düzəlişlər", a, b)
+		return i18n.F("%s → %s patch yeniləmədir: yalnız düzəlişlər", "%s → %s is a patch update: fixes only", a, b)
 	}
 }
+
+func prefixed(p string, t i18n.T) i18n.T { return i18n.T{Az: p + t.Az, En: p + t.En} }
 
 func groupOf(n report.Need, i report.Impact) report.Group {
 	switch n {
@@ -664,7 +666,7 @@ func relockCmd(mgr, name string) string {
 	case "yarn":
 		return "yarn up -R " + name
 	case "yarn1":
-		return "yarn.lock-da «" + name + "@» girişlərini sil, sonra: yarn install"
+		return "yarn install   # " + name + "@*"
 	case "bun":
 		return "bun update " + name
 	default:
@@ -687,7 +689,7 @@ func removeCmd(mgr, name string) string {
 
 func overrideFix(mgr, name, ver string) *report.Fix {
 	if ver == "" {
-		ver = "<təmiz versiya>"
+		ver = "<clean-version>"
 	}
 	block := func(key string, nested string) string {
 		inner := map[string]string{name: ver}
@@ -698,7 +700,7 @@ func overrideFix(mgr, name, ver string) *report.Fix {
 		b, _ := json.MarshalIndent(map[string]any{key: v}, "", "  ")
 		return string(b)
 	}
-	fx := &report.Fix{Strategy: "override", File: "package.json", Note: "Müvəqqəti həll: valideyn paket düzəldilmiş versiyanı tələb edəndə override-ı sil"}
+	fx := &report.Fix{Strategy: "override", File: "package.json", Note: i18n.F("Müvəqqəti həll: valideyn paket düzəldilmiş versiyanı tələb edəndə override-ı sil", "Temporary fix: remove the override once the parent package requires the fixed version")}
 	switch mgr {
 	case "pnpm":
 		fx.Snippet = block("pnpm", "overrides")

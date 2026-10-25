@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/Ali7Zeynalli/depgate/internal/app"
+	"github.com/Ali7Zeynalli/depgate/internal/i18n"
 	"github.com/Ali7Zeynalli/depgate/internal/project"
 	"github.com/Ali7Zeynalli/depgate/internal/report"
 	"github.com/Ali7Zeynalli/depgate/internal/scan"
@@ -58,6 +59,16 @@ type multi []string
 func (m *multi) String() string     { return strings.Join(*m, ",") }
 func (m *multi) Set(v string) error { *m = append(*m, v); return nil }
 
+var lang = i18n.Lang()
+
+// L picks the CLI message in the current language.
+func L(az, en string) string {
+	if lang == "az" {
+		return az
+	}
+	return en
+}
+
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
 }
@@ -72,25 +83,25 @@ func run(args []string, stdout, stderr io.Writer) int {
 	if container {
 		defAddr = "0.0.0.0"
 	}
-	fs.StringVar(&c.addr, "addr", envOr("DEPGATE_ADDR", defAddr), "dinləniləcək ünvan (konteynerdə 0.0.0.0)")
-	fs.BoolVar(&c.noOpen, "no-open", container, "brauzeri avtomatik açma")
-	fs.BoolVar(&c.offline, "offline", false, "şəbəkəyə çıxma, yalnız keşdən istifadə et")
-	fs.IntVar(&c.depth, "depth", 3, "layihə axtarışının dərinliyi")
-	fs.BoolVar(&c.jsonOut, "json", false, "skan et, hesabatı JSON kimi stdout-a yaz, interfeys açma")
-	fs.BoolVar(&c.ci, "ci", false, "CI rejimi: skan et, mətn xülasəsi və çıxış kodu")
-	fs.StringVar(&c.failOn, "fail-on", "high", "CI-da bu səviyyədən (critical|high|moderate|low) uğursuz ol")
-	fs.IntVar(&c.cooldown, "cooldown", 3, "bundan cavan versiyaları (gün) hədəf seçmə")
-	fs.StringVar(&c.push, "push", "", "skan et və hesabatı bu URL-ə POST et (interfeys açmır)")
-	fs.StringVar(&c.token, "token", os.Getenv("DEPGATE_PUSH_TOKEN"), "--push üçün Bearer token (və ya DEPGATE_PUSH_TOKEN)")
-	fs.BoolVar(&c.version, "version", false, "versiyanı göstər")
-	fs.BoolVar(&c.health, "health", false, "işləyən serveri yoxla (Docker HEALTHCHECK üçün), 0 = sağlam")
-	fs.StringVar(&c.view, "view", "", "saxlanmış JSON hesabatı interfeysdə aç (yalnız baxış)")
-	fs.StringVar(&c.data, "data", os.Getenv("DEPGATE_DATA"), "layihə siyahısı və hesabatların qovluğu (standart: ~/.config/depgate)")
-	fs.Var(&c.roots, "root", "interfeysdə gəzilə bilən qovluq (təkrarlana bilər; standart: ev qovluğu; DEPGATE_ROOTS)")
-	fs.Var(&c.allowHost, "allow-host", "əlavə icazəli Host adı, məs. depgate.lan (təkrarlana bilər)")
+	fs.StringVar(&c.addr, "addr", envOr("DEPGATE_ADDR", defAddr), "listen address (0.0.0.0 in a container)")
+	fs.BoolVar(&c.noOpen, "no-open", container, "do not open the browser")
+	fs.BoolVar(&c.offline, "offline", false, "never use the network, cache only")
+	fs.IntVar(&c.depth, "depth", 3, "project discovery depth")
+	fs.BoolVar(&c.jsonOut, "json", false, "scan once and print the JSON report to stdout")
+	fs.BoolVar(&c.ci, "ci", false, "CI mode: scan once, print a summary, set the exit code")
+	fs.StringVar(&c.failOn, "fail-on", "high", "CI: fail at this severity or above (critical|high|moderate|low)")
+	fs.IntVar(&c.cooldown, "cooldown", 3, "never pick versions younger than N days as targets")
+	fs.StringVar(&c.push, "push", "", "scan once and POST the report to this URL")
+	fs.StringVar(&c.token, "token", os.Getenv("DEPGATE_PUSH_TOKEN"), "bearer token for --push (or DEPGATE_PUSH_TOKEN)")
+	fs.BoolVar(&c.version, "version", false, "print the version")
+	fs.BoolVar(&c.health, "health", false, "check a running server (Docker HEALTHCHECK); exit 0 = healthy")
+	fs.StringVar(&c.view, "view", "", "open a saved JSON report in the UI (read-only)")
+	fs.StringVar(&c.data, "data", os.Getenv("DEPGATE_DATA"), "folder for the project list and reports (default ~/.config/depgate; DEPGATE_DATA)")
+	fs.Var(&c.roots, "root", "folder the UI may browse (repeatable; default: home; DEPGATE_ROOTS)")
+	fs.Var(&c.allowHost, "allow-host", "extra allowed Host name, e.g. depgate.lan (repeatable)")
 	fs.Usage = func() {
-		fmt.Fprintf(stderr, "DepGate %s — Node.js layihələri üçün paket təhlükəsizliyi və yeniləmələr\n\n", version)
-		fmt.Fprintln(stderr, "İstifadə:\n  depgate [bayraqlar] [qovluq]\n\nNümunələr:\n  depgate                 interfeysi aç; bu qovluq layihədirsə, siyahıya əlavə et və skan et\n  depgate ~/projects      oradakı bütün layihələri əlavə et\n  depgate --json > r.json bir dəfə skan et, JSON yaz\n  depgate --ci --fail-on high\n  depgate --view r.json   saxlanmış hesabata bax\n\nBayraqlar:")
+		fmt.Fprintf(stderr, "DepGate %s — npm dependency security and update advisor for Node.js projects\n\n", version)
+		fmt.Fprintln(stderr, "Usage:\n  depgate [flags] [folder]\n\nExamples:\n  depgate                 open the UI; if this folder is a project, add and scan it\n  depgate ~/projects      add every project below ~/projects\n  depgate --json > r.json scan once, print JSON\n  depgate --ci --fail-on high\n  depgate --view r.json   open a saved report\n\nSet DEPGATE_LANG=az for Azerbaijani messages.\n\nFlags:")
 		fs.PrintDefaults()
 	}
 	if err := fs.Parse(args); err != nil {
@@ -112,7 +123,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 0
 	}
 	if fs.NArg() > 1 {
-		fmt.Fprintln(stderr, "depgate: yalnız bir qovluq ver")
+		fmt.Fprintln(stderr, L("depgate: yalnız bir qovluq ver", "depgate: give a single folder"))
 		return 2
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -128,7 +139,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		}
 		var rep report.Report
 		if err := json.Unmarshal(b, &rep); err != nil || rep.Schema != report.Schema {
-			fmt.Fprintln(stderr, "depgate: depgate/report@1 hesabatı deyil:", c.view)
+			fmt.Fprintln(stderr, L("depgate: depgate/report@1 hesabatı deyil:", "depgate: not a depgate/report@1 report:"), c.view)
 			return 2
 		}
 		return serve(ctx, c, app.ReadOnly(&rep), web.NewToken(), stderr)
@@ -149,7 +160,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 			return 2
 		}
 		if len(dirs) == 0 {
-			fmt.Fprintf(stderr, "depgate: %s altında asılılığı olan package.json tapılmadı\n", root)
+			fmt.Fprintf(stderr, L("depgate: %s altında asılılığı olan package.json tapılmadı\n", "depgate: no package.json with dependencies under %s\n"), root)
 			return 2
 		}
 		if !c.jsonOut {
@@ -164,10 +175,10 @@ func run(args []string, stdout, stderr io.Writer) int {
 		}
 		if c.push != "" {
 			if err := push(ctx, c.push, c.token, rep); err != nil {
-				fmt.Fprintln(stderr, "depgate: göndərilmədi, növbəti dəfə təkrar ediləcək:", err)
+				fmt.Fprintln(stderr, L("depgate: göndərilmədi, növbəti dəfə təkrar ediləcək:", "depgate: push failed, will retry next run:"), err)
 				saveOutbox(cacheDir, rep)
 			} else if !c.jsonOut {
-				fmt.Fprintln(stderr, "Hesabat göndərildi:", c.push)
+				fmt.Fprintln(stderr, L("Hesabat göndərildi:", "Report sent:"), c.push)
 			}
 		}
 		if c.jsonOut {
@@ -185,7 +196,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	// UI mode: remembered projects + background scans
 	st, err := store.Open(dataDir)
 	if err != nil {
-		fmt.Fprintln(stderr, "depgate: yaddaş açılmadı:", err)
+		fmt.Fprintln(stderr, L("depgate: yaddaş açılmadı:", "depgate: cannot open data folder:"), err)
 		return 1
 	}
 	token, err := st.Token()
@@ -213,10 +224,10 @@ func run(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintln(stderr, "depgate:", err)
 		} else {
 			_ = m.Scan(dirs) // re-scan even when already remembered
-			fmt.Fprintf(stderr, "%d layihə skan olunur (arxa planda)…\n", len(dirs))
+			fmt.Fprintf(stderr, L("%d layihə skan olunur (arxa planda)…\n", "scanning %d project(s) in the background…\n"), len(dirs))
 		}
 	}
-	fmt.Fprintf(stderr, "Yadda saxlanan layihələr: %d · Kök qovluqlar: %s\n", len(st.Projects()), strings.Join(roots, ", "))
+	fmt.Fprintf(stderr, L("Yadda saxlanan layihələr: %d · Kök qovluqlar: %s\n", "Remembered projects: %d · Browsable roots: %s\n"), len(st.Projects()), strings.Join(roots, ", "))
 	return serve(ctx, c, m, token, stderr)
 }
 
@@ -278,12 +289,12 @@ func within(p string, roots []string) bool {
 func serve(ctx context.Context, c config, b web.Backend, token string, stderr io.Writer) int {
 	ln, port, err := web.Listen(c.addr, c.port)
 	if err != nil {
-		fmt.Fprintln(stderr, "depgate: port açılmadı:", err)
+		fmt.Fprintln(stderr, L("depgate: port açılmadı:", "depgate: cannot open port:"), err)
 		return 1
 	}
 	srv := &web.Server{Token: token, B: b, AllowHosts: c.allowHost}
 	url := fmt.Sprintf("http://127.0.0.1:%d/?t=%s", port, token)
-	fmt.Fprintf(stderr, "\nDepGate: %s\nDayandırmaq üçün Ctrl+C\n", url)
+	fmt.Fprintf(stderr, L("\nDepGate: %s\nDayandırmaq üçün Ctrl+C\n", "\nDepGate: %s\nPress Ctrl+C to stop\n"), url)
 	if !c.noOpen {
 		openBrowser(url)
 	}
@@ -331,9 +342,9 @@ func printSummary(w io.Writer, rep *report.Report) {
 		}
 		fmt.Fprintf(w, "%s (%d paket%s)\n", p.Name, p.Packages, node)
 		if s.Malware > 0 {
-			fmt.Fprintf(w, "  !!! ZƏRƏRLİ PAKET: %d — dərhal hesabata bax\n", s.Malware)
+			fmt.Fprintf(w, L("  !!! ZƏRƏRLİ PAKET: %d — dərhal hesabata bax\n", "  !!! MALICIOUS PACKAGE: %d — open the report now\n"), s.Malware)
 		}
-		fmt.Fprintf(w, "  İndi et: kod dəyişmir %d · kod dəyişir %d · Planla %d · İstəyə görə %d · Lazım deyil %d\n", s.NowEasy, s.NowCode, s.Plan, s.Optional, s.OK)
+		fmt.Fprintf(w, L("  İndi et: kod dəyişmir %d · kod dəyişir %d · Planla %d · İstəyə görə %d · Lazım deyil %d\n", "  Do now: no code change %d · code change %d · Plan %d · Optional %d · Nothing to do %d\n"), s.NowEasy, s.NowCode, s.Plan, s.Optional, s.OK)
 		var urgent []report.Finding
 		for _, f := range p.Findings {
 			if f.Group == report.GroupNowEasy || f.Group == report.GroupNowCode {
@@ -353,14 +364,14 @@ func printSummary(w io.Writer, rep *report.Report) {
 			fmt.Fprintf(w, "  - %s %s%s [%s, P%d]\n", f.Pkg, f.Current, arrow, orKind(f), f.Priority)
 		}
 		if p.Node != nil && p.Node.Need == report.NeedNow {
-			fmt.Fprintf(w, "  - Node: %s\n", strings.Join(p.Node.Why, "; "))
+			fmt.Fprintf(w, "  - Node: %s\n", i18n.Join(p.Node.Why, lang, "; "))
 		}
 		if len(p.Errors) > 0 {
-			fmt.Fprintf(w, "  (%d xəbərdarlıq — interfeysdə bax)\n", len(p.Errors))
+			fmt.Fprintf(w, L("  (%d xəbərdarlıq — interfeysdə bax)\n", "  (%d warnings — see the UI)\n"), len(p.Errors))
 		}
 	}
 	for _, e := range rep.Errors {
-		fmt.Fprintln(w, "xəbərdarlıq:", e)
+		fmt.Fprintln(w, L("xəbərdarlıq:", "warning:"), e)
 	}
 }
 
@@ -442,7 +453,7 @@ func flushOutbox(ctx context.Context, cacheDir, url, token string, w io.Writer) 
 		}
 		if postJSON(ctx, url, token, b) == nil {
 			_ = os.Remove(p)
-			fmt.Fprintln(w, "Köhnə hesabat göndərildi:", e.Name())
+			fmt.Fprintln(w, L("Köhnə hesabat göndərildi:", "Queued report sent:"), e.Name())
 		}
 	}
 }

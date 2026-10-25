@@ -2,7 +2,11 @@
 // The schema is a stable contract: fields are only added within @1.
 package report
 
-import "time"
+import (
+	"time"
+
+	"github.com/Ali7Zeynalli/depgate/internal/i18n"
+)
 
 const Schema = "depgate/report@1"
 
@@ -89,7 +93,7 @@ type Node struct {
 	NextLTS      int          `json:"nextLts,omitempty"`
 	Need         Need         `json:"need"`
 	Impact       Impact       `json:"impact"`
-	Why          []string     `json:"why"`
+	Why          []i18n.T     `json:"why"`
 	Command      string       `json:"command,omitempty"` // e.g. FROM node:22.23.4-bookworm-slim
 }
 
@@ -101,9 +105,9 @@ type NodeSource struct {
 type Check struct {
 	ID     string `json:"id"`
 	OK     bool   `json:"ok"`
-	Title  string `json:"title"`
-	Detail string `json:"detail,omitempty"`
-	Fix    string `json:"fix,omitempty"` // a line to add
+	Title  i18n.T `json:"title"`
+	Detail i18n.T `json:"detail"`
+	Fix    string `json:"fix,omitempty"` // a line to add (code only)
 	File   string `json:"file,omitempty"`
 }
 
@@ -123,11 +127,11 @@ type Finding struct {
 	Priority   int      `json:"priority"`
 	Severity   string   `json:"severity,omitempty"` // critical | high | moderate | low
 	Title      string   `json:"title,omitempty"`
-	Why        []string `json:"why"`
-	ImpactWhy  []string `json:"impactWhy,omitempty"`
+	Why        []i18n.T `json:"why"`
+	ImpactWhy  []i18n.T `json:"impactWhy,omitempty"`
 	Fix        *Fix     `json:"fix,omitempty"`
 	Advisories []Adv    `json:"advisories,omitempty"`
-	Warnings   []string `json:"warnings,omitempty"` // cooldown, approximate, ...
+	Warnings   []i18n.T `json:"warnings,omitempty"` // cooldown, approximate, ...
 }
 
 // Fix is the concrete remediation DepGate suggests (never executed).
@@ -137,7 +141,7 @@ type Fix struct {
 	Snippet  string `json:"snippet,omitempty"` // e.g. package.json overrides block
 	File     string `json:"file,omitempty"`    // where the snippet goes
 	Parent   string `json:"parent,omitempty"`  // for strategy=parent: direct package to upgrade
-	Note     string `json:"note,omitempty"`
+	Note     i18n.T `json:"note"`
 }
 
 type Adv struct {

@@ -53,7 +53,7 @@ func Run(ctx context.Context, f sources.Fetcher, dirs []string, opt Options) *re
 	}
 	rep := &report.Report{Schema: report.Schema, Tool: "depgate " + opt.Version, ScannedAt: opt.Now.UTC(), Offline: opt.Offline}
 	d := decide.NewData(f)
-	say("Node.js buraxılışları və CISA KEV yüklənir…")
+	say("Node.js releases, CISA KEV…")
 	if nd, err := sources.Node(ctx, f); err == nil {
 		d.Node = nd
 	} else {
@@ -72,7 +72,7 @@ func Run(ctx context.Context, f sources.Fetcher, dirs []string, opt Options) *re
 }
 
 func progressLine(i, n int, dir string) string {
-	return "[" + strconv.Itoa(i+1) + "/" + strconv.Itoa(n) + "] " + filepath.Base(dir) + " skan olunur…"
+	return "[" + strconv.Itoa(i+1) + "/" + strconv.Itoa(n) + "] " + filepath.Base(dir) + "…"
 }
 
 // One scans a single project directory.

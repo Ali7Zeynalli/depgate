@@ -5,7 +5,6 @@ package app
 
 import (
 	"context"
-	"errors"
 	"os"
 	"path/filepath"
 	"sort"
@@ -13,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Ali7Zeynalli/depgate/internal/i18n"
 	"github.com/Ali7Zeynalli/depgate/internal/project"
 	"github.com/Ali7Zeynalli/depgate/internal/report"
 	"github.com/Ali7Zeynalli/depgate/internal/scan"
@@ -89,8 +89,15 @@ type Manager struct {
 // ReadOnly builds a Manager that only shows a saved report.
 func ReadOnly(r *report.Report) *Manager { return &Manager{ro: r} }
 
-var ErrReadOnly = errors.New("saxlanmış hesabat rejimi: dəyişiklik mümkün deyil")
-var ErrOutside = errors.New("bu qovluq icazə verilən köklərdən kənardadır")
+// Error is an error with a bilingual message for the UI.
+type Error struct{ T i18n.T }
+
+func (e *Error) Error() string { return e.T.En }
+
+func newErr(az, en string, args ...any) error { return &Error{i18n.F(az, en, args...)} }
+
+var ErrReadOnly = newErr("saxlanmış hesabat rejimi: dəyişiklik mümkün deyil", "read-only report view: changes are not possible")
+var ErrOutside = newErr("bu qovluq icazə verilən köklərdən kənardadır", "this folder is outside the allowed roots")
 
 func (m *Manager) start(ctx context.Context) {
 	m.once.Do(func() {
@@ -186,7 +193,7 @@ func (m *Manager) Add(path string) ([]string, error) {
 		return nil, err
 	}
 	if len(dirs) == 0 {
-		return nil, errors.New("bu qovluqda asılılığı olan package.json tapılmadı")
+		return nil, newErr("bu qovluqda asılılığı olan package.json tapılmadı", "no package.json with dependencies in this folder")
 	}
 	var es []store.Entry
 	for _, d := range dirs {
@@ -244,7 +251,7 @@ func copyMap(m map[string]bool) map[string]bool {
 // allowed resolves path and checks it is inside one of the roots.
 func (m *Manager) allowed(path string) (string, error) {
 	if path == "" {
-		return "", errors.New("qovluq göstərilməyib")
+		return "", newErr("qovluq göstərilməyib", "no folder given")
 	}
 	abs, err := filepath.Abs(path)
 	if err != nil {
@@ -252,11 +259,11 @@ func (m *Manager) allowed(path string) (string, error) {
 	}
 	real, err := filepath.EvalSymlinks(abs)
 	if err != nil {
-		return "", errors.New("qovluq tapılmadı: " + abs)
+		return "", newErr("qovluq tapılmadı: %s", "folder not found: %s", abs)
 	}
 	st, err := os.Stat(real)
 	if err != nil || !st.IsDir() {
-		return "", errors.New("qovluq deyil: " + abs)
+		return "", newErr("qovluq deyil: %s", "not a folder: %s", abs)
 	}
 	for _, r := range m.Roots {
 		rr, err := filepath.EvalSymlinks(r)

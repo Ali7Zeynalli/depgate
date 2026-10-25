@@ -160,7 +160,7 @@ func (s *Server) Handler() http.Handler {
 		if err != nil || subtle.ConstantTimeCompare([]byte(c.Value), []byte(s.Token)) != 1 {
 			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 			w.WriteHeader(http.StatusUnauthorized)
-			_, _ = io.WriteString(w, "DepGate: terminalda (və ya docker logs-da) göstərilən linki aç — token lazımdır.\n")
+			_, _ = io.WriteString(w, "DepGate: open the link printed in the terminal (or docker logs) — a token is required.\nDepGate: terminalda (və ya docker logs-da) göstərilən linki aç — token lazımdır.\n")
 			return
 		}
 		// API calls must carry the custom header too (blocks cross-site form posts)
@@ -175,7 +175,7 @@ func (s *Server) Handler() http.Handler {
 func readJSON(w http.ResponseWriter, r *http.Request, v any) bool {
 	dec := json.NewDecoder(io.LimitReader(r.Body, 1<<20))
 	if err := dec.Decode(v); err != nil && !errors.Is(err, io.EOF) {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "yanlış sorğu"})
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "bad request", "error_az": "yanlış sorğu"})
 		return false
 	}
 	return true
@@ -189,7 +189,12 @@ func writeErr(w http.ResponseWriter, err error) {
 	case errors.Is(err, app.ErrOutside):
 		code = http.StatusForbidden
 	}
-	writeJSON(w, code, map[string]string{"error": err.Error()})
+	out := map[string]string{"error": err.Error()}
+	var le *app.Error
+	if errors.As(err, &le) {
+		out["error"], out["error_az"] = le.T.En, le.T.Az
+	}
+	writeJSON(w, code, out)
 }
 
 func writeJSON(w http.ResponseWriter, code int, v any) {

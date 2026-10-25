@@ -24,7 +24,7 @@ go install github.com/Ali7Zeynalli/depgate@latest
 depgate
 ```
 
-`http://127.0.0.1:7777` açılır. **+ Layihə əlavə et** düyməsini bas, qovluqları gəz (`package.json` olanlar «layihə» kimi işarələnib) və layihəni seç. Bütöv qovluq da seçmək olar: altındakı bütün layihələr, monorepo üzvləri daxil, əlavə olunur və arxa planda skan edilir.
+`http://127.0.0.1:7777` açılır. Interfeys iki dillidir: brauzerin dili Azərbaycan dilidirsə, özü AZ açılır; yuxarıdakı **AZ / EN** düyməsi ilə yenidən skan etmədən dəyişir. **+ Layihə əlavə et** düyməsini bas, qovluqları gəz (`package.json` olanlar «layihə» kimi işarələnib) və layihəni seç. Bütöv qovluq da seçmək olar: altındakı bütün layihələr, monorepo üzvləri daxil, əlavə olunur və arxa planda skan edilir.
 
 Layihə siyahısı və son hesabatlar yadda qalır (`~/.config/depgate`), növbəti dəfə hamısı yerindədir. Hər layihə üçün **Skan et** və **Siyahıdan sil**, hamısı üçün **Hamısını skan et**. Layihə qovluğunda `depgate` (və ya `depgate ~/projects`) yazsan, dərhal əlavə olunur.
 
@@ -60,6 +60,8 @@ depgate --offline            # şəbəkəsiz, yalnız keşdən
 | `--allow-host` | Əlavə icazəli `Host` adı (təkrarlana bilər) | — |
 | `--no-open` | Brauzeri avtomatik açmır | açır |
 | `--depth` | Layihə axtarışının dərinliyi | 3 |
+
+Terminal mesajları standart olaraq ingiliscədir; `DEPGATE_LANG=az` ilə Azərbaycan dilinə keçir.
 | `--cooldown` | Bundan cavan versiyaları (gün) hədəf seçmir | 3 |
 
 ## Nə yoxlayır

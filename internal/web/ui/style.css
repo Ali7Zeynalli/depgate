@@ -169,3 +169,4 @@ button.link { border: 0; background: none; padding: 2px 4px; color: var(--accent
 .ficon.proj { background: var(--accent); opacity: 1; }
 .pfoot { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--line); flex-wrap: wrap; }
 .pfoot .quiet { font-size: 12.5px; font-family: var(--mono); min-width: 0; overflow-wrap: anywhere; }
+button.lang { font-size: 12.5px; font-weight: 700; letter-spacing: .04em; border: 1px solid var(--line); }
