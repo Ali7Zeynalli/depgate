@@ -255,6 +255,14 @@ docker run -d --name depgate -p 127.0.0.1:7777:7777 --user "$(id -u):$(id -g)" \
 - The project list, reports and password hash live in the **`depgate-data` Docker volume** (survives restarts and upgrades). Prefer sharing them with a native `depgate`? Swap the volume for `${HOME}/.config/depgate:/data` (see the comment in `docker-compose.yml`).
 - The port is published on `127.0.0.1` only. `DEPGATE_PASSWORD=…` sets the password up front; `DEPGATE_GITHUB_TOKEN=…` raises the GitHub limit for release notes.
 
+**As a server for other computers.** By default DepGate is reachable only from the machine it runs on. To open it from your laptop as `http://192.168.1.50:7777`, publish the port on the network and allow that address:
+
+```bash
+DEPGATE_UID=$(id -u) DEPGATE_GID=$(id -g) DEPGATE_BIND=0.0.0.0 DEPGATE_ALLOW_HOSTS=192.168.1.50 docker compose up -d
+```
+
+`DEPGATE_ALLOW_HOSTS` is the IP or name you type in the browser (several: `192.168.1.50,depgate.lan`). Without it the page answers *“this address is not allowed”* and the log says what to set — DepGate only answers to addresses you allow, so other websites cannot reach it through your browser (DNS rebinding). The password still protects everything; plain HTTP is not encrypted, so on an untrusted network put a TLS reverse proxy (Caddy, nginx) in front or use an SSH tunnel (`ssh -L 7777:127.0.0.1:7777 server`, then open `http://127.0.0.1:7777` — no settings needed).
+
 ### One-shot modes
 
 ```bash
@@ -272,7 +280,7 @@ depgate mcp --project DIR    # MCP server for AI agents (stdio)
 | `--addr` | Listen address | 127.0.0.1 (0.0.0.0 in Docker) |
 | `--root` | Folder the UI may browse (repeatable; `DEPGATE_ROOTS`) | home directory |
 | `--data` | Project list, reports, password hash (`DEPGATE_DATA`) | `~/.config/depgate` |
-| `--allow-host` | Extra allowed `Host` name, e.g. a LAN name (repeatable) | — |
+| `--allow-host` | Extra allowed `Host` name or IP, e.g. a LAN name (repeatable; env `DEPGATE_ALLOW_HOSTS`, comma separated) | — |
 | `--print-token` | Print the API/MCP token (Docker: `docker exec depgate depgate --print-token`) | — |
 | `--reset-password` | Forget the UI password; the next visit asks for a new one | — |
 | `--no-auth` | Disable the password (127.0.0.1 only; not recommended) | off |

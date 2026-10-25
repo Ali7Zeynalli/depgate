@@ -99,6 +99,27 @@ func TestHostCheckAndHealth(t *testing.T) {
 	}
 }
 
+// Opening DepGate by an IP that is not allowed explains what to set, and logs it once.
+func TestForbiddenHostExplains(t *testing.T) {
+	e := newEnv(t)
+	var log strings.Builder
+	e.s.Log = &log
+	w := e.do("GET", "/", "", false, "192.168.1.50:7777")
+	e.expect(w, 403, "LAN IP not allowed")
+	if b := w.Body.String(); !strings.Contains(b, "DEPGATE_ALLOW_HOSTS=192.168.1.50") || !strings.Contains(b, "--allow-host 192.168.1.50") {
+		t.Fatalf("page does not say what to set: %s", b)
+	}
+	e.do("GET", "/app.js", "", false, "192.168.1.50:7777")
+	if n := strings.Count(log.String(), "rejected Host"); n != 1 {
+		t.Fatalf("logged %d times: %s", n, log.String())
+	}
+	if w := e.do("GET", "/", "", false, "<script>:7777"); strings.Contains(w.Body.String(), "<script>") {
+		t.Fatal("host is not escaped")
+	}
+	e.s.AllowHosts = append(e.s.AllowHosts, "192.168.1.50")
+	e.expect(e.do("GET", "/", "", false, "192.168.1.50:7777"), 200, "LAN IP allowed")
+}
+
 func TestSetupLoginLogout(t *testing.T) {
 	e := newEnv(t)
 	// UI shell is public; data is not

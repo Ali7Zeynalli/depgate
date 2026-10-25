@@ -245,6 +245,14 @@ docker run -d --name depgate -p 127.0.0.1:7777:7777 --user "$(id -u):$(id -g)" \
 - Siyahı, hesabatlar və parol hash-ı **`depgate-data` Docker volume-unda** saxlanır və yenidən başlatmada və yeniləmədə itmir. Docker-siz `depgate` ilə ortaq istifadə etmək istəsən, volume-u `${HOME}/.config/depgate:/data` ilə əvəz et (`docker-compose.yml`-dəki şərhə bax).
 - Port yalnız `127.0.0.1`-də açılır. `DEPGATE_PASSWORD=…` parolu əvvəlcədən təyin edir; `DEPGATE_GITHUB_TOKEN=…` release notes üçün GitHub limitini artırır.
 
+**Başqa kompüterlər üçün server kimi.** Standart halda DepGate yalnız işlədiyi kompüterdən açılır. Onu, məsələn, noutbukundan `http://192.168.1.50:7777` ünvanı ilə açmaq üçün portu şəbəkəyə aç və həmin ünvana icazə ver:
+
+```bash
+DEPGATE_UID=$(id -u) DEPGATE_GID=$(id -g) DEPGATE_BIND=0.0.0.0 DEPGATE_ALLOW_HOSTS=192.168.1.50 docker compose up -d
+```
+
+`DEPGATE_ALLOW_HOSTS` brauzerdə yazdığın IP və ya addır (bir neçəsi: `192.168.1.50,depgate.lan`). Onsuz səhifə *«bu ünvana icazə yoxdur»* deyir, log isə nəyi yazmaq lazım olduğunu göstərir. DepGate yalnız icazə verdiyin ünvanlara cavab verir ki, başqa saytlar brauzerin vasitəsilə ona çata bilməsin (DNS rebinding). Hər şeyi yenə parol qoruyur. Adi HTTP şifrələnmir, ona görə etibarsız şəbəkədə qarşısına TLS reverse proxy (Caddy, nginx) qoy və ya SSH tuneldən istifadə et: `ssh -L 7777:127.0.0.1:7777 server`, sonra `http://127.0.0.1:7777` aç — heç bir ayar lazım deyil.
+
 ### Bir dəfəlik rejimlər
 
 ```bash
@@ -262,7 +270,7 @@ depgate mcp --project DIR    # AI agentlər üçün MCP server (stdio)
 | `--addr` | Dinlənilən ünvan | 127.0.0.1 (Docker-də 0.0.0.0) |
 | `--root` | Gəzilə bilən qovluq (təkrarlana bilər; `DEPGATE_ROOTS`) | ev qovluğu |
 | `--data` | Siyahı, hesabatlar, parol hash-ı (`DEPGATE_DATA`) | `~/.config/depgate` |
-| `--allow-host` | Əlavə icazəli `Host` adı, məsələn lokal şəbəkə adı (təkrarlana bilər) | — |
+| `--allow-host` | Əlavə icazəli `Host` adı və ya IP, məsələn lokal şəbəkə adı (təkrarlana bilər; env `DEPGATE_ALLOW_HOSTS`, vergüllə) | — |
 | `--print-token` | API/MCP token-ini çap et (Docker: `docker exec depgate depgate --print-token`) | — |
 | `--reset-password` | Parolu unut; növbəti açılışda yenisi istənir | — |
 | `--no-auth` | Parolu söndür (yalnız 127.0.0.1; tövsiyə olunmur) | söndürülüb |

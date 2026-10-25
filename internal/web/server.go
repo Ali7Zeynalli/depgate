@@ -10,6 +10,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"html"
 	"io"
 	"io/fs"
 	"net"
@@ -17,6 +19,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/Ali7Zeynalli/depgate/internal/app"
 	"github.com/Ali7Zeynalli/depgate/internal/auth"
@@ -43,6 +46,11 @@ type Server struct {
 	NoAuth bool
 	// AllowHosts are extra Host header names (without port) accepted besides localhost.
 	AllowHosts []string
+	// Log receives one line per rejected Host (nil: no log).
+	Log io.Writer
+
+	rejMu    sync.Mutex
+	rejected map[string]bool
 	// MCP serves the Model Context Protocol at /mcp for AI agents (Bearer token only).
 	MCP http.Handler
 }
@@ -211,7 +219,7 @@ func (s *Server) Handler() http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !s.hostOK(r.Host) { // DNS-rebinding guard
-			http.Error(w, "forbidden host", http.StatusForbidden)
+			s.forbiddenHost(w, r)
 			return
 		}
 		if r.URL.Path == "/healthz" { // container health check: no data
@@ -376,4 +384,41 @@ func NewToken() string {
 	b := make([]byte, 16)
 	_, _ = rand.Read(b)
 	return hex.EncodeToString(b)
+}
+
+// forbiddenHost explains how to allow the address the browser used: opening
+// DepGate by IP or LAN name needs the name in DEPGATE_ALLOW_HOSTS (--allow-host).
+func (s *Server) forbiddenHost(w http.ResponseWriter, r *http.Request) {
+	host := r.Host
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+	host = strings.Trim(host, "[]")
+	if s.Log != nil {
+		s.rejMu.Lock()
+		if s.rejected == nil {
+			s.rejected = map[string]bool{}
+		}
+		if !s.rejected[host] && len(s.rejected) < 50 {
+			s.rejected[host] = true
+			fmt.Fprintf(s.Log, "depgate: rejected Host %q from %s — to allow it, set DEPGATE_ALLOW_HOSTS=%s (or --allow-host %s)\n", r.Host, r.RemoteAddr, host, host)
+		}
+		s.rejMu.Unlock()
+	}
+	safe := html.EscapeString(host)
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'")
+	w.WriteHeader(http.StatusForbidden)
+	fmt.Fprintf(w, `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DepGate — address not allowed</title>
+<body style="font:15px/1.5 system-ui,sans-serif;max-width:640px;margin:8vh auto;padding:0 16px">
+<h1 style="font-size:20px">DepGate: this address is not allowed</h1>
+<p>DepGate only answers to the addresses you allow, so other websites cannot reach it through your browser (DNS rebinding). You opened it as <b>%[1]s</b>.</p>
+<p>Allow it on the server and restart DepGate:</p>
+<pre style="background:#f2f3f5;padding:10px;border-radius:8px;overflow:auto">DEPGATE_ALLOW_HOSTS=%[1]s   # docker-compose: under environment, or in .env
+depgate --addr 0.0.0.0 --allow-host %[1]s   # without Docker</pre>
+<hr style="border:0;border-top:1px solid #ddd;margin:24px 0">
+<h1 style="font-size:20px">DepGate: bu ünvana icazə yoxdur</h1>
+<p>DepGate yalnız icazə verdiyin ünvanlara cavab verir ki, başqa saytlar brauzerin vasitəsilə ona çata bilməsin (DNS rebinding). Sən onu <b>%[1]s</b> ünvanı ilə açmısan.</p>
+<p>Serverdə bu ünvana icazə ver və DepGate-i yenidən başlat: <code>DEPGATE_ALLOW_HOSTS=%[1]s</code></p>
+</body>`, safe)
 }
