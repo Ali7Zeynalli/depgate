@@ -158,6 +158,16 @@ Add a folder (a monorepo or a folder of projects) and it shows up as one entry i
 ![AI prompt](docs/ai-prompt.png)
 ![AI rules](docs/ai-rules.png)
 
+## What changes in your code
+
+"Code change: yes" is not enough, so DepGate shows **where**. When an update crosses a documented breaking release, it reads your project's own files (locally, nothing is sent) and lists every place that needs a change: `file:line`, the line itself, why it breaks and what to write instead, plus things to check by hand and the official codemod when one exists.
+
+Covered: Next.js 15 and 16, React 18 and 19, TanStack Query 5, ESLint 9, Tailwind CSS 4, Express 5, NestJS 11, Zod 4, Prisma 7, React Router 6 and 7, and the official upgrade tools of Angular, Nx, Storybook and Expo. For other packages with a major update, DepGate shows the "Breaking changes" sections of the GitHub releases between your version and the target (`DEPGATE_GITHUB_TOKEN` raises GitHub's limit of 60 requests an hour).
+
+If a newer major exists beyond the suggested target, a collapsed **"If you move to the new major"** section shows what that move would touch, so you can plan it. Matching is text based: review each place, then run the build and tests. All of it goes into the AI prompt too.
+
+![Code changes](docs/code-changes.png)
+
 ## Update together, Docker, AI rules
 
 DepGate never changes your files. Everything below is shown and suggested; you (or your AI agent) apply it.
@@ -178,6 +188,7 @@ Every decision is based on public, free sources. The **Sources** button in the U
 | [FIRST EPSS](https://www.first.org/epss/) | probability of exploitation in the next 30 days (feeds priority) |
 | [deps.dev](https://deps.dev) | every version of a package and its publish date (safest target, cooldown) |
 | [npm registry](https://www.npmjs.com) | the target version's `engines`, peer dependencies, install scripts, provenance, deprecation |
+| [GitHub releases](https://docs.github.com/en/rest/releases/releases) | breaking-change sections of the releases between your version and the target (major updates) |
 | [Node.js releases](https://nodejs.org/en/about/previous-releases) + [Node.js Security WG](https://github.com/nodejs/security-wg) | Node.js versions, security releases, end-of-life dates, and the CVEs that affect your exact version |
 
 Two checks need no extra source:

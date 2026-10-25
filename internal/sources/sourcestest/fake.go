@@ -32,6 +32,7 @@ type Fake struct {
 	NpmAdv   map[string][]sources.NpmAdvisory // npm bulk advisory answers by package
 	Removed  map[string]bool                  // "name@ver" npm no longer serves
 	NodeCore map[string]sources.NodeVuln      // Node.js security WG core vulnerabilities
+	Releases map[string][]sources.Release     // GitHub releases by "owner/repo"
 	// Match decides whether a vuln applies to name@version (set to decide.Affects by callers).
 	Match func(v *sources.Vuln, name, version string) bool
 
@@ -39,7 +40,7 @@ type Fake struct {
 }
 
 func New(now time.Time) *Fake {
-	return &Fake{Now: now, Vulns: map[string]*sources.Vuln{}, Versions: map[string][]Version{}, Manifest: map[string]map[string]any{}, EPSS: map[string]float64{}, Schedule: map[string]sources.NodeLine{}, NpmAdv: map[string][]sources.NpmAdvisory{}, Removed: map[string]bool{}, NodeCore: map[string]sources.NodeVuln{}}
+	return &Fake{Now: now, Vulns: map[string]*sources.Vuln{}, Versions: map[string][]Version{}, Manifest: map[string]map[string]any{}, EPSS: map[string]float64{}, Schedule: map[string]sources.NodeLine{}, NpmAdv: map[string][]sources.NpmAdvisory{}, Removed: map[string]bool{}, NodeCore: map[string]sources.NodeVuln{}, Releases: map[string][]sources.Release{}}
 }
 
 // Old returns versions published long ago (past any cooldown).
@@ -165,6 +166,9 @@ func (f *Fake) Do(ctx context.Context, method, u string, body []byte, _ map[stri
 			}
 		}
 		return json.Marshal(out)
+	case strings.Contains(u, "api.github.com/repos/"):
+		repo := strings.TrimSuffix(strings.SplitN(strings.TrimPrefix(u, "https://api.github.com/repos/"), "/releases", 2)[0], "/")
+		return json.Marshal(f.Releases[repo])
 	case strings.Contains(u, "nodejs/security-wg"):
 		return json.Marshal(f.NodeCore)
 	case strings.Contains(u, "registry.npmjs.org"):

@@ -194,7 +194,7 @@ func TestBilingual(t *testing.T) {
 func TestSourcesRecorded(t *testing.T) {
 	now := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
 	rep := Run(context.Background(), Demo(), []string{copyFixture(t, "npm-v3")}, Options{Version: "test", Now: now})
-	if len(rep.Sources) != 7 || len(rep.Projects[0].Sources) != 7 {
+	if n := len(sources.Catalog); len(rep.Sources) != n || len(rep.Projects[0].Sources) != n {
 		t.Fatalf("sources %+v", rep.Sources)
 	}
 	used := map[string]int{}

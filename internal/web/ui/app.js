@@ -193,6 +193,16 @@
     pReport: ["## Sonda hesabat ver", "## Report back"],
     pReportText: ["Cədvəl: layihə | paket | köhnə → yeni versiya | nəticə (edildi / alınmadı + səbəb). Sonra build/test nəticəsi və etdiyin kod dəyişiklikləri.", "A table: project | package | old → new version | result (done / failed + reason). Then the build/test results and any code changes you made."],
     prod: ["prod", "prod"],
+    migNow: ["Kodunda dəyişəcək yerlər (→ {0}): {1}", "Places in your code to change (→ {0}): {1}"],
+    migPlan: ["Yeni major-a keçsən (→ {0}): kodunda {1} yer", "If you move to the new major (→ {0}): {1} places in your code"],
+    migNone: ["uyğun istifadə tapılmadı", "no matching usage found"],
+    migCodemod: ["Avtomatik düzəliş (rəsmi codemod)", "Automatic fix (official codemod)"],
+    migChecks: ["Əl ilə yoxla", "Check by hand"],
+    migNotes: ["Release notes — breaking changes ({0})", "Release notes — breaking changes ({0})"],
+    migNotesErr: ["Release notes yüklənmədi: {0}", "Release notes not loaded: {0}"],
+    migHint: ["Axtarış mətn nümunələrinə əsaslanır: hər yeri yoxla, sonra build və testləri işlət.", "Matching is text based: review each place, then run the build and tests."],
+    pMig: ["Kod dəyişiklikləri", "Code changes"],
+    pMigPlan: ["Yeni major {0} mövcuddur: kodunda {1} yer dəyişəcək (DepGate-də bax)", "New major {0} is available: {1} places in your code would change (see DepGate)"],
     bundlesTitle: ["Birlikdə yenilə", "Update together"],
     bundleTo: ["→ {0}", "→ {0}"],
     bundleStays: ["qalır", "stays"],
@@ -632,6 +642,17 @@
           if (tr(f.fix.note)) L.push(`- ${t("pNote")}: ${tr(f.fix.note)}`);
         }
         if (f.warnings && f.warnings.length) L.push(`- ${t("pWarn")}: ${join(f.warnings)}`);
+        for (const m of f.migrate || []) {
+          if (m.plan) { L.push(`- ${t("pMigPlan", m.to, m.hits)}`); continue; }
+          L.push(`- ${t("pMig")} (→ ${m.to}):`);
+          for (const st of m.steps || []) {
+            L.push(`  - ${st.topic} — ${st.docs}`);
+            if (st.codemod) L.push(`    - codemod: \`${st.codemod}\``);
+            for (const h of st.hits || []) L.push(`    - ${h.file}:${h.line} — ${tr(h.msg)}${h.fix ? " → `" + h.fix.split("\n")[0] + "`" : ""}`);
+            for (const c of st.checks || []) L.push(`    - ${t("migChecks")}: ${tr(c)}`);
+          }
+          for (const n of m.notes || []) L.push(`  - release ${n.version}${n.url ? " (" + n.url + ")" : ""}: ${n.breaking.replace(/\s+/g, " ").slice(0, 400)}`);
+        }
         L.push("");
       });
       if (bundles.length) {
@@ -902,6 +923,27 @@
   const impClass = (i) => (IMPACT[i] || IMPACT.unknown)[1];
   const list = (xs) => (xs || []).filter((x) => tr(x)).map((w) => el("li", null, tr(w)));
 
+  function migBlock(m, label) {
+    const steps = m.steps || [];
+    const head = m.plan ? t("migPlan", m.to, m.hits) : t("migNow", m.to, m.hits || t("migNone"));
+    return el("details", { class: "mig" + (m.plan ? " plan" : ""), open: !m.plan && m.hits > 0 || undefined },
+      el("summary", null, label ? el("span", { class: "chip" }, label) : null, head),
+      el("div", { class: "quiet small" }, t("migHint"), " ", t("readOnlyNote")),
+      steps.map((st) => el("div", { class: "mstep" },
+        el("div", { class: "mtopic" }, el("b", null, st.topic), safeURL(st.docs) ? el("a", { href: st.docs, target: "_blank", rel: "noopener noreferrer" }, t("docs")) : null),
+        st.codemod ? el("div", { class: "row codemod" }, el("span", { class: "quiet small" }, t("migCodemod")), el("code", null, st.codemod), copyBtn(st.codemod)) : null,
+        (st.hits || []).length ? el("ul", { class: "hits" }, st.hits.map((h) => el("li", null,
+          el("div", null, el("code", { class: "loc" }, h.file + ":" + h.line), " ", el("span", null, tr(h.msg))),
+          h.code && h.code !== h.file ? el("pre", { class: "snip" }, h.code) : null,
+          h.fix ? el("div", { class: "quiet small" }, "→ ", el("code", null, h.fix)) : null))) : null,
+        (st.checks || []).length ? el("div", { class: "checks" }, el("span", { class: "quiet small" }, t("migChecks")), el("ul", { class: "why" }, list(st.checks))) : null)),
+      (m.notes || []).length ? el("details", { class: "notes" }, el("summary", null, t("migNotes", m.notes.length)),
+        m.notes.map((n) => el("div", { class: "note" },
+          safeURL(n.url) ? el("a", { href: n.url, target: "_blank", rel: "noopener noreferrer" }, n.version) : el("b", null, n.version),
+          el("pre", { class: "snip" }, n.breaking)))) : null,
+      m.notesErr ? el("div", { class: "quiet small" }, t("migNotesErr", m.notesErr)) : null);
+  }
+
   function card(f, p, where, g) {
     const vuln = f.kind === "vuln" || f.kind === "malware";
     const cls = "card" + (f.kind === "malware" ? " mal bad" : f.kind === "removed" ? " bad" : "");
@@ -921,6 +963,8 @@
     if (f.why && f.why.length) kids.push(el("ul", { class: "why" }, list(f.why)));
     kids.push(el("div", { class: "q" }, el("span", { class: "dot " + impClass(f.codeImpact) }), el("span", { class: "lbl" }, t("qImpact")), el("span", { class: "ans" }, impText(f.codeImpact))));
     if (f.impactWhy && f.impactWhy.length) kids.push(el("ul", { class: "why" }, list(f.impactWhy)));
+    if (where) { for (const w of where) for (const m of w.f.migrate || []) kids.push(migBlock(m, where.length > 1 ? relName(w.p, g) : "")); }
+    else for (const m of f.migrate || []) kids.push(migBlock(m));
     if (f.warnings && f.warnings.length) kids.push(el("div", { class: "warnbox" }, f.warnings.map((w) => el("div", null, "⚠ " + tr(w)))));
     if (where) {
       const lines = where.map((w) => w.f.fix && w.f.fix.command ? cdPrefix(w.p, g) + w.f.fix.command.split("   #")[0] : "").filter(Boolean);
