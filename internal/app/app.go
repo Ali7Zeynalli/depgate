@@ -24,6 +24,7 @@ import (
 type ProjectState struct {
 	Dir      string          `json:"dir"`
 	Name     string          `json:"name"`
+	Group    string          `json:"group"` // folder this project is shown under in the sidebar
 	AddedAt  time.Time       `json:"addedAt,omitempty"`
 	Scanning bool            `json:"scanning"`
 	Queued   bool            `json:"queued"`
@@ -197,7 +198,7 @@ func (m *Manager) Add(path string) ([]string, error) {
 	}
 	var es []store.Entry
 	for _, d := range dirs {
-		es = append(es, store.Entry{Dir: d})
+		es = append(es, store.Entry{Dir: d, Group: abs})
 	}
 	added, err := m.Store.Add(es...)
 	if err != nil {
@@ -227,6 +228,7 @@ func (m *Manager) State() State {
 			p := &m.ro.Projects[i]
 			st.Projects = append(st.Projects, ProjectState{Dir: p.Dir, Name: p.Name, Report: p})
 		}
+		assignGroups(st.Projects, nil)
 		return st
 	}
 	m.mu.Lock()
@@ -234,10 +236,54 @@ func (m *Manager) State() State {
 	running, queued := copyMap(m.running), copyMap(m.queued)
 	m.mu.Unlock()
 	st.Busy = len(running)+len(queued) > 0
+	explicit := map[string]string{}
 	for _, e := range m.Store.Projects() {
 		st.Projects = append(st.Projects, ProjectState{Dir: e.Dir, Name: e.Name, AddedAt: e.AddedAt, Scanning: running[e.Dir], Queued: queued[e.Dir], Report: m.Store.Report(e.Dir)})
+		explicit[e.Dir] = e.Group
 	}
+	assignGroups(st.Projects, explicit)
 	return st
+}
+
+// assignGroups sets the sidebar folder of every project and sorts the list by
+// folder, then by path inside it (the folder's own project first). A project
+// uses the folder it was added from; projects saved before groups existed are
+// put under the outermost other project that contains them, else on their own.
+func assignGroups(ps []ProjectState, explicit map[string]string) {
+	for i := range ps {
+		g := explicit[ps[i].Dir]
+		if g == "" || !store.Within(ps[i].Dir, g) {
+			g = ps[i].Dir
+			for _, o := range ps {
+				if o.Dir != ps[i].Dir && store.Within(ps[i].Dir, o.Dir) && len(o.Dir) < len(g) {
+					g = o.Dir
+				}
+			}
+		}
+		ps[i].Group = g
+	}
+	// a project that sits inside another group's folder joins the outer group
+	for moved := true; moved; {
+		moved = false
+		for i := range ps {
+			for _, o := range ps {
+				if o.Group != ps[i].Group && store.Within(ps[i].Group, o.Group) {
+					ps[i].Group, moved = o.Group, true
+				}
+			}
+		}
+	}
+	sort.SliceStable(ps, func(i, j int) bool {
+		a, b := ps[i], ps[j]
+		if a.Group != b.Group {
+			ga, gb := strings.ToLower(filepath.Base(a.Group)), strings.ToLower(filepath.Base(b.Group))
+			if ga != gb {
+				return ga < gb
+			}
+			return a.Group < b.Group
+		}
+		return a.Dir < b.Dir
+	})
 }
 
 func copyMap(m map[string]bool) map[string]bool {

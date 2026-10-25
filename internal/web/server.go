@@ -115,14 +115,20 @@ func (s *Server) Handler() http.Handler {
 	})
 	mux.HandleFunc("POST /api/projects/remove", func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
-			Dir string `json:"dir"`
+			Dir  string   `json:"dir"`
+			Dirs []string `json:"dirs"` // a whole folder group at once
 		}
 		if !readJSON(w, r, &req) {
 			return
 		}
-		if err := s.B.Remove(req.Dir); err != nil {
-			writeErr(w, err)
-			return
+		if req.Dir != "" {
+			req.Dirs = append(req.Dirs, req.Dir)
+		}
+		for _, d := range req.Dirs {
+			if err := s.B.Remove(d); err != nil {
+				writeErr(w, err)
+				return
+			}
 		}
 		writeJSON(w, http.StatusOK, s.B.State())
 	})

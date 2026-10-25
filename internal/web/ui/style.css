@@ -45,7 +45,16 @@ code, pre { font-family: var(--mono); font-size: 12.5px; }
 .projects h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--quiet); margin: 0 8px 8px; }
 .proj { display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%; text-align: left; border: 1px solid transparent; background: none; padding: 7px 8px; margin-bottom: 2px; }
 .proj.active { background: var(--accent-bg); border-color: var(--accent); }
-.proj .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.proj .nm, .grp .nm { display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+.nm .lbl, .nm .pkg { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nm .pkg { font-size: 11px; color: var(--quiet); }
+.grp { display: flex; align-items: center; gap: 6px; width: 100%; text-align: left; border: 1px solid transparent; background: none; padding: 7px 8px; margin-bottom: 2px; font-weight: 600; }
+.grp .nm { flex: 1; }
+.grp .caret { width: 12px; flex: none; color: var(--quiet); }
+.grp.has-active .caret { color: var(--accent); }
+.group .kids { margin: 0 0 6px 13px; padding-left: 6px; border-left: 1px solid var(--line); }
+.proj.child { padding: 5px 8px; }
+.pbar .gsep { width: 1px; align-self: stretch; background: var(--line); margin: 0 2px; }
 .proj .cnt { font-size: 12px; color: var(--quiet); white-space: nowrap; }
 .proj .cnt b { color: var(--bad); font-weight: 600; }
 .main { flex: 1; min-width: 0; padding: 20px; }
@@ -120,9 +129,8 @@ details.grp > summary .c { color: var(--quiet); font-weight: 400; }
 .toast.on { opacity: 1; transform: translateX(-50%); }
 @media (max-width: 860px) {
   .layout { display: block; }
-  .projects { position: static; width: auto; min-height: 0; max-height: none; border-right: 0; border-bottom: 1px solid var(--line); display: flex; gap: 6px; overflow-x: auto; padding: 8px 12px; }
+  .projects { position: static; width: auto; min-height: 0; max-height: 40vh; border-right: 0; border-bottom: 1px solid var(--line); overflow-y: auto; padding: 8px 12px; }
   .projects h2 { display: none; }
-  .proj { width: auto; flex: none; }
   .side { grid-template-columns: 1fr; }
   .main { padding: 16px; }
   .top { padding: 10px 16px; }

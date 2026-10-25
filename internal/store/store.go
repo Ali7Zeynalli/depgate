@@ -27,6 +27,9 @@ type Entry struct {
 	Dir     string    `json:"dir"`
 	Name    string    `json:"name"`
 	AddedAt time.Time `json:"addedAt"`
+	// Group is the folder the user picked when adding this project (a monorepo
+	// root or a folder of projects); the UI nests projects under it.
+	Group string `json:"group,omitempty"`
 }
 
 type Store struct {
@@ -91,17 +94,28 @@ func (s *Store) Projects() []Entry {
 }
 
 // Add remembers projects; existing dirs are kept. Returns the dirs that were new.
+// Adding an existing project again gives it a group if it had none, or moves it
+// to a wider group (an outer folder), never to a narrower one.
 func (s *Store) Add(es ...Entry) ([]string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	have := map[string]bool{}
-	for _, p := range s.projects {
-		have[p.Dir] = true
+	have := map[string]int{}
+	for i, p := range s.projects {
+		have[p.Dir] = i
 	}
 	var added []string
+	changed := false
 	for _, e := range es {
 		e.Dir = filepath.Clean(e.Dir)
-		if have[e.Dir] {
+		if e.Group != "" {
+			e.Group = filepath.Clean(e.Group)
+		}
+		if i, ok := have[e.Dir]; ok {
+			old := &s.projects[i]
+			if e.Group != "" && e.Group != old.Group && (old.Group == "" || Within(old.Group, e.Group)) {
+				old.Group = e.Group
+				changed = true
+			}
 			continue
 		}
 		if e.AddedAt.IsZero() {
@@ -110,14 +124,25 @@ func (s *Store) Add(es ...Entry) ([]string, error) {
 		if e.Name == "" {
 			e.Name = filepath.Base(e.Dir)
 		}
-		have[e.Dir] = true
+		have[e.Dir] = len(s.projects)
 		s.projects = append(s.projects, e)
 		added = append(added, e.Dir)
 	}
-	if len(added) == 0 {
+	if len(added) == 0 && !changed {
 		return nil, nil
 	}
 	return added, s.saveLocked()
+}
+
+// Within reports whether dir is parent itself or inside it.
+func Within(dir, parent string) bool {
+	if dir == parent {
+		return true
+	}
+	if !strings.HasSuffix(parent, string(filepath.Separator)) {
+		parent += string(filepath.Separator)
+	}
+	return strings.HasPrefix(dir, parent)
 }
 
 // Rename updates the display name (from package.json after a scan).
