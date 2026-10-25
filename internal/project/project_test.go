@@ -50,8 +50,8 @@ func TestNodeSources(t *testing.T) {
 
 func TestNormRemoteAndID(t *testing.T) {
 	cases := map[string]string{
-		"git@github.com:Ali7Zeynalli/it-crm.git":           "github.com/Ali7Zeynalli/it-crm",
-		"https://github.com/Ali7Zeynalli/it-crm.git":       "github.com/Ali7Zeynalli/it-crm",
+		"git@github.com:example-org/shop-app.git":          "github.com/example-org/shop-app",
+		"https://github.com/example-org/shop-app.git":      "github.com/example-org/shop-app",
 		"https://user:pass@gitlab.com/group/sub/repo.git/": "gitlab.com/group/sub/repo",
 		"ssh://git@github.com/a/b":                         "github.com/a/b",
 	}

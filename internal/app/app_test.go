@@ -163,26 +163,26 @@ func TestTokenStable(t *testing.T) {
 
 func TestAssignGroups(t *testing.T) {
 	ps := []ProjectState{
-		{Dir: "/h/kraton/apps/web", Name: "@kraton/web"},
-		{Dir: "/h/propify-v2", Name: "propify"},
-		{Dir: "/h/kraton", Name: "kraton"},
-		{Dir: "/h/kraton/apps/admin", Name: "@kraton/admin"},
+		{Dir: "/h/acme/apps/web", Name: "@acme/web"},
+		{Dir: "/h/blog", Name: "blog"},
+		{Dir: "/h/acme", Name: "acme"},
+		{Dir: "/h/acme/apps/admin", Name: "@acme/admin"},
 		{Dir: "/h/work/a", Name: "a"},
 		{Dir: "/h/work/b", Name: "b"},
 		{Dir: "/h/work/b/sub", Name: "old-without-group"},
 	}
 	explicit := map[string]string{
-		"/h/kraton/apps/web":   "/h/kraton",
-		"/h/kraton/apps/admin": "/h/kraton/apps", // picked a narrower folder later
-		"/h/work/a":            "/h/work",
-		"/h/work/b":            "/h/work",
+		"/h/acme/apps/web":   "/h/acme",
+		"/h/acme/apps/admin": "/h/acme/apps", // picked a narrower folder later
+		"/h/work/a":          "/h/work",
+		"/h/work/b":          "/h/work",
 	}
 	assignGroups(ps, explicit)
 	want := []struct{ dir, group string }{
-		{"/h/kraton", "/h/kraton"},
-		{"/h/kraton/apps/admin", "/h/kraton"},
-		{"/h/kraton/apps/web", "/h/kraton"},
-		{"/h/propify-v2", "/h/propify-v2"},
+		{"/h/acme", "/h/acme"},
+		{"/h/acme/apps/admin", "/h/acme"},
+		{"/h/acme/apps/web", "/h/acme"},
+		{"/h/blog", "/h/blog"},
 		{"/h/work/a", "/h/work"},
 		{"/h/work/b", "/h/work"},
 		{"/h/work/b/sub", "/h/work"},

@@ -33,15 +33,16 @@ type ProjectState struct {
 
 // State is everything the UI needs in one response.
 type State struct {
-	Tool      string         `json:"tool"`
-	ReadOnly  bool           `json:"readOnly"`
-	Roots     []string       `json:"roots"`
-	Busy      bool           `json:"busy"`
-	LastScan  *time.Time     `json:"lastScan,omitempty"`
-	Errors    []string       `json:"errors,omitempty"`
-	Offline   bool           `json:"offline,omitempty"`
-	Projects  []ProjectState `json:"projects"`
-	Container bool           `json:"container,omitempty"`
+	Tool      string          `json:"tool"`
+	ReadOnly  bool            `json:"readOnly"`
+	Roots     []string        `json:"roots"`
+	Busy      bool            `json:"busy"`
+	LastScan  *time.Time      `json:"lastScan,omitempty"`
+	Errors    []string        `json:"errors,omitempty"`
+	Sources   []report.Source `json:"sources"` // data sources and how they answered in the last scan
+	Offline   bool            `json:"offline,omitempty"`
+	Projects  []ProjectState  `json:"projects"`
+	Container bool            `json:"container,omitempty"`
 }
 
 // Entry is one folder in a Browse listing.
@@ -80,6 +81,7 @@ type Manager struct {
 	running  map[string]bool
 	queued   map[string]bool
 	errors   []string
+	sources  []report.Source
 	lastScan *time.Time
 	jobs     chan []string
 	once     sync.Once
@@ -147,7 +149,7 @@ func (m *Manager) worker(ctx context.Context) {
 			for _, d := range todo {
 				delete(m.running, d)
 			}
-			m.errors, m.lastScan = rep.Errors, &now
+			m.errors, m.sources, m.lastScan = rep.Errors, rep.Sources, &now
 			m.mu.Unlock()
 		}
 	}
@@ -221,7 +223,10 @@ func (m *Manager) Remove(dir string) error {
 // State returns the current view.
 func (m *Manager) State() State {
 	if m.ro != nil {
-		st := State{Tool: m.ro.Tool, ReadOnly: true, Errors: m.ro.Errors, Offline: m.ro.Offline, Projects: []ProjectState{}}
+		st := State{Tool: m.ro.Tool, ReadOnly: true, Errors: m.ro.Errors, Offline: m.ro.Offline, Sources: m.ro.Sources, Projects: []ProjectState{}}
+		if st.Sources == nil {
+			st.Sources = scan.Sources(nil)
+		}
 		t := m.ro.ScannedAt
 		st.LastScan = &t
 		for i := range m.ro.Projects {
@@ -232,7 +237,10 @@ func (m *Manager) State() State {
 		return st
 	}
 	m.mu.Lock()
-	st := State{Tool: "depgate " + m.Opt.Version, Roots: m.Roots, Errors: m.errors, LastScan: m.lastScan, Offline: m.Opt.Offline, Container: m.Container, Projects: []ProjectState{}}
+	st := State{Tool: "depgate " + m.Opt.Version, Roots: m.Roots, Errors: m.errors, Sources: m.sources, LastScan: m.lastScan, Offline: m.Opt.Offline, Container: m.Container, Projects: []ProjectState{}}
+	if st.Sources == nil {
+		st.Sources = scan.Sources(nil)
+	}
 	running, queued := copyMap(m.running), copyMap(m.queued)
 	m.mu.Unlock()
 	st.Busy = len(running)+len(queued) > 0

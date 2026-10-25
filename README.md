@@ -148,6 +148,23 @@ Terminal messages are in English; set `DEPGATE_LANG=az` for Azerbaijani.
 - **Node.js runtime:** Dockerfile, `.nvmrc`, `.node-version`, `.tool-versions`, `engines`, GitHub Actions; security releases and end-of-life dates.
 - **Project hygiene:** lockfile committed, install scripts disabled, release cooldown configured, consistent Node.js version.
 
+## Data sources
+
+Every decision is based on public, free sources. The **Sources** button in the UI lists them, what each one is used for, and how many requests each one answered in the last scan (or whether it failed). The same list is linked under every project.
+
+| Source | Used for |
+|---|---|
+| [OSV.dev](https://osv.dev) | vulnerabilities (CVE/GHSA) and malicious packages — includes the GitHub Advisory Database and OpenSSF Malicious Packages |
+| [CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog) | vulnerabilities exploited in real attacks (raises priority) |
+| [FIRST EPSS](https://www.first.org/epss/) | probability of exploitation in the next 30 days (feeds priority) |
+| [deps.dev](https://deps.dev) | every version of a package and its publish date (safest target, cooldown) |
+| [npm registry](https://www.npmjs.com) | the target version's `engines`, peer dependencies, install scripts, provenance, deprecation |
+| [Node.js releases](https://nodejs.org/en/about/previous-releases) | Node.js versions, security releases, end-of-life dates |
+
+Read locally: `package.json`, the lockfile, Dockerfile / `.nvmrc` / `.node-version` / `engines` / CI files, `.npmrc`.
+
+![Data sources](docs/sources.png)
+
 ## Privacy
 
 Only package names and versions (OSV, deps.dev, npm registry) and CVE IDs (EPSS) leave your machine. Source code, file paths, project names and `.env` files never do. Responses are cached in `~/.cache/depgate/`.
