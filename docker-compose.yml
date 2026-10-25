@@ -2,7 +2,8 @@
 #
 #   DEPGATE_UID=$(id -u) DEPGATE_GID=$(id -g) docker compose up -d
 #
-# Open http://127.0.0.1:7777 and set a password on the first visit.
+# Open http://127.0.0.1:7777 (or http://<this machine's IP>:7777 from another
+# computer on your network) and set a password on the first visit.
 #
 # Your home folder is mounted read-only at the SAME path, so the UI shows your
 # real paths (/home/you/projects/...) and you can add a project from anywhere in
@@ -36,11 +37,13 @@ services:
     # run as you, so DepGate can read your files (check with: id -u ; id -g)
     user: "${DEPGATE_UID:-1000}:${DEPGATE_GID:-1000}"
     ports:
-      # this machine only. As a server for other computers on your network:
-      #   DEPGATE_BIND=0.0.0.0 DEPGATE_ALLOW_HOSTS=192.168.1.50 docker compose up -d
-      # (DEPGATE_ALLOW_HOSTS = the IP or name you type in the browser; comma separated)
-      - "${DEPGATE_BIND:-127.0.0.1}:7777:7777"
+      # Open it from this computer (http://127.0.0.1:7777) or from any computer on
+      # your network (http://<this machine's IP>:7777) — no settings needed.
+      # Connections from the internet are refused by DepGate itself.
+      # This computer only: DEPGATE_BIND=127.0.0.1 docker compose up -d
+      - "${DEPGATE_BIND:-0.0.0.0}:7777:7777"
     environment:
+      # a name instead of an IP (server.lan, or your domain behind an HTTPS proxy); comma separated
       - DEPGATE_ALLOW_HOSTS=${DEPGATE_ALLOW_HOSTS:-}
       - HOME=${HOME}
       - DEPGATE_ROOTS=${HOME}

@@ -253,15 +253,17 @@ docker run -d --name depgate -p 127.0.0.1:7777:7777 --user "$(id -u):$(id -g)" \
 - Your **home folder is mounted read-only at the same path**, so the UI shows your real paths and you can add projects from anywhere in it — nothing to move. DepGate never writes there.
 - The container runs **as your user** (`DEPGATE_UID`/`DEPGATE_GID`, default 1000) so it can read your files; a one-shot `depgate-init` step gives the data volume to that user first (this also repairs volumes created by older versions).
 - The project list, reports and password hash live in the **`depgate-data` Docker volume** (survives restarts and upgrades). Prefer sharing them with a native `depgate`? Swap the volume for `${HOME}/.config/depgate:/data` (see the comment in `docker-compose.yml`).
-- The port is published on `127.0.0.1` only. `DEPGATE_PASSWORD=…` sets the password up front; `DEPGATE_GITHUB_TOKEN=…` raises the GitHub limit for release notes.
+- `DEPGATE_PASSWORD=…` sets the password up front; `DEPGATE_GITHUB_TOKEN=…` raises the GitHub limit for release notes.
 
-**As a server for other computers.** By default DepGate is reachable only from the machine it runs on. To open it from your laptop as `http://192.168.1.50:7777`, publish the port on the network and allow that address:
+**From other computers.** With compose, DepGate is reachable on your network right away: open `http://<the server's IP>:7777` from any computer — no settings. Who can connect:
 
-```bash
-DEPGATE_UID=$(id -u) DEPGATE_GID=$(id -g) DEPGATE_BIND=0.0.0.0 DEPGATE_ALLOW_HOSTS=192.168.1.50 docker compose up -d
-```
+| From | Result |
+|---|---|
+| this computer, the local network (`192.168.x`, `10.x`, `172.16–31.x`), VPNs (Tailscale `100.64.x`, WireGuard) | allowed |
+| the internet (a public address) | refused — the password would travel over plain HTTP |
+| a name instead of an IP (`server.lan`, a domain) | add it to `DEPGATE_ALLOW_HOSTS` (the computer's own name works without it in a native install) |
 
-`DEPGATE_ALLOW_HOSTS` is the IP or name you type in the browser (several: `192.168.1.50,depgate.lan`). Without it the page answers *“this address is not allowed”* and the log says what to set — DepGate only answers to addresses you allow, so other websites cannot reach it through your browser (DNS rebinding). The password still protects everything; plain HTTP is not encrypted, so on an untrusted network put a TLS reverse proxy (Caddy, nginx) in front or use an SSH tunnel (`ssh -L 7777:127.0.0.1:7777 server`, then open `http://127.0.0.1:7777` — no settings needed).
+Need it from outside? Use a VPN (WireGuard, Tailscale, NovusGate) or an SSH tunnel (`ssh -L 7777:127.0.0.1:7777 server`), or put an HTTPS reverse proxy in front and allow its domain with `DEPGATE_ALLOW_HOSTS=depgate.example.com` (the session cookie becomes `Secure` behind HTTPS). `DEPGATE_ALLOW_PUBLIC=1` lifts the internet block entirely. This computer only: `DEPGATE_BIND=127.0.0.1 docker compose up -d`. Names are checked so that other websites cannot reach DepGate through your browser (DNS rebinding); a refused address gets a page that says what to set.
 
 ### One-shot modes
 
@@ -293,6 +295,9 @@ depgate mcp --project DIR    # MCP server for AI agents (stdio)
 | Environment variable | What it does |
 |---|---|
 | `DEPGATE_PASSWORD` | Set the UI password up front (min. 8 characters) |
+| `DEPGATE_ALLOW_HOSTS` | Names (not IPs) you open DepGate with from other machines, comma separated — LAN IPs work without it |
+| `DEPGATE_ALLOW_PUBLIC` | `1` lets clients from the internet connect (off by default) |
+| `DEPGATE_BIND` | docker-compose: address the port is published on (default `0.0.0.0`; `127.0.0.1` = this computer only) |
 | `DEPGATE_GITHUB_TOKEN` | GitHub token (no scopes needed) for release notes beyond 60 requests an hour; `GITHUB_TOKEN` works too |
 | `DEPGATE_TOKEN` | API token for scripts (`Authorization: Bearer …`) |
 | `DEPGATE_ROOTS`, `DEPGATE_DATA` | Same as `--root` and `--data` |

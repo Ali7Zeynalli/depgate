@@ -51,6 +51,10 @@ type Server struct {
 
 	rejMu    sync.Mutex
 	rejected map[string]bool
+	machine  string // this computer's name (allowed like an IP)
+	// AllowPublic lets clients connect from public (internet) addresses.
+	// Off by default: only this computer and the local network / VPN can connect.
+	AllowPublic bool
 	// MCP serves the Model Context Protocol at /mcp for AI agents (Bearer token only).
 	MCP http.Handler
 }
@@ -73,6 +77,68 @@ func Listen(addr string, port int) (net.Listener, int, error) {
 
 const cookieName = "depgate_session"
 
+// localIP reports addresses that are not reachable from the internet:
+// loopback, private (10/8, 172.16/12, 192.168/16, fc00::/7), link-local and
+// carrier-grade NAT 100.64/10 (Tailscale and other VPNs).
+func localIP(ip net.IP) bool {
+	if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsUnspecified() {
+		return true
+	}
+	_, cgnat, _ := net.ParseCIDR("100.64.0.0/10")
+	return cgnat.Contains(ip)
+}
+
+// clientOK refuses connections from public addresses unless AllowPublic is set
+// or the name the browser used was allowed explicitly (a reverse proxy, a domain).
+func (s *Server) clientOK(r *http.Request) bool {
+	if s.AllowPublic {
+		return true
+	}
+	h, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		h = r.RemoteAddr
+	}
+	ip := net.ParseIP(h)
+	if ip == nil || localIP(ip) {
+		return true
+	}
+	return s.explicit(r.Host)
+}
+
+// explicit reports whether the Host was listed in AllowHosts.
+func (s *Server) explicit(h string) bool {
+	host := h
+	if hh, _, err := net.SplitHostPort(h); err == nil {
+		host = hh
+	}
+	host = strings.Trim(strings.ToLower(host), "[]")
+	for _, a := range s.AllowHosts {
+		if strings.EqualFold(strings.TrimSpace(a), host) {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Server) forbiddenClient(w http.ResponseWriter, r *http.Request) {
+	if s.Log != nil {
+		s.rejMu.Lock()
+		k := "client:" + clientKey(r)
+		if s.rejected == nil {
+			s.rejected = map[string]bool{}
+		}
+		if !s.rejected[k] && len(s.rejected) < 50 {
+			s.rejected[k] = true
+			fmt.Fprintf(s.Log, "depgate: refused a connection from the internet (%s) — DepGate answers this computer, the local network and VPNs; behind an HTTPS proxy set DEPGATE_ALLOW_HOSTS=<your domain>, or DEPGATE_ALLOW_PUBLIC=1\n", clientKey(r))
+		}
+		s.rejMu.Unlock()
+	}
+	http.Error(w, "DepGate is not open to the internet", http.StatusForbidden)
+}
+
+// SetMachineName allows the computer's own name (and name.local / name.lan) as Host.
+func (s *Server) SetMachineName(n string) { s.machine = strings.ToLower(strings.TrimSpace(n)) }
+
 func (s *Server) hostOK(h string) bool {
 	host := h
 	if hh, _, err := net.SplitHostPort(h); err == nil {
@@ -81,6 +147,16 @@ func (s *Server) hostOK(h string) bool {
 	host = strings.Trim(strings.ToLower(host), "[]")
 	switch host {
 	case "127.0.0.1", "localhost", "::1":
+		return true
+	}
+	// An IP address is always fine: DNS rebinding needs a domain name (the
+	// browser then sends that name as Host), so a bare IP only comes from you
+	// typing it. Cross-site requests to the IP are still stopped by the
+	// X-DepGate header and the SameSite session cookie.
+	if ip := net.ParseIP(host); ip != nil && localIP(ip) {
+		return true
+	}
+	if s.machine != "" && (host == s.machine || host == s.machine+".local" || host == s.machine+".lan") {
 		return true
 	}
 	for _, a := range s.AllowHosts {
@@ -178,7 +254,7 @@ func (s *Server) Handler() http.Handler {
 			writeAuthErr(w, err)
 			return
 		}
-		s.login(w, true)
+		s.login(w, r, true)
 	})
 	authMux.HandleFunc("POST /api/auth/login", func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
@@ -192,7 +268,7 @@ func (s *Server) Handler() http.Handler {
 			writeAuthErr(w, err)
 			return
 		}
-		s.login(w, req.Remember)
+		s.login(w, r, req.Remember)
 	})
 	authMux.HandleFunc("POST /api/auth/logout", func(w http.ResponseWriter, r *http.Request) {
 		http.SetCookie(w, &http.Cookie{Name: cookieName, Value: "", Path: "/", HttpOnly: true, SameSite: http.SameSiteStrictMode, MaxAge: -1})
@@ -214,10 +290,14 @@ func (s *Server) Handler() http.Handler {
 			writeAuthErr(w, err)
 			return
 		}
-		s.login(w, true) // the key rotated: issue a fresh session for this browser
+		s.login(w, r, true) // the key rotated: issue a fresh session for this browser
 	})
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !s.clientOK(r) { // reachable from the internet by mistake: refuse
+			s.forbiddenClient(w, r)
+			return
+		}
 		if !s.hostOK(r.Host) { // DNS-rebinding guard
 			s.forbiddenHost(w, r)
 			return
@@ -256,7 +336,7 @@ func (s *Server) Handler() http.Handler {
 				return
 			}
 			if s.Auth != nil && s.Auth.Configured() {
-				s.setSession(w, true)
+				s.setSession(w, r, true)
 			}
 			http.Redirect(w, r, "/", http.StatusFound)
 			return
@@ -298,7 +378,7 @@ func (s *Server) authed(r *http.Request) bool {
 	return err == nil && s.Auth.Valid(c.Value)
 }
 
-func (s *Server) setSession(w http.ResponseWriter, remember bool) {
+func (s *Server) setSession(w http.ResponseWriter, r *http.Request, remember bool) {
 	ttl := auth.ShortSession
 	if remember {
 		ttl = auth.LongSession
@@ -307,15 +387,15 @@ func (s *Server) setSession(w http.ResponseWriter, remember bool) {
 	if err != nil {
 		return
 	}
-	c := &http.Cookie{Name: cookieName, Value: v, Path: "/", HttpOnly: true, SameSite: http.SameSiteStrictMode}
+	c := &http.Cookie{Name: cookieName, Value: v, Path: "/", HttpOnly: true, SameSite: http.SameSiteStrictMode, Secure: r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https")}
 	if remember {
 		c.MaxAge = int(ttl.Seconds())
 	}
 	http.SetCookie(w, c)
 }
 
-func (s *Server) login(w http.ResponseWriter, remember bool) {
-	s.setSession(w, remember)
+func (s *Server) login(w http.ResponseWriter, r *http.Request, remember bool) {
+	s.setSession(w, r, remember)
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
@@ -386,8 +466,8 @@ func NewToken() string {
 	return hex.EncodeToString(b)
 }
 
-// forbiddenHost explains how to allow the address the browser used: opening
-// DepGate by IP or LAN name needs the name in DEPGATE_ALLOW_HOSTS (--allow-host).
+// forbiddenHost explains how to allow the name the browser used: a name other
+// than localhost, an IP or this computer's name needs DEPGATE_ALLOW_HOSTS (--allow-host).
 func (s *Server) forbiddenHost(w http.ResponseWriter, r *http.Request) {
 	host := r.Host
 	if h, _, err := net.SplitHostPort(host); err == nil {

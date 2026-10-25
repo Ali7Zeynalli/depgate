@@ -46,6 +46,8 @@ type env struct {
 	s   *Server
 	h   http.Handler
 	jar []*http.Cookie
+	// remote is the client address of every request (local unless a test changes it)
+	remote string
 }
 
 func newEnv(t *testing.T) *env {
@@ -55,12 +57,13 @@ func newEnv(t *testing.T) *env {
 	}
 	b := &fakeBackend{}
 	s := &Server{Token: "secret123", B: b, Auth: a, AllowHosts: []string{"depgate.lan"}}
-	return &env{t: t, b: b, s: s, h: s.Handler()}
+	return &env{t: t, b: b, s: s, h: s.Handler(), remote: "127.0.0.1:5555"}
 }
 
 // do sends a request; api=true adds the X-DepGate header; cookies from earlier responses are sent.
 func (e *env) do(method, path, body string, api bool, host ...string) *httptest.ResponseRecorder {
 	r := httptest.NewRequest(method, path, strings.NewReader(body))
+	r.RemoteAddr = e.remote
 	r.Host = "127.0.0.1:7777"
 	if len(host) > 0 {
 		r.Host = host[0]
@@ -99,25 +102,32 @@ func TestHostCheckAndHealth(t *testing.T) {
 	}
 }
 
-// Opening DepGate by an IP that is not allowed explains what to set, and logs it once.
+// IP addresses are accepted without settings; other names explain what to set, logged once.
 func TestForbiddenHostExplains(t *testing.T) {
 	e := newEnv(t)
+	for _, h := range []string{"192.168.1.50:7777", "10.0.0.3", "[fe80::1]:7777"} {
+		e.expect(e.do("GET", "/", "", false, h), 200, h)
+	}
 	var log strings.Builder
 	e.s.Log = &log
-	w := e.do("GET", "/", "", false, "192.168.1.50:7777")
-	e.expect(w, 403, "LAN IP not allowed")
-	if b := w.Body.String(); !strings.Contains(b, "DEPGATE_ALLOW_HOSTS=192.168.1.50") || !strings.Contains(b, "--allow-host 192.168.1.50") {
+	w := e.do("GET", "/", "", false, "server.home:7777")
+	e.expect(w, 403, "name not allowed")
+	if b := w.Body.String(); !strings.Contains(b, "DEPGATE_ALLOW_HOSTS=server.home") || !strings.Contains(b, "--allow-host server.home") {
 		t.Fatalf("page does not say what to set: %s", b)
 	}
-	e.do("GET", "/app.js", "", false, "192.168.1.50:7777")
+	e.do("GET", "/app.js", "", false, "server.home:7777")
 	if n := strings.Count(log.String(), "rejected Host"); n != 1 {
 		t.Fatalf("logged %d times: %s", n, log.String())
 	}
 	if w := e.do("GET", "/", "", false, "<script>:7777"); strings.Contains(w.Body.String(), "<script>") {
 		t.Fatal("host is not escaped")
 	}
-	e.s.AllowHosts = append(e.s.AllowHosts, "192.168.1.50")
-	e.expect(e.do("GET", "/", "", false, "192.168.1.50:7777"), 200, "LAN IP allowed")
+	e.s.SetMachineName("Homeserver")
+	for _, h := range []string{"homeserver:7777", "homeserver.local:7777", "homeserver.lan"} {
+		e.expect(e.do("GET", "/", "", false, h), 200, h)
+	}
+	e.s.AllowHosts = append(e.s.AllowHosts, "server.home")
+	e.expect(e.do("GET", "/", "", false, "server.home:7777"), 200, "name allowed")
 }
 
 func TestSetupLoginLogout(t *testing.T) {
@@ -173,6 +183,7 @@ func TestTokenAndBearer(t *testing.T) {
 	// bearer for scripts: no cookie, no custom header needed
 	e.jar = nil
 	r := httptest.NewRequest("GET", "/api/state", nil)
+	r.RemoteAddr = "127.0.0.1:5555"
 	r.Host = "127.0.0.1:7777"
 	r.Header.Set("Authorization", "Bearer secret123")
 	rw := httptest.NewRecorder()
@@ -209,6 +220,7 @@ func TestMCPEndpointAuth(t *testing.T) {
 	h := s.Handler()
 	do := func(hdr map[string]string) int {
 		req := httptest.NewRequest("POST", "http://127.0.0.1:7777/mcp", strings.NewReader("{}"))
+		req.RemoteAddr = "127.0.0.1:5555"
 		for k, v := range hdr {
 			req.Header.Set(k, v)
 		}
@@ -228,4 +240,25 @@ func TestMCPEndpointAuth(t *testing.T) {
 	if c := do(map[string]string{"Authorization": "Bearer tok-0123456789abcdef"}); c != 200 || !called {
 		t.Fatalf("valid: %d", c)
 	}
+}
+
+// Only this computer, the local network and VPNs can connect; the internet is refused
+// unless a name was allowed explicitly (a reverse proxy) or DEPGATE_ALLOW_PUBLIC is set.
+func TestPublicClientsRefused(t *testing.T) {
+	e := newEnv(t)
+	for _, ip := range []string{"192.168.1.20:5000", "10.1.2.3:5000", "172.20.0.1:5000", "100.101.1.2:5000", "[fd00::5]:5000"} {
+		e.remote = ip
+		e.expect(e.do("GET", "/", "", false, "192.168.1.50:7777"), 200, "local client "+ip)
+	}
+	e.remote = "203.0.113.9:5000"
+	e.expect(e.do("GET", "/", "", false, "192.168.1.50:7777"), 403, "internet client with a forged local Host")
+	e.expect(e.do("GET", "/", "", false, "203.0.113.1:7777"), 403, "internet client by public IP")
+	e.s.AllowHosts = []string{"depgate.example.com"}
+	e.expect(e.do("GET", "/", "", false, "depgate.example.com"), 200, "explicitly allowed domain (proxy)")
+	e.s.AllowHosts = nil
+	e.s.AllowPublic = true
+	e.expect(e.do("GET", "/", "", false, "192.168.1.50:7777"), 200, "DEPGATE_ALLOW_PUBLIC")
+	// a public IP as Host is not automatic: it needs DEPGATE_ALLOW_HOSTS
+	e.remote = "127.0.0.1:5000"
+	e.expect(e.do("GET", "/", "", false, "203.0.113.1:7777"), 403, "public IP as Host")
 }
