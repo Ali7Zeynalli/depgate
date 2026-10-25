@@ -382,6 +382,24 @@ func (r Range) Contains(v Version) bool {
 	return false
 }
 
+// ContainsAll is Contains with includePrerelease=true: prereleases match by
+// plain ordering. Advisory ranges use it so 2.0.0-beta.1 is not skipped.
+func (r Range) ContainsAll(v Version) bool {
+	for _, set := range r.sets {
+		ok := true
+		for _, c := range set {
+			if !c.test(v) {
+				ok = false
+				break
+			}
+		}
+		if ok {
+			return true
+		}
+	}
+	return false
+}
+
 // MinVersion returns the lowest version that can satisfy r, following
 // npm's semver.minVersion algorithm.
 func MinVersion(r Range) (Version, bool) {

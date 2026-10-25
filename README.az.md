@@ -119,11 +119,19 @@ Hər qərar açıq və pulsuz mənbələrə əsaslanır. İnterfeysdəki **Mənb
 | Mənbə | Nə üçün |
 |---|---|
 | [OSV.dev](https://osv.dev) | zəifliklər (CVE/GHSA) və zərərli paketlər — GitHub Advisory Database və OpenSSF Malicious Packages daxil |
+| [npm advisories](https://docs.npmjs.com/cli/commands/npm-audit) | `npm audit`-in mənbəyi: GitHub Advisory Database birbaşa, zərərli paketlər daxil — OSV-nin hələ almadığı qeydləri tutur |
 | [CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog) | real hücumlarda istifadə olunan zəifliklər (prioriteti qaldırır) |
 | [FIRST EPSS](https://www.first.org/epss/) | yaxın 30 gündə istismar ehtimalı (prioritetə təsir edir) |
 | [deps.dev](https://deps.dev) | paketin bütün versiyaları və buraxılış tarixləri (hədəf versiya, gözləmə müddəti) |
 | [npm registry](https://www.npmjs.com) | hədəf versiyanın `engines`, peer asılılıqları, install skriptləri, provenance, deprecated qeydi |
-| [Node.js releases](https://nodejs.org/en/about/previous-releases) | Node.js versiyaları, təhlükəsizlik relizləri, EOL tarixləri |
+| [Node.js releases](https://nodejs.org/en/about/previous-releases) + [Node.js Security WG](https://github.com/nodejs/security-wg) | Node.js versiyaları, təhlükəsizlik relizləri, EOL tarixləri və dəqiq versiyana aid CVE-lər |
+
+Əlavə mənbə tələb etməyən iki yoxlama:
+
+- **Silinmiş versiyalar.** Lockfile-dakı versiya npm registry-də artıq yoxdursa, DepGate bunu göstərir: təmiz quraşdırma alınmayacaq, npm isə zərərli versiyaları silir. npm bütün paketi `0.0.1-security` ilə əvəz edibsə, bu zərərli paket kimi göstərilir. Workspace və özəl paketlər yoxlanmır.
+- **Prerelease versiyalar.** `npm audit` `2.0.0-beta.1` kimi versiyaları advisory aralıqları ilə müqayisə etmir, DepGate isə edir.
+
+**Dəqiqlik.** `TestCompareNpmAudit` testi məlum zəif asılılıqları olan bir layihəni skan edir və `npm audit`-in tapdığı hər advisory-nin DepGate hesabatında da olduğunu yoxlayır (yazılan vaxt 71/71). Test GitHub Actions-da hər həftə işləyir (`accuracy` workflow). Lokal işlətmək üçün: `DEPGATE_LIVE=1 go test -run TestCompareNpmAudit -v ./internal/scan`.
 
 Kompüterində oxunanlar: `package.json`, lockfile, Dockerfile / `.nvmrc` / `.node-version` / `engines` / CI faylları, `.npmrc`.
 
@@ -131,7 +139,7 @@ Kompüterində oxunanlar: `package.json`, lockfile, Dockerfile / `.nvmrc` / `.no
 
 ## Kənara nə gedir
 
-Yalnız paket adları və versiyalar (OSV, deps.dev, npm registry), CVE nömrələri (EPSS). Kod, fayl yolları, layihə adları, `.env` heç vaxt getmir. Cavablar `~/.cache/depgate/` qovluğunda keşlənir.
+Yalnız paket adları və versiyalar (OSV, deps.dev, npm registry və onun advisory endpoint-i), CVE nömrələri (EPSS). Kod, fayl yolları, layihə adları, `.env` heç vaxt getmir. Cavablar `~/.cache/depgate/` qovluğunda keşlənir.
 
 Veb interfeys `127.0.0.1`-də işləyir (Docker-də host-un `127.0.0.1`-inə açılır), parolla qorunur, `Host` başlığını yoxlayır, CSP aktivdir. Qovluq gəzmə icazəli köklərlə məhdudlaşır və DepGate layihələri yalnız oxuyur.
 

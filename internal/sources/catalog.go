@@ -24,6 +24,9 @@ var Catalog = []Info{
 	{ID: "osv", Name: "OSV.dev", Home: "https://osv.dev",
 		Use:    i18n.F("Zəifliklər (CVE/GHSA) və zərərli paketlər — GitHub Advisory Database və OpenSSF Malicious Packages bura daxildir", "Vulnerabilities (CVE/GHSA) and malicious packages — includes the GitHub Advisory Database and OpenSSF Malicious Packages"),
 		prefix: []string{"https://api.osv.dev/"}},
+	{ID: "npmaudit", Name: "npm advisories (npm audit)", Home: "https://docs.npmjs.com/cli/commands/npm-audit",
+		Use:    i18n.F("npm audit-in mənbəyi: GitHub Advisory Database birbaşa, zərərli paketlər daxil — OSV-nin hələ almadığı qeydləri tutur", "The source of npm audit: the GitHub Advisory Database directly, malware included — catches records OSV has not imported yet"),
+		prefix: []string{npmBulkURL}},
 	{ID: "kev", Name: "CISA KEV", Home: "https://www.cisa.gov/known-exploited-vulnerabilities-catalog",
 		Use:    i18n.F("Real hücumlarda istifadə olunan zəifliklər — prioriteti qaldırır", "Vulnerabilities exploited in real attacks — raises priority"),
 		prefix: []string{"https://www.cisa.gov/"}},
@@ -34,23 +37,24 @@ var Catalog = []Info{
 		Use:    i18n.F("Paketin bütün versiyaları və buraxılış tarixləri — ən təhlükəsiz hədəf versiya və gözləmə müddəti", "Every version of a package and its publish date — safest target version and release cooldown"),
 		prefix: []string{"https://api.deps.dev/"}},
 	{ID: "npm", Name: "npm registry", Home: "https://www.npmjs.com",
-		Use:    i18n.F("Hədəf versiyanın engines, peer asılılıqları, install script-ləri, provenance və deprecated qeydi", "The target version's engines, peer dependencies, install scripts, provenance and deprecation"),
+		Use:    i18n.F("Hədəf versiyanın engines, peer asılılıqları, install script-ləri, provenance və deprecated qeydi; lockfile-dakı versiyanın npm-dən silinib-silinmədiyi", "The target version's engines, peer dependencies, install scripts, provenance and deprecation; whether the locked version was removed from npm"),
 		prefix: []string{"https://registry.npmjs.org/"}},
 	{ID: "node", Name: "Node.js releases", Home: "https://nodejs.org/en/about/previous-releases",
-		Use:    i18n.F("Node.js versiyaları, təhlükəsizlik buraxılışları və EOL tarixləri (nodejs.org, nodejs/Release)", "Node.js versions, security releases and end-of-life dates (nodejs.org, nodejs/Release)"),
-		prefix: []string{"https://nodejs.org/", "https://raw.githubusercontent.com/nodejs/Release/"}},
+		Use:    i18n.F("Node.js versiyaları, təhlükəsizlik buraxılışları, EOL tarixləri və versiyana aid CVE-lər (nodejs.org, nodejs/Release, Node.js Security WG)", "Node.js versions, security releases, end-of-life dates and the CVEs that affect your version (nodejs.org, nodejs/Release, Node.js security WG)"),
+		prefix: []string{"https://nodejs.org/", "https://raw.githubusercontent.com/nodejs/"}},
 }
 
 // SourceOf returns the catalog ID a request URL belongs to ("" if none).
 func SourceOf(url string) string {
+	id, best := "", 0
 	for _, s := range Catalog {
 		for _, p := range s.prefix {
-			if strings.HasPrefix(url, p) {
-				return s.ID
+			if len(p) > best && strings.HasPrefix(url, p) {
+				id, best = s.ID, len(p)
 			}
 		}
 	}
-	return ""
+	return id
 }
 
 // Usage is how one source answered during a scan.

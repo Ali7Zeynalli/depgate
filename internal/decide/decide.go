@@ -5,6 +5,7 @@ package decide
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -100,10 +101,14 @@ func ManagerOf(r *lockfile.Result) string {
 }
 
 type instance struct {
-	pkg   lockfile.Package
-	ver   semver.Version
-	vulns []*sources.Vuln
+	pkg     lockfile.Package
+	ver     semver.Version
+	vulns   []*sources.Vuln
+	removed bool // npm no longer serves this version (unpublished or taken down)
 }
+
+// HolderID marks a package npm replaced with a 0.0.1-security placeholder.
+const HolderID = "NPM-SECURITY-PLACEHOLDER"
 
 // Packages produces findings for all packages of one project.
 func Packages(ctx context.Context, d *Data, in Input, opt Options) ([]report.Finding, []string) {
@@ -184,6 +189,63 @@ func Packages(ctx context.Context, d *Data, in Input, opt Options) ([]report.Fin
 		}
 	}
 
+	// 2b. npm registry advisories — the source of `npm audit`. It reads the GitHub
+	// Advisory Database directly (malware included), so it often knows about a
+	// package before OSV has imported the record.
+	reqs := map[string][]string{}
+	for _, it := range insts {
+		reqs[it.pkg.Name] = append(reqs[it.pkg.Name], it.ver.String())
+	}
+	if adv, err := sources.NpmBulk(ctx, d.F, reqs); err != nil {
+		addErr(err)
+	} else {
+		for _, it := range insts {
+			for _, a := range adv[it.pkg.Name] {
+				v := sources.FromNpm(it.pkg.Name, a)
+				if Affects(v, it.pkg.Name, it.ver) && !knownVuln(it.vulns, v) {
+					it.vulns = append(it.vulns, v)
+				}
+			}
+		}
+	}
+
+	// 2c. versions npm no longer serves: a removed malicious version leaves the
+	// lockfile pointing at nothing, often before any advisory exists. Only public
+	// packages count (workspace and private packages are not on deps.dev).
+	parallel(insts, 16, func(it *instance) {
+		for _, v := range it.vulns {
+			if v.IsMalware() {
+				return
+			}
+		}
+		if _, err := d.Manifest(ctx, it.pkg.Name, it.ver.String()); !errors.Is(err, sources.ErrNotFound) {
+			return
+		}
+		info, err := d.Pkg(ctx, it.pkg.Name)
+		if err != nil || info == nil || len(info.Versions) == 0 {
+			return
+		}
+		vmu.Lock()
+		defer vmu.Unlock()
+		holder := info.Default == "0.0.1-security"
+		if !holder {
+			holder = true
+			for _, pv := range info.Versions {
+				holder = holder && strings.HasSuffix(pv.Version, "-security")
+			}
+		}
+		if holder {
+			h := &sources.Vuln{ID: HolderID, Summary: "npm replaced " + it.pkg.Name + " with a security placeholder (0.0.1-security)", NpmRange: ">=0.0.0-0", Malicious: true, From: "npm", Link: "https://www.npmjs.com/package/" + it.pkg.Name}
+			h.DatabaseSpecific.Severity = "CRITICAL"
+			var af sources.Affected
+			af.Package.Ecosystem, af.Package.Name = "npm", it.pkg.Name
+			h.Affected = []sources.Affected{af}
+			it.vulns = append(it.vulns, h)
+			return
+		}
+		it.removed = true
+	})
+
 	// 3. EPSS for all CVEs found
 	var cves []string
 	for _, v := range vulns {
@@ -204,6 +266,13 @@ func Packages(ctx context.Context, d *Data, in Input, opt Options) ([]report.Fin
 			if ex, ok := directInsts[it.pkg.Name]; !ok || semver.Less(ex.ver, it.ver) {
 				directInsts[it.pkg.Name] = it
 			}
+		}
+	}
+	for _, it := range insts {
+		if it.removed && len(it.vulns) == 0 {
+			f, err := removedFinding(ctx, d, it, in, graph, opt)
+			addErr(err)
+			out = append(out, f)
 		}
 	}
 	parallel(vulnInsts, 8, func(it *instance) {
@@ -247,6 +316,21 @@ func Packages(ctx context.Context, d *Data, in Input, opt Options) ([]report.Fin
 		return out[i].Pkg < out[j].Pkg
 	})
 	return out, dedupe(errs)
+}
+
+// knownVuln reports whether v (from npm) is already covered by an OSV record.
+func knownVuln(have []*sources.Vuln, v *sources.Vuln) bool {
+	for _, x := range have {
+		if x.ID == v.ID || (v.IsMalware() && x.IsMalware()) {
+			return true
+		}
+		for _, a := range x.Aliases {
+			if a == v.ID {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func groupRank(g report.Group) int {

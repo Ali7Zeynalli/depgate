@@ -194,7 +194,7 @@ func TestBilingual(t *testing.T) {
 func TestSourcesRecorded(t *testing.T) {
 	now := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
 	rep := Run(context.Background(), Demo(), []string{copyFixture(t, "npm-v3")}, Options{Version: "test", Now: now})
-	if len(rep.Sources) != 6 || len(rep.Projects[0].Sources) != 6 {
+	if len(rep.Sources) != 7 || len(rep.Projects[0].Sources) != 7 {
 		t.Fatalf("sources %+v", rep.Sources)
 	}
 	used := map[string]int{}
@@ -204,7 +204,7 @@ func TestSourcesRecorded(t *testing.T) {
 			t.Fatalf("incomplete source %+v", s)
 		}
 	}
-	for _, id := range []string{"osv", "node", "kev", "depsdev"} {
+	for _, id := range []string{"osv", "npmaudit", "node", "kev", "depsdev"} {
 		if used[id] == 0 {
 			t.Errorf("%s not recorded: %v", id, used)
 		}

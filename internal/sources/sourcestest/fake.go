@@ -29,6 +29,9 @@ type Fake struct {
 	KEV      []string
 	Node     []sources.NodeRelease
 	Schedule map[string]sources.NodeLine
+	NpmAdv   map[string][]sources.NpmAdvisory // npm bulk advisory answers by package
+	Removed  map[string]bool                  // "name@ver" npm no longer serves
+	NodeCore map[string]sources.NodeVuln      // Node.js security WG core vulnerabilities
 	// Match decides whether a vuln applies to name@version (set to decide.Affects by callers).
 	Match func(v *sources.Vuln, name, version string) bool
 
@@ -36,7 +39,7 @@ type Fake struct {
 }
 
 func New(now time.Time) *Fake {
-	return &Fake{Now: now, Vulns: map[string]*sources.Vuln{}, Versions: map[string][]Version{}, Manifest: map[string]map[string]any{}, EPSS: map[string]float64{}, Schedule: map[string]sources.NodeLine{}}
+	return &Fake{Now: now, Vulns: map[string]*sources.Vuln{}, Versions: map[string][]Version{}, Manifest: map[string]map[string]any{}, EPSS: map[string]float64{}, Schedule: map[string]sources.NodeLine{}, NpmAdv: map[string][]sources.NpmAdvisory{}, Removed: map[string]bool{}, NodeCore: map[string]sources.NodeVuln{}}
 }
 
 // Old returns versions published long ago (past any cooldown).
@@ -150,11 +153,28 @@ func (f *Fake) Do(ctx context.Context, method, u string, body []byte, _ map[stri
 			})
 		}
 		return json.Marshal(map[string]any{"versions": items})
+	case strings.HasSuffix(u, "/-/npm/v1/security/advisories/bulk"):
+		var req map[string][]string
+		if err := json.Unmarshal(body, &req); err != nil {
+			return nil, err
+		}
+		out := map[string][]sources.NpmAdvisory{}
+		for name := range req {
+			if a, ok := f.NpmAdv[name]; ok {
+				out[name] = a
+			}
+		}
+		return json.Marshal(out)
+	case strings.Contains(u, "nodejs/security-wg"):
+		return json.Marshal(f.NodeCore)
 	case strings.Contains(u, "registry.npmjs.org"):
 		rest := strings.TrimPrefix(u, "https://registry.npmjs.org/")
 		i := strings.LastIndex(rest, "/")
 		name, _ := url.PathUnescape(rest[:i])
 		ver := rest[i+1:]
+		if f.Removed[name+"@"+ver] {
+			return nil, sources.ErrNotFound
+		}
 		if m, ok := f.Manifest[name+"@"+ver]; ok {
 			return json.Marshal(m)
 		}

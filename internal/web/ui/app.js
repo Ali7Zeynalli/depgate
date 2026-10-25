@@ -154,6 +154,8 @@
     whereN: ["Harada ({0} layihə)", "Where ({0} projects)"],
     whereN1: ["Harada", "Where"],
     whereAll: ["Hamısını kopyala", "Copy all"],
+    nodeCves: ["Bu versiyaya aid zəifliklər ({0})", "Vulnerabilities in this version ({0})"],
+    removedChip: ["npm-dən silinib", "removed from npm"],
     nodeAll: ["Node.js (layihələr üzrə)", "Node.js (per project)"],
     hygAll: ["Gigiyena (layihələr üzrə)", "Hygiene (per project)"],
     inProjects: ["layihələr: {0}", "projects: {0}"],
@@ -532,7 +534,7 @@
         return el("div", { class: "q nrow" }, el("span", { class: "dot " + needClass(nd.need) }),
           el("span", { class: "lbl" }, relName(p, g)),
           el("span", { class: "ans" }, "Node " + (nd.version || nd.line || "?") + (target && nd.version && target !== nd.version ? " → " + target : "")),
-          el("span", { class: "quiet small" }, needText("node", nd.need)));
+          el("span", { class: "quiet small" }, needText("node", nd.need) + (nd.vulns && nd.vulns.length ? " · " + nd.vulns.length + " CVE" : "")));
       }));
   }
   function folderHygieneCard(g, ps) {
@@ -605,6 +607,7 @@
         L.push(t("pNode"), `- Node ${nd.version || nd.line || "?"}${target && target !== nd.version ? " → " + target : ""} [${needText("node", nd.need)}] — ${t("pImpact")}: ${impText(nd.impact)}`);
         if (nd.why && nd.why.length) L.push(`- ${t("pWhy")}: ${join(nd.why)}`);
         if (nd.sources && nd.sources.length) L.push(`- ${t("pPath")}: ` + nd.sources.map((x) => `${x.file}: ${x.value}`).join("; "));
+        if (nd.vulns && nd.vulns.length) L.push(`- ${t("pAdv")}: ` + nd.vulns.map((v) => [(v.cve || []).join(", ") || v.id, v.severity, v.title, v.url].filter(Boolean).join(" · ")).join("; "));
         if (nd.command) L.push(`- ${t("pFix")}: \`${nd.command.split("   #")[0]}\``);
         L.push("");
       }
@@ -769,11 +772,11 @@
 
   function card(f, p, where, g) {
     const vuln = f.kind === "vuln" || f.kind === "malware";
-    const cls = "card" + (f.kind === "malware" ? " mal bad" : "");
+    const cls = "card" + (f.kind === "malware" ? " mal bad" : f.kind === "removed" ? " bad" : "");
     const title = el("div", { class: "ctitle" },
       el("span", { class: "pkg" }, f.pkg),
       el("span", { class: "ver" }, f.current, f.target ? [el("span", { class: "arr" }, "→"), f.target] : null),
-      f.severity ? el("span", { class: "chip sev-" + f.severity }, f.kind === "malware" ? t("malicious") : f.severity) : null,
+      f.severity ? el("span", { class: "chip sev-" + f.severity }, f.kind === "malware" ? t("malicious") : f.kind === "removed" ? t("removedChip") : f.severity) : null,
       el("span", { class: "chip" }, f.direct ? t("direct") : t("transitive")),
       f.dev ? el("span", { class: "chip" }, "dev") : null,
       vuln ? el("span", { class: "chip prio", title: t("prioTitle") }, "P" + f.priority) : null,
@@ -850,6 +853,10 @@
       el("div", { class: "q" }, el("span", { class: "dot " + impClass(n.impact) }), el("span", { class: "lbl" }, t("qImpact")), el("span", { class: "ans" }, impText(n.impact))),
       n.why && n.why.length ? el("ul", { class: "why" }, list(n.why)) : null,
       el("ul", { class: "why" }, (n.sources || []).map((s) => el("li", null, `${s.file}: ${s.value}`))),
+      n.vulns && n.vulns.length ? el("details", { class: "nvulns" }, el("summary", null, t("nodeCves", n.vulns.length)),
+        el("ul", { class: "why" }, n.vulns.map((v) => el("li", null,
+          safeURL(v.url) ? el("a", { href: v.url, target: "_blank", rel: "noopener noreferrer" }, (v.cve && v.cve[0]) || v.id) : (v.cve && v.cve[0]) || v.id,
+          v.severity ? " · " + v.severity : "", " — ", v.title, v.env && v.env.length ? " (" + v.env.join(", ") + ")" : "")))) : null,
       n.command ? el("div", { class: "fix" }, el("div", { class: "row" }, el("code", null, n.command), copyBtn(n.command.split("   #")[0]))) : null);
   }
 
