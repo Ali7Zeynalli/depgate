@@ -36,7 +36,11 @@
 
 It also checks your Node.js runtime and your Dockerfiles and compose files. Everything runs on your machine and DepGate **never changes your files** — it only shows and suggests.
 
-![DepGate dashboard](docs/screenshot.png)
+Each project (and each folder) opens on **Overview**: the few things to do first, sorted by priority, and one card per section. The rest is split into sections, so you only see one thing at a time: **Packages** (one compact row per package — click it for the full answer), **Code changes**, **Docker**, **Node.js & setup** and **AI & MCP**.
+
+![Overview](docs/overview.png)
+
+![Packages](docs/screenshot.png)
 
 ## Why now
 
@@ -65,7 +69,7 @@ DEPGATE_UID=$(id -u) DEPGATE_GID=$(id -g) docker compose up -d
 
 Open `http://127.0.0.1:7777`, choose a password and add projects from anywhere in your home folder.
 
-Connect your AI agent to a project (see [MCP](#mcp)) — easiest with the **AI agent (MCP)** button, which fills in the path and token; by hand:
+Connect your AI agent to a project (see [MCP](#mcp)) — easiest with the **Connection command** button in the **AI & MCP** section, which fills in the path and token; by hand:
 
 ```bash
 cd ~/projects/shop && claude mcp add --transport http depgate -s local \
@@ -127,7 +131,7 @@ cd ~/projects/shop && claude mcp add depgate -s local -- depgate mcp --project "
 
 If stdio finds no local projects while a DepGate server is running, it says so and points to the HTTP connection. `/mcp` accepts only the `Authorization: Bearer` token (no browser session), rejects foreign `Origin` headers and only reads folders under DepGate's roots.
 
-The **AI agent (MCP)** button on every project and folder shows these commands with the path filled in, plus the JSON for Cursor and other clients.
+The **Connection command** button (section **AI & MCP**) of every project and folder shows these commands with the path filled in, plus the JSON for Cursor and other clients.
 
 | Tool | What the agent gets |
 |---|---|
@@ -209,7 +213,7 @@ depgate
 
 Opens `http://127.0.0.1:7777`. The dashboard is bilingual (English / Azerbaijani): it follows your browser language and the **AZ / EN** button switches instantly, no rescan needed. Click **+ Add project**, browse your folders (folders with a `package.json` are marked as projects) and add one — or a whole folder: every project below it, monorepo workspaces included, is added and scanned in the background.
 
-DepGate remembers your projects and their last reports (`~/.config/depgate`), so next time everything is already there. Per project: **Scan**, **Remove**, **AI rules**, **AI prompt**; per folder the same for all of its projects; **Scan all** in the header. Running `depgate` inside a project folder (or `depgate ~/projects`) adds it right away.
+DepGate remembers your projects and their last reports (`~/.config/depgate`), so next time everything is already there. Per project: **Scan**, **Remove**, **AI prompt**, and the sections Overview · Packages · Code changes · Docker · Node.js & setup · AI & MCP (the open section is kept in the address, so a reload or a shared link opens the same one); per folder the same for all of its projects; **Scan all** in the header. Running `depgate` inside a project folder (or `depgate ~/projects`) adds it right away.
 
 The browser can only see folders under the allowed roots (your home directory by default; `--root` to change).
 
