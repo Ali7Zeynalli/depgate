@@ -243,17 +243,7 @@ docker run -d --name depgate -p 127.0.0.1:7777:7777 --user "$(id -u):$(id -g)" \
 - **Ev qovluğun eyni yolla, yalnız oxuma rejimində bağlanır.** Ona görə interfeysdə real yollar görünür və heç nəyi köçürmək lazım deyil. DepGate ora heç nə yazmır.
 - Konteyner **sənin istifadəçinlə** işləyir (`DEPGATE_UID`/`DEPGATE_GID`, standart 1000) ki, fayllarını oxuya bilsin. Əvvəlcə qısa `depgate-init` addımı data volume-unu həmin istifadəçiyə verir; köhnə versiyaların yaratdığı volume-ları da düzəldir.
 - Siyahı, hesabatlar və parol hash-ı **`depgate-data` Docker volume-unda** saxlanır və yenidən başlatmada və yeniləmədə itmir. Docker-siz `depgate` ilə ortaq istifadə etmək istəsən, volume-u `${HOME}/.config/depgate:/data` ilə əvəz et (`docker-compose.yml`-dəki şərhə bax).
-- `DEPGATE_PASSWORD=…` parolu əvvəlcədən təyin edir; `DEPGATE_GITHUB_TOKEN=…` release notes üçün GitHub limitini artırır.
-
-**Başqa kompüterlərdən.** Compose ilə DepGate dərhal şəbəkənizdə açılır: istənilən kompüterdən `http://<serverin IP-si>:7777` aç — heç bir ayar lazım deyil. Kim qoşula bilər:
-
-| Haradan | Nəticə |
-|---|---|
-| bu kompüter, yerli şəbəkə (`192.168.x`, `10.x`, `172.16–31.x`), VPN-lər (Tailscale `100.64.x`, WireGuard) | icazə var |
-| internet (public ünvan) | bağlıdır — parol adi HTTP ilə şifrələnmədən gedərdi |
-| IP əvəzinə ad (`server.lan`, domen) | `DEPGATE_ALLOW_HOSTS`-a əlavə et (Docker-siz quraşdırmada kompüterin öz adı onsuz da işləyir) |
-
-Kənardan lazımdırsa, VPN (WireGuard, Tailscale, NovusGate) və ya SSH tunel (`ssh -L 7777:127.0.0.1:7777 server`) istifadə et, ya da qarşısına HTTPS reverse proxy qoyub domenini `DEPGATE_ALLOW_HOSTS=depgate.example.com` ilə icazəli et (HTTPS arxasında sessiya cookie-si `Secure` olur). `DEPGATE_ALLOW_PUBLIC=1` internet blokunu tamamilə götürür. Yalnız bu kompüter üçün: `DEPGATE_BIND=127.0.0.1 docker compose up -d`. Adlar ona görə yoxlanır ki, başqa saytlar brauzerin vasitəsilə DepGate-ə çata bilməsin (DNS rebinding); rədd olunan ünvanda nəyi yazmaq lazım olduğunu göstərən səhifə açılır.
+- DepGate lokal alətdir: işlədiyi kompüterin qovluqlarını oxuyur, ona görə onu layihələrin olduğu kompüterdə işlət. Port yalnız `127.0.0.1`-də açılır. `DEPGATE_PASSWORD=…` parolu əvvəlcədən təyin edir; `DEPGATE_GITHUB_TOKEN=…` release notes üçün GitHub limitini artırır.
 
 ### Bir dəfəlik rejimlər
 
@@ -272,7 +262,7 @@ depgate mcp --project DIR    # AI agentlər üçün MCP server (stdio)
 | `--addr` | Dinlənilən ünvan | 127.0.0.1 (Docker-də 0.0.0.0) |
 | `--root` | Gəzilə bilən qovluq (təkrarlana bilər; `DEPGATE_ROOTS`) | ev qovluğu |
 | `--data` | Siyahı, hesabatlar, parol hash-ı (`DEPGATE_DATA`) | `~/.config/depgate` |
-| `--allow-host` | Əlavə icazəli `Host` adı və ya IP, məsələn lokal şəbəkə adı (təkrarlana bilər; env `DEPGATE_ALLOW_HOSTS`, vergüllə) | — |
+| `--allow-host` | Əlavə icazəli `Host` adı, məsələn lokal şəbəkə adı (təkrarlana bilər) | — |
 | `--print-token` | API/MCP token-ini çap et (Docker: `docker exec depgate depgate --print-token`) | — |
 | `--reset-password` | Parolu unut; növbəti açılışda yenisi istənir | — |
 | `--no-auth` | Parolu söndür (yalnız 127.0.0.1; tövsiyə olunmur) | söndürülüb |
@@ -285,9 +275,6 @@ depgate mcp --project DIR    # AI agentlər üçün MCP server (stdio)
 | Mühit dəyişəni | Nə edir |
 |---|---|
 | `DEPGATE_PASSWORD` | Parolu əvvəlcədən təyin edir (ən azı 8 simvol) |
-| `DEPGATE_ALLOW_HOSTS` | Başqa kompüterlərdən açarkən istifadə etdiyin adlar (IP yox), vergüllə — yerli IP-lər onsuz işləyir |
-| `DEPGATE_ALLOW_PUBLIC` | `1` internetdən qoşulmağa icazə verir (standart olaraq bağlıdır) |
-| `DEPGATE_BIND` | docker-compose: portun açıldığı ünvan (standart `0.0.0.0`; `127.0.0.1` = yalnız bu kompüter) |
 | `DEPGATE_GITHUB_TOKEN` | Release notes üçün GitHub token-i (heç bir icazə lazım deyil), saatda 60 sorğu limitini artırır; `GITHUB_TOKEN` də işləyir |
 | `DEPGATE_TOKEN` | Skriptlər üçün API token-i (`Authorization: Bearer …`) |
 | `DEPGATE_ROOTS`, `DEPGATE_DATA` | `--root` və `--data` ilə eynidir |
