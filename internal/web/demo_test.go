@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -38,6 +39,16 @@ func TestServeDemo(t *testing.T) {
 	f.Vuln("GHSA-demo-follow", "follow-redirects", "MODERATE", "0", "1.15.9", "follow-redirects leaks Proxy-Authorization header")
 	f.Vuln("GHSA-demo-express", "express", "MODERATE", "0", "5.0.0", "express open redirect (fixed only in 5.x)")
 	f.Malware("MAL-2026-demo", "debug", "4.3.4")
+	f.Vulns["GHSA-demo-next"].DatabaseSpecific.CWEIDs = []string{"CWE-285", "CWE-863"}
+	f.Vulns["GHSA-demo-next"].Details = "### Impact\nIt is possible to bypass authorization checks within a Next.js application, if the authorization check occurs in middleware.\n\n### Patches\nFixed in 14.2.25 and 15.2.3."
+	f.Vulns["GHSA-demo-follow"].DatabaseSpecific.CWEIDs = []string{"CWE-200"}
+	f.Vulns["GHSA-demo-express"].DatabaseSpecific.CWEIDs = []string{"CWE-601"}
+	for k, d := range map[string]string{"next@14.2.3": "The React Framework", "debug@4.3.4": "Lightweight debugging utility for Node.js and the browser",
+		"follow-redirects@1.15.6": "HTTP and HTTPS modules that follow redirects.", "express@4.19.2": "Fast, unopinionated, minimalist web framework",
+		"react@18.2.0": "React is a JavaScript library for building user interfaces.", "typescript@5.4.5": "TypeScript is a language for application scale JavaScript development"} {
+		n, v, _ := strings.Cut(k, "@")
+		f.Manifest[k] = map[string]any{"name": n, "version": v, "description": d}
+	}
 	f.EPSS["CVE-2025-29927"] = 0.92
 	f.KEV = []string{"CVE-2025-29927"}
 	for k, v := range map[string][]string{
@@ -57,7 +68,7 @@ func TestServeDemo(t *testing.T) {
 <li><p>Buffer overflow when using map and regex<br>Severity: <b>major</b><br><a href="https://nginx.org/en/security_advisories.html">Advisory</a><br><a href="#">CVE-2026-42533</a><br>Not vulnerable: 1.31.3+, 1.30.4+<br>Vulnerable: 0.9.6-1.31.2</p></li>
 <li><p>Memory disclosure when using ngx_http_slice_module<br>Severity: medium<br><a href="https://nginx.org/en/security_advisories.html">Advisory</a><br><a href="#">CVE-2026-60005</a><br>Not vulnerable: 1.31.3+, 1.30.4+<br>Vulnerable: 1.15.8-1.31.2</p></li>
 </ul>`
-	f.Manifest["axios@1.6.8"] = map[string]any{"name": "axios", "version": "1.6.8", "dependencies": map[string]string{"follow-redirects": "^1.15.6"}}
+	f.Manifest["axios@1.6.8"] = map[string]any{"name": "axios", "version": "1.6.8", "description": "Promise based HTTP client for the browser and node.js", "dependencies": map[string]string{"follow-redirects": "^1.15.6"}}
 	f.Node = []sources.NodeRelease{{Version: "v22.23.4", LTS: "Jod", Security: true}, {Version: "v22.20.0", LTS: "Jod"}}
 	f.Schedule = map[string]sources.NodeLine{"v22": {LTS: "2024-10-29", End: "2027-04-30"}}
 

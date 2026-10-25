@@ -66,15 +66,17 @@ func Package(ctx context.Context, f Fetcher, name string) (*PkgInfo, error) {
 
 // Manifest is one version document from the npm registry (small: /<name>/<version>).
 type Manifest struct {
-	Name       string            `json:"name"`
-	Version    string            `json:"version"`
-	Scripts    map[string]string `json:"scripts"`
-	Deprecated string            `json:"deprecated"`
-	Engines    map[string]string `json:"-"`
-	RawEngines json.RawMessage   `json:"engines"`
-	Peer       map[string]string `json:"peerDependencies"`
-	Deps       map[string]string `json:"dependencies"`
-	NpmUser    struct {
+	Name        string            `json:"name"`
+	Version     string            `json:"version"`
+	Description string            `json:"description"`
+	Homepage    string            `json:"homepage"`
+	Scripts     map[string]string `json:"scripts"`
+	Deprecated  string            `json:"deprecated"`
+	Engines     map[string]string `json:"-"`
+	RawEngines  json.RawMessage   `json:"engines"`
+	Peer        map[string]string `json:"peerDependencies"`
+	Deps        map[string]string `json:"dependencies"`
+	NpmUser     struct {
 		Name string `json:"name"`
 	} `json:"_npmUser"`
 	Repository json.RawMessage `json:"repository"`

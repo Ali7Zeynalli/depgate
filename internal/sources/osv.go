@@ -31,7 +31,8 @@ type Vuln struct {
 	Affected         []Affected `json:"affected"`
 	References       []osvRef   `json:"references"`
 	DatabaseSpecific struct {
-		Severity string `json:"severity"`
+		Severity string   `json:"severity"`
+		CWEIDs   []string `json:"cwe_ids"`
 	} `json:"database_specific"`
 
 	// set for records that come from the npm bulk advisory endpoint

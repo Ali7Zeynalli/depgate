@@ -3,10 +3,13 @@ package decide
 import (
 	"context"
 	"encoding/json"
+	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/Ali7Zeynalli/depgate/internal/explain"
 	"github.com/Ali7Zeynalli/depgate/internal/i18n"
 	"github.com/Ali7Zeynalli/depgate/internal/report"
 	"github.com/Ali7Zeynalli/depgate/internal/semver"
@@ -192,6 +195,12 @@ func vulnFinding(ctx context.Context, d *Data, it *instance, in Input, g *graph,
 		if fx, ok := fixedAbove([]*sources.Vuln{v}, name, cur); ok {
 			a.Fixed = fx.String()
 		}
+		cw := v.DatabaseSpecific.CWEIDs
+		if v.IsMalware() && !slices.Contains(cw, "CWE-506") {
+			cw = append([]string{"CWE-506"}, cw...)
+		}
+		a.Weakness = explain.Weaknesses(cw)
+		a.Details = detailsOf(v)
 		if v.IsMalware() {
 			malware = true
 			a.Severity = "critical"
@@ -800,4 +809,40 @@ func removedFinding(ctx context.Context, d *Data, it *instance, in Input, g *gra
 	}
 	f.Group = groupOf(f.Need, f.Impact)
 	return f, nil
+}
+
+var (
+	mdHeading = regexp.MustCompile(`(?m)^#{1,6}\s+.*$`)
+	mdLink    = regexp.MustCompile(`\[([^\]]+)\]\([^)]+\)`)
+	mdNoise   = regexp.MustCompile("[*_`>]+")
+	spaces    = regexp.MustCompile(`\s+`)
+)
+
+// detailsOf returns the first paragraphs of the advisory text as plain text
+// (markdown removed, about 600 characters), or "" when it only repeats the summary.
+func detailsOf(v *sources.Vuln) string {
+	t := strings.TrimSpace(v.Details)
+	if t == "" {
+		return ""
+	}
+	t = mdHeading.ReplaceAllString(t, "")
+	t = mdLink.ReplaceAllString(t, "$1")
+	var paras []string
+	n := 0
+	for _, p := range strings.Split(t, "\n\n") {
+		p = strings.TrimSpace(spaces.ReplaceAllString(mdNoise.ReplaceAllString(p, ""), " "))
+		if p == "" || strings.HasPrefix(strings.ToLower(p), "patches") || strings.HasPrefix(strings.ToLower(p), "references") {
+			continue
+		}
+		paras = append(paras, p)
+		n += len(p)
+		if n > 450 || len(paras) >= 3 {
+			break
+		}
+	}
+	out := clipText(strings.Join(paras, "\n\n"), 700)
+	if strings.EqualFold(strings.TrimSpace(out), strings.TrimSpace(v.Summary)) {
+		return ""
+	}
+	return out
 }

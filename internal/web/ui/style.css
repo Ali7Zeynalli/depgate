@@ -335,3 +335,20 @@ button.tocode.now { border-color: var(--warn); background: var(--warn-bg); font-
 .card.dfile { padding: 0; overflow: hidden; }
 .dfile .dfh { display: flex; gap: 10px; align-items: center; padding: 10px 16px; background: var(--line2); border-bottom: 1px solid var(--line); }
 .dfile .ditem { padding: 10px 16px; }
+
+/* what the package is, what was found */
+.about { margin: 6px 0 8px; font-size: 13px; display: flex; flex-direction: column; gap: 2px; overflow-wrap: anywhere; }
+.about .lbl, .found .lbl, .ditem .lbl { color: var(--quiet); }
+.about .mono { font-family: var(--mono); font-size: 12px; }
+.found { margin: 8px 0 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); display: flex; flex-direction: column; gap: 8px; }
+.h4 { font-weight: 700; font-size: 13px; }
+.adv { display: flex; flex-direction: column; gap: 2px; padding-top: 6px; border-top: 1px solid var(--line2); }
+.found > .h4 + .adv { border-top: 0; padding-top: 0; }
+.advh { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
+.advh a, .advh b { font-family: var(--mono); font-size: 12.5px; font-weight: 600; }
+.advs1 { font-size: 13.5px; }
+details.advd > summary { cursor: pointer; color: var(--accent); font-size: 12.5px; }
+details.advd > div { margin-top: 4px; white-space: pre-line; }
+.weak { margin-top: 2px; padding: 8px 10px; border-radius: 8px; background: var(--warn-bg); display: flex; flex-direction: column; gap: 8px; }
+.wk { display: flex; flex-direction: column; gap: 2px; }
+.ditem .d code.dfix { margin-top: 0; }

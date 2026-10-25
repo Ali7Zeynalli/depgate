@@ -84,6 +84,7 @@ func FromNpm(name string, a NpmAdvisory) *Vuln {
 	}
 	v := &Vuln{ID: id, Summary: a.Title, NpmRange: a.VulnerableVersions, Malicious: a.Malicious(), Link: a.URL, From: "npm"}
 	v.DatabaseSpecific.Severity = a.Severity
+	v.DatabaseSpecific.CWEIDs = a.CWE
 	if a.CVSS.Vector != "" {
 		v.Severity = []osvSev{{Type: "CVSS_V3", Score: a.CVSS.Vector}}
 	}
