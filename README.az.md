@@ -111,6 +111,7 @@ Qovluq əlavə edəndə (monorepo və ya bir neçə layihənin olduğu qovluq) s
 
 ![Qovluq səhifəsi](docs/folder-overview.png)
 ![AI prompt](docs/ai-prompt.png)
+![AI rules](docs/ai-rules.png)
 
 ## Birlikdə yenilə, Docker, AI qaydaları
 

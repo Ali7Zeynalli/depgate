@@ -156,6 +156,7 @@ Add a folder (a monorepo or a folder of projects) and it shows up as one entry i
 
 ![Folder overview](docs/folder-overview.png)
 ![AI prompt](docs/ai-prompt.png)
+![AI rules](docs/ai-rules.png)
 
 ## Update together, Docker, AI rules
 
