@@ -8,11 +8,31 @@
 # real paths (/home/you/projects/...) and you can add a project from anywhere in
 # your home — no need to move anything. DepGate only reads; it never writes there.
 services:
+  # one-shot step: makes the data volume belong to your user (also fixes volumes
+  # created by older versions), then exits
+  depgate-init:
+    image: ghcr.io/ali7zeynalli/depgate:latest
+    build: .
+    user: "0:0"
+    command: ["--chown-data", "${DEPGATE_UID:-1000}:${DEPGATE_GID:-1000}"]
+    volumes:
+      - depgate-data:/data
+    network_mode: none
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_READ_SEARCH, FOWNER]
+    security_opt:
+      - no-new-privileges:true
+    restart: "no"
+
   depgate:
     image: ghcr.io/ali7zeynalli/depgate:latest
     build: .
     container_name: depgate
     restart: unless-stopped
+    depends_on:
+      depgate-init:
+        condition: service_completed_successfully
     # run as you, so DepGate can read your files (check with: id -u ; id -g)
     user: "${DEPGATE_UID:-1000}:${DEPGATE_GID:-1000}"
     ports:

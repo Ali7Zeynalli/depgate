@@ -11,6 +11,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"os"
 	"os/exec"
@@ -18,6 +19,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -50,6 +52,7 @@ type config struct {
 	version   bool
 	health    bool
 	resetPw   bool
+	chownData string
 	noAuth    bool
 	view      string
 	data      string
@@ -99,6 +102,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	fs.BoolVar(&c.version, "version", false, "print the version")
 	fs.BoolVar(&c.health, "health", false, "check a running server (Docker HEALTHCHECK); exit 0 = healthy")
 	fs.BoolVar(&c.resetPw, "reset-password", false, "forget the UI password; the next visit asks for a new one")
+	fs.StringVar(&c.chownData, "chown-data", "", "UID:GID — give the data folder to this user and exit (Docker init step, needs root)")
 	fs.BoolVar(&c.noAuth, "no-auth", false, "disable the UI password (only allowed on 127.0.0.1; not recommended)")
 	fs.StringVar(&c.view, "view", "", "open a saved JSON report in the UI (read-only)")
 	fs.StringVar(&c.data, "data", os.Getenv("DEPGATE_DATA"), "folder for the project list and reports (default ~/.config/depgate; DEPGATE_DATA)")
@@ -136,6 +140,13 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 	dataDir, cacheDir := dirsFor(c.data)
 
+	if c.chownData != "" {
+		if err := chownTree(dataDir, c.chownData); err != nil {
+			fmt.Fprintln(stderr, "depgate:", err)
+			return 1
+		}
+		return 0
+	}
 	if c.resetPw {
 		if err := auth.Reset(dataDir); err != nil {
 			fmt.Fprintln(stderr, "depgate:", err)
@@ -211,6 +222,14 @@ func run(args []string, stdout, stderr io.Writer) int {
 	st, err := store.Open(dataDir)
 	if err != nil {
 		fmt.Fprintln(stderr, L("depgate: yaddaş açılmadı:", "depgate: cannot open data folder:"), err)
+		if errors.Is(err, os.ErrPermission) {
+			fmt.Fprintf(stderr, L("  %s qovluğuna bu istifadəçi (uid %d) yaza bilmir.\n", "  this user (uid %d) cannot write to %s.\n"), permArgs(dataDir)...)
+			if container {
+				fmt.Fprintln(stderr, L("  Docker volume-u köhnə versiya yaradıb. Düzəliş: docker compose down -v && docker compose up -d --build", "  The Docker volume was created by an older version. Fix: docker compose down -v && docker compose up -d --build"))
+			} else {
+				fmt.Fprintln(stderr, L("  Başqa qovluq ver: --data <qovluq> və ya DEPGATE_DATA", "  Use another folder: --data <dir> or DEPGATE_DATA"))
+			}
+		}
 		return 1
 	}
 	if c.noAuth && !loopback(c.addr) {
@@ -254,6 +273,36 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 	fmt.Fprintf(stderr, L("Yadda saxlanan layihələr: %d · Kök qovluqlar: %s\n", "Remembered projects: %d · Browsable roots: %s\n"), len(st.Projects()), strings.Join(roots, ", "))
 	return serve(ctx, c, m, token, au, stderr)
+}
+
+// permArgs orders the arguments of the permission message for the current language.
+func permArgs(dir string) []any {
+	if lang == "az" {
+		return []any{dir, os.Getuid()}
+	}
+	return []any{os.Getuid(), dir}
+}
+
+// chownTree gives dir and everything inside it to uid:gid (used by the Docker init step).
+func chownTree(dir, ids string) error {
+	u, g, ok := strings.Cut(ids, ":")
+	uid, err1 := strconv.Atoi(u)
+	gid, err2 := strconv.Atoi(g)
+	if !ok || err1 != nil || err2 != nil || uid < 0 || gid < 0 {
+		return fmt.Errorf("--chown-data wants UID:GID, got %q", ids)
+	}
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return err
+	}
+	return filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.Type()&os.ModeSymlink != 0 {
+			return nil // never follow links out of the volume
+		}
+		return os.Lchown(p, uid, gid)
+	})
 }
 
 func loopback(addr string) bool {
