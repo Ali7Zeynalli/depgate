@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -390,9 +391,19 @@ func serve(ctx context.Context, c config, b web.Backend, token string, au *auth.
 		return 1
 	}
 	readOnly := au == nil && !c.noAuth // --view: one-time link, no password
-	srv := &web.Server{Token: token, B: b, Auth: au, NoAuth: c.noAuth || readOnly, AllowHosts: c.allowHost, MCP: mcpH}
+	hosts := append([]string(nil), c.allowHost...)
+	// DEPGATE_ALLOW_HOSTS: the names or IPs you open DepGate with from other machines (comma or space separated)
+	hosts = append(hosts, strings.FieldsFunc(os.Getenv("DEPGATE_ALLOW_HOSTS"), func(r rune) bool { return r == ',' || r == ' ' || r == ';' })...)
+	srv := &web.Server{Token: token, B: b, Auth: au, NoAuth: c.noAuth || readOnly, AllowHosts: hosts, MCP: mcpH, Log: stderr}
 	url := fmt.Sprintf("http://127.0.0.1:%d/", port)
 	fmt.Fprintf(stderr, "\nDepGate: %s\n", url)
+	for _, h := range hosts {
+		fmt.Fprintf(stderr, "         http://%s/\n", net.JoinHostPort(h, strconv.Itoa(port)))
+	}
+	if !loopback(c.addr) && len(hosts) == 0 {
+		fmt.Fprintln(stderr, L("  Başqa kompüterdən açmaq üçün: DEPGATE_ALLOW_HOSTS=<serverin IP-si və ya adı> (və ya --allow-host).",
+			"  To open it from another machine: DEPGATE_ALLOW_HOSTS=<the server's IP or name> (or --allow-host)."))
+	}
 	switch {
 	case c.noAuth:
 		fmt.Fprintln(stderr, L("XƏBƏRDARLIQ: parol söndürülüb (--no-auth).", "WARNING: password disabled (--no-auth)."))

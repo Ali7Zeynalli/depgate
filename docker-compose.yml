@@ -36,8 +36,12 @@ services:
     # run as you, so DepGate can read your files (check with: id -u ; id -g)
     user: "${DEPGATE_UID:-1000}:${DEPGATE_GID:-1000}"
     ports:
-      - "127.0.0.1:7777:7777"
+      # this machine only. As a server for other computers on your network:
+      #   DEPGATE_BIND=0.0.0.0 DEPGATE_ALLOW_HOSTS=192.168.1.50 docker compose up -d
+      # (DEPGATE_ALLOW_HOSTS = the IP or name you type in the browser; comma separated)
+      - "${DEPGATE_BIND:-127.0.0.1}:7777:7777"
     environment:
+      - DEPGATE_ALLOW_HOSTS=${DEPGATE_ALLOW_HOSTS:-}
       - HOME=${HOME}
       - DEPGATE_ROOTS=${HOME}
       # optional: set the password here instead of in the browser (min. 8 characters)
