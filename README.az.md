@@ -56,7 +56,6 @@ Qovluq seçici yalnız icazə verilən kökləri göstərir (standart: ev qovlu�
 
 ```bash
 git clone https://github.com/Ali7Zeynalli/depgate.git && cd depgate
-mkdir -p ~/.config/depgate
 DEPGATE_UID=$(id -u) DEPGATE_GID=$(id -g) docker compose up -d
 ```
 
@@ -64,7 +63,7 @@ DEPGATE_UID=$(id -u) DEPGATE_GID=$(id -g) docker compose up -d
 
 - **Ev qovluğun eyni yolla, yalnız oxuma rejimində bağlanır** — interfeysdə real yollar (`/home/sən/...`) görünür, heç nəyi köçürmək lazım deyil. DepGate ora heç nə yazmır.
 - Konteyner **sənin istifadəçinlə** işləyir (`DEPGATE_UID`/`DEPGATE_GID`, standart 1000) ki, fayllarını oxuya bilsin.
-- Siyahı, hesabatlar və parol hash-ı `~/.config/depgate`-dədir — **Docker-siz `depgate` ilə eyni qovluq**, ikisi eyni layihələri görür.
+- Siyahı, hesabatlar və parol hash-ı **`depgate-data` Docker volume-unda** saxlanır (yenidən başlatma və yeniləmədə itmir). Docker-siz `depgate` ilə ortaq istifadə etmək istəsən, volume-u `${HOME}/.config/depgate:/data` ilə əvəz et (`docker-compose.yml`-dəki şərhə bax).
 - Port yalnız `127.0.0.1`-də açılır. `DEPGATE_PASSWORD=…` parolu brauzer əvəzinə əvvəlcədən təyin edir.
 
 ### Bir dəfəlik rejimlər
@@ -123,7 +122,7 @@ DepGate qovluqlarını gəzə bilir və layihələrinin zəif yerlərini göstə
 - **ilk açılış:** parolu özün seçirsən (ən azı 8 simvol) — heç bir token, kopyalanacaq link yoxdur;
 - **sonra:** adi giriş səhifəsi, «məni yadda saxla» (30 gün); yuxarıda **Çıxış** və **Parolu dəyiş** düymələri var (parol dəyişəndə digər brauzerlərdəki sessiyalar bağlanır);
 - **unutmusan?** `depgate --reset-password` (Docker-də: `docker exec depgate depgate --reset-password`), sonra yenisini təyin et;
-- **Docker / avtomatlaşdırma:** `DEPGATE_PASSWORD=…` parolu əvvəlcədən təyin edir; skriptlər API-ni `Authorization: Bearer <token>` ilə çağırır (token `~/.config/depgate/token` faylındadır və ya `DEPGATE_TOKEN` ilə təyin olunur).
+- **Docker / avtomatlaşdırma:** `DEPGATE_PASSWORD=…` parolu əvvəlcədən təyin edir; skriptlər API-ni `Authorization: Bearer <token>` ilə çağırır (token `~/.config/depgate/token` faylındadır; Docker-də onu `DEPGATE_TOKEN` ilə özün təyin et).
 
 Parol yalnız PBKDF2-SHA256 hash kimi saxlanır (600 000 iterasiya, təsadüfi salt); ardıcıl yanlış cəhdlər yavaşladılır. Bundan əlavə DepGate `Host` başlığını yoxlayır, hər API sorğusunda xüsusi başlıq tələb edir və sərt Content Security Policy göndərir.
 

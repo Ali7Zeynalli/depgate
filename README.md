@@ -56,7 +56,6 @@ depgate            # opens http://127.0.0.1:7777 — set a password, then "+ Add
 or with Docker (clone the repo first):
 
 ```bash
-mkdir -p ~/.config/depgate
 DEPGATE_UID=$(id -u) DEPGATE_GID=$(id -g) docker compose up -d
 ```
 
@@ -92,23 +91,21 @@ The browser can only see folders under the allowed roots (your home directory by
 ### Docker
 
 ```bash
-mkdir -p ~/.config/depgate
 DEPGATE_UID=$(id -u) DEPGATE_GID=$(id -g) docker compose up -d
 ```
 
 or without compose:
 
 ```bash
-mkdir -p ~/.config/depgate
 docker run -d --name depgate -p 127.0.0.1:7777:7777 --user "$(id -u):$(id -g)" \
   -e HOME=$HOME -e DEPGATE_ROOTS=$HOME \
-  -v $HOME:$HOME:ro -v $HOME/.config/depgate:/data \
+  -v $HOME:$HOME:ro -v depgate-data:/data \
   --read-only --tmpfs /tmp --cap-drop ALL ghcr.io/ali7zeynalli/depgate:latest
 ```
 
 - Your **home folder is mounted read-only at the same path**, so the UI shows your real paths and you can add projects from anywhere in it — nothing to move. DepGate never writes there.
 - The container runs **as your user** (`DEPGATE_UID`/`DEPGATE_GID`, default 1000) so it can read your files.
-- The project list, reports and password hash live in `~/.config/depgate` — **the same folder a native `depgate` uses**, so both see the same projects.
+- The project list, reports and password hash live in the **`depgate-data` Docker volume** (survives restarts and upgrades). Prefer sharing them with a native `depgate`? Swap the volume for `${HOME}/.config/depgate:/data` (see the comment in `docker-compose.yml`).
 - The port is published on `127.0.0.1` only. `DEPGATE_PASSWORD=…` sets the password up front instead of in the browser.
 
 ### One-shot modes
@@ -170,7 +167,7 @@ DepGate can browse your folders and shows where your projects are weak — exact
 - **first visit:** you choose a password (min. 8 characters) — no tokens, no links to copy;
 - **after that:** a normal sign-in page with *remember me* (30 days); **Sign out** and **Change password** are in the header (changing it signs out every other browser);
 - **forgot it?** `depgate --reset-password` (Docker: `docker exec depgate depgate --reset-password`), then set a new one;
-- **Docker / automation:** `DEPGATE_PASSWORD=…` sets it up front; scripts can call the API with `Authorization: Bearer <token>` (the token is in `~/.config/depgate/token` or set with `DEPGATE_TOKEN`).
+- **Docker / automation:** `DEPGATE_PASSWORD=…` sets it up front; scripts can call the API with `Authorization: Bearer <token>` (the token is in `~/.config/depgate/token`; in Docker set your own with `DEPGATE_TOKEN`).
 
 The password is stored only as a PBKDF2-SHA256 hash (600 000 iterations, random salt); repeated wrong attempts are slowed down. On top of that DepGate checks the `Host` header, requires a custom header on every API call and sends a strict Content Security Policy.
 
