@@ -112,6 +112,14 @@ Qovluq əlavə edəndə (monorepo və ya bir neçə layihənin olduğu qovluq) s
 ![Qovluq səhifəsi](docs/folder-overview.png)
 ![AI prompt](docs/ai-prompt.png)
 
+## Birlikdə yenilə, Docker, AI qaydaları
+
+DepGate heç bir faylı dəyişmir. Aşağıdakıların hamısını yalnız göstərir və təklif edir; tətbiq etmək sənin (və ya AI agentinin) işidir.
+
+- **Birlikdə yenilə.** Bəzi paketlər həmişə birlikdə buraxılır: `react` + `react-dom` (+ uyğun `@types/react`), `next` + `eslint-config-next`, əsas `@nestjs/*` paketləri, `@angular/*`, Vue, Storybook, Nx, Prisma, typescript-eslint, Tiptap. Onlardan biri yeni versiyaya keçməlidirsə və ya versiyaları bir-birindən ayrılıbsa, DepGate bir kart göstərir: hər paket, onun hədəf versiyası və hamısı üçün bir əmr. Öz versiya xətti olan paketlər (məsələn `@nestjs/config`) qrupa salınmır.
+- **Docker təhlükəsizliyi.** Layihədəki və repo kökündəki Dockerfile və compose faylları yoxlanır: konteynerin root ilə işləməsi, `latest` teqləri, `ENV`/`ARG`/`environment` içində sirlər, `npm ci` əvəzinə `npm install`, `curl | sh`, `.dockerignore`-un olmaması (bu halda `.env` image-ə düşə bilər), `privileged`, Docker socket-in konteynerə bağlanması, bütün interfeyslərə açılmış verilənlər bazası, host şəbəkəsi və PID, söndürülmüş seccomp/AppArmor və s. Hər tapıntıda fayl, sətir, servis və təklif olunan sətir göstərilir.
+- **AI qaydaları.** AI modelləri köhnə versiyalarla öyrədilib: Next.js 16 layihəsində `getServerSideProps`, ESLint 9-da `.eslintrc` yazırlar. **AI qaydaları** lockfile-dakı versiyalardan `AGENTS.md` / `CLAUDE.md` / `.cursor/rules` üçün blok hazırlayır. Blokda dəqiq stack, versiyaya uyğun qaydalar (Next.js, React, Tailwind, ESLint, Express, NestJS, Prisma, Zod, TanStack Query, React Router, TypeScript, Node.js; hər biri rəsmi upgrade bələdçisinin linki ilə) və köhnəlmiş paketlərin daxili və ya dəstəklənən əvəzləri (`request`, `moment`, `node-fetch`, `dotenv`, `rimraf` və s.) olur. Bloku kopyalaya və ya `.md` kimi yükləyə bilərsən.
+
 ## Mənbələr
 
 Hər qərar açıq və pulsuz mənbələrə əsaslanır. İnterfeysdəki **Mənbələr** düyməsi onları göstərir: hər mənbə nə üçün istifadə olunur və son skanda neçə sorğuya cavab verib (və ya alınmayıb). Eyni siyahının linki hər layihənin altında da var.

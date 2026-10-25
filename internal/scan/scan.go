@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/Ali7Zeynalli/depgate/internal/airules"
 	"github.com/Ali7Zeynalli/depgate/internal/decide"
 	"github.com/Ali7Zeynalli/depgate/internal/lockfile"
 	"github.com/Ali7Zeynalli/depgate/internal/project"
@@ -124,8 +125,19 @@ func One(ctx context.Context, d *decide.Data, dir string, opt Options) report.Pr
 		nodeVer, mismatch = p.Node.Version, p.Node.Mismatch
 	}
 	in := decide.Input{Lock: lr, Manifest: man, NodeVersion: nodeVer, Mgr: decide.ManagerOf(lr)}
-	findings, errs := decide.Packages(ctx, d, in, decide.Options{CooldownDays: opt.CooldownDays, Now: opt.Now})
+	dopt := decide.Options{CooldownDays: opt.CooldownDays, Now: opt.Now}
+	findings, errs := decide.Packages(ctx, d, in, dopt)
 	p.Findings = findings
+	p.Bundles = decide.Bundles(ctx, d, in, p.Findings, dopt)
+	directs := map[string]string{}
+	for _, x := range lr.Packages {
+		if v, err := semver.Parse(x.Version); x.Direct && err == nil {
+			if old, ok := directs[x.Name]; !ok || semver.Less(semver.MustParse(old), v) {
+				directs[x.Name] = v.String()
+			}
+		}
+	}
+	p.AIRules = airules.Build(directs, nodeVer)
 	p.Errors = append(p.Errors, errs...)
 	p.Hygiene = project.Hygiene(abs, root, lr.Manager, lr.Kind, mismatch, opt.CooldownDays)
 	p.Summary = Summarize(p.Findings)

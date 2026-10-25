@@ -229,3 +229,15 @@ body.locked .layout .projects { display: none; }
 .nrow .lbl { min-width: 120px; }
 .modal.wide { max-width: 920px; }
 textarea.prompt { width: 100%; min-height: 52vh; resize: vertical; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); }
+
+/* bundles, docker */
+.card.bundle { border-left: 3px solid var(--accent); }
+.btable { width: 100%; border-collapse: collapse; font-size: 13px; margin: 6px 0 8px; }
+.btable td { padding: 4px 8px 4px 0; border-bottom: 1px solid var(--line2); vertical-align: top; }
+.btable td.good { color: var(--good); font-weight: 600; white-space: nowrap; }
+.card.docker { margin-bottom: 14px; }
+.ditem { padding: 8px 0; border-top: 1px solid var(--line2); }
+.ditem:first-of-type { border-top: 0; }
+.drow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.ditem .d { font-size: 13px; margin-top: 2px; }
+.dfix { display: inline-block; margin-top: 4px; font-size: 12.5px; }

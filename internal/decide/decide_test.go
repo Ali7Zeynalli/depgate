@@ -521,3 +521,70 @@ func TestNodeCoreVulns(t *testing.T) {
 		t.Fatalf("patched version still reported: %+v", n.Vulns)
 	}
 }
+
+func TestBundleReact(t *testing.T) {
+	f := newFake()
+	f.versions["react"] = old("18.2.0", "18.3.1", "19.2.0")
+	f.versions["react-dom"] = old("18.2.0", "18.3.1", "19.2.0")
+	f.versions["@types/react"] = old("18.2.0", "18.3.12", "19.2.2")
+	in := Input{Lock: lock("npm",
+		lockfile.Package{Name: "react", Version: "18.2.0", Direct: true},
+		lockfile.Package{Name: "react-dom", Version: "18.2.0", Direct: true},
+		lockfile.Package{Name: "@types/react", Version: "18.2.0", Direct: true, Dev: true})}
+	in.Mgr = "npm"
+	d := NewData(f)
+	d.KEV = map[string]bool{}
+	fs, _ := Packages(context.Background(), d, in, Options{CooldownDays: 3, Now: now})
+	bs := Bundles(context.Background(), d, in, fs, Options{CooldownDays: 3, Now: now})
+	if len(bs) != 1 || bs[0].ID != "react" || bs[0].Target != "18.3.1" {
+		t.Fatalf("bundles %+v", bs)
+	}
+	if bs[0].Command != "npm install react@18.3.1 react-dom@18.3.1" {
+		t.Fatalf("command %q", bs[0].Command)
+	}
+	warned := 0
+	for _, x := range fs {
+		if contains(x.Warnings, "React") {
+			warned++
+		}
+	}
+	if warned < 2 {
+		t.Fatalf("member cards not pointed at the bundle (%d)", warned)
+	}
+}
+
+func TestBundleNestDriftAndScope(t *testing.T) {
+	f := newFake()
+	for _, n := range []string{"@nestjs/core", "@nestjs/common", "@nestjs/platform-express", "@nestjs/testing"} {
+		f.versions[n] = old("11.1.0", "11.1.6")
+	}
+	f.versions["@nestjs/config"] = old("4.0.2")
+	in := Input{Mgr: "pnpm", Lock: lock("pnpm",
+		lockfile.Package{Name: "@nestjs/core", Version: "11.1.6", Direct: true},
+		lockfile.Package{Name: "@nestjs/common", Version: "11.1.0", Direct: true},
+		lockfile.Package{Name: "@nestjs/platform-express", Version: "11.1.6", Direct: true},
+		lockfile.Package{Name: "@nestjs/testing", Version: "11.1.0", Direct: true, Dev: true},
+		lockfile.Package{Name: "@nestjs/config", Version: "4.0.2", Direct: true})}
+	d := NewData(f)
+	bs := Bundles(context.Background(), d, in, nil, Options{CooldownDays: 3, Now: now})
+	if len(bs) != 1 || bs[0].Command != "pnpm up @nestjs/common@11.1.6 @nestjs/testing@11.1.6" {
+		t.Fatalf("bundles %+v", bs)
+	}
+	for _, it := range bs[0].Items {
+		if it.Pkg == "@nestjs/config" {
+			t.Fatal("independently versioned package put into the lockstep group")
+		}
+	}
+}
+
+func TestBundleAlignedIsQuiet(t *testing.T) {
+	f := newFake()
+	f.versions["react"] = old("19.2.0")
+	f.versions["react-dom"] = old("19.2.0")
+	in := Input{Mgr: "npm", Lock: lock("npm",
+		lockfile.Package{Name: "react", Version: "19.2.0", Direct: true},
+		lockfile.Package{Name: "react-dom", Version: "19.2.0", Direct: true})}
+	if bs := Bundles(context.Background(), NewData(f), in, nil, Options{CooldownDays: 3, Now: now}); len(bs) != 0 {
+		t.Fatalf("aligned family reported: %+v", bs)
+	}
+}
