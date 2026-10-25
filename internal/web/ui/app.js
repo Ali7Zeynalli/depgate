@@ -193,6 +193,22 @@
     pReport: ["## Sonda hesabat ver", "## Report back"],
     pReportText: ["Cədvəl: layihə | paket | köhnə → yeni versiya | nəticə (edildi / alınmadı + səbəb). Sonra build/test nəticəsi və etdiyin kod dəyişiklikləri.", "A table: project | package | old → new version | result (done / failed + reason). Then the build/test results and any code changes you made."],
     prod: ["prod", "prod"],
+    bundlesTitle: ["Birlikdə yenilə", "Update together"],
+    bundleTo: ["→ {0}", "→ {0}"],
+    bundleStays: ["qalır", "stays"],
+    docs: ["Sənəd", "Docs"],
+    dockerTitle: ["Docker təhlükəsizliyi", "Docker security"],
+    dockerNone: ["Dockerfile və ya compose faylı tapılmadı.", "No Dockerfile or compose file found."],
+    dockerOk: ["Yoxlanan fayllarda problem tapılmadı: {0}", "No issues in the checked files: {0}"],
+    dockerN: ["{0} tövsiyə", "{0} suggestions"],
+    readOnlyNote: ["DepGate heç bir faylı dəyişmir — yalnız göstərir və təklif edir.", "DepGate never changes your files — it only shows and suggests."],
+    rulesBtn: ["AI qaydaları", "AI rules"],
+    rulesTitle: ["AI agentlər üçün versiya qaydaları", "Version rules for AI agents"],
+    rulesHelp: ["Bunu layihənin AGENTS.md, CLAUDE.md və ya .cursor/rules faylına əlavə et: AI köhnə versiyalara görə yox, sənin quraşdırdığın versiyalara görə kod yazacaq. DepGate faylı özü yazmır.", "Add this to the project's AGENTS.md, CLAUDE.md or .cursor/rules: the AI will write code for the versions you actually have, not the ones it was trained on. DepGate does not write the file itself."],
+    rulesStats: ["{0} qayda · {1} əvəz təklifi", "{0} rules · {1} replacement suggestions"],
+    rulesNothing: ["Bu layihə üçün xüsusi qayda yoxdur.", "No specific rules for this project."],
+    pBundles: ["### Birlikdə yenilə", "### Update together"],
+    pDocker: ["### Docker", "### Docker"],
     removeFolderConfirm: ["«{0}» qovluğundakı {1} layihə siyahıdan silinsin? (fayllara toxunulmur)", "Remove the {1} projects in “{0}” from the list? (files are not touched)"],
   };
   let lang = "en";
@@ -395,6 +411,7 @@
       p.scanning ? el("span", { class: "chip busy" }, el("span", { class: "spin" }), t("scanningChip")) : p.queued ? el("span", { class: "chip busy" }, t("queued")) : null,
       st.readOnly ? null : el("button", { class: "small", disabled: p.scanning || p.queued || undefined, onclick: () => scan([p.dir]) }, t("scan")),
       st.readOnly ? null : el("button", { class: "small ghost danger", onclick: () => removeProject(p) }, t("remove")),
+      p.report ? el("button", { class: "small", onclick: () => openRules([p], p.dir) }, t("rulesBtn")) : null,
       p.report ? el("button", { class: "small primary", onclick: () => openPrompt([p], p.dir) }, t("aiBtn")) : null);
     const g = groupsOf(st.projects).find((x) => x.items.includes(p));
     if (g && g.items.length > 1 && !st.readOnly) {
@@ -462,6 +479,7 @@
       busy ? el("span", { class: "chip busy" }, el("span", { class: "spin" }), t("scanningChip")) : null,
       st.readOnly ? null : el("button", { class: "small", disabled: st.busy || undefined, onclick: () => scan(ps.map((x) => x.dir)) }, t("scanFolder", ps.length)),
       st.readOnly ? null : el("button", { class: "small ghost danger", onclick: () => removeGroup(g) }, t("removeFolder", ps.length)),
+      scanned.length ? el("button", { class: "small", onclick: () => openRules(scanned, g.dir, g) }, t("rulesBtn")) : null,
       scanned.length ? el("button", { class: "small primary", onclick: () => openPrompt(scanned, g.dir, g) }, t("aiBtn")) : null);
     if (!scanned.length) return el("div", null, bar, el("div", { class: "empty" }, el("h1", null, baseName(g.dir)), busy ? t("firstScan") : t("folderNotScanned")));
 
@@ -497,8 +515,21 @@
     const groups = el("div");
     function rerender() { groups.replaceChildren(...renderFolderGroups(g, merged)); }
     rerender();
+    const dk = new Map(), dfiles = new Set();
+    for (const p of scanned) {
+      for (const f of p.report.dockerFiles || []) dfiles.add(relTo(joinPath(p.dir, f), g.dir) || f);
+      for (const d of p.report.docker || []) {
+        const abs = joinPath(p.dir, d.file);
+        const k = abs + "|" + d.line + "|" + d.rule + "|" + (d.service || "");
+        if (!dk.has(k)) dk.set(k, { ...d, abs });
+      }
+    }
+    const dIssues = [...dk.values()].sort((a, b) => ({ high: 0, medium: 1, low: 2 }[a.severity] - { high: 0, medium: 1, low: 2 }[b.severity]) || a.abs.localeCompare(b.abs) || a.line - b.line);
+    const bundles = scanned.flatMap((p) => (p.report.bundles || []).map((b) => bundleCard({ ...b, command: b.command ? cdPrefix(p, g) + b.command : "" }, relName(p, g))));
     return el("div", null, bar, head, rows,
       el("div", { class: "side" }, folderNodeCard(g, scanned), folderHygieneCard(g, scanned)),
+      dockerCard(dIssues, [...dfiles], (d) => relTo(d.abs, g.dir) || d.abs),
+      bundlesSection(bundles),
       toolbar, groups);
   }
   function renderFolderGroups(g, merged) {
@@ -572,12 +603,14 @@
       fs.sort((a, b) => (order[a.kind] ?? 1) - (order[b.kind] ?? 1) || (b.priority || 0) - (a.priority || 0));
       const opt = (r.findings || []).filter((f) => f.group === "optional");
       const nd = r.node && r.node.need && r.node.need !== "none" ? r.node : null;
+      const bundles = r.bundles || [];
+      const dock = (r.docker || []).filter((d) => d.severity !== "low");
       for (const h of (r.hygiene || []).filter((h) => !h.ok)) {
         const k = h.id + "|" + (h.file || "") + "|" + (h.fix || "");
         if (!hygAll.has(k)) hygAll.set(k, { h, where: [] });
         hygAll.get(k).where.push(label(p));
       }
-      if (!fs.length && !opt.length && !nd) continue;
+      if (!fs.length && !opt.length && !nd && !bundles.length && !dock.length) continue;
       nproj++;
       L.push(t("pProject", label(p)), "");
       L.push(`- ${t("pPath")}: ${p.dir}`);
@@ -601,6 +634,25 @@
         if (f.warnings && f.warnings.length) L.push(`- ${t("pWarn")}: ${join(f.warnings)}`);
         L.push("");
       });
+      if (bundles.length) {
+        L.push(t("pBundles"));
+        for (const b of bundles) {
+          tasks++;
+          L.push(`- ${b.name}${b.target ? " → " + b.target : ""} — ${join(b.why)}`);
+          for (const it of b.items || []) L.push(`  - ${it.pkg} ${it.current}${it.target ? " → " + it.target : " (" + t("bundleStays") + ")"}${tr(it.note) ? " — " + tr(it.note) : ""}`);
+          if (b.command) L.push(`  - ${t("pFix")}: \`${b.command}\``);
+          if (b.docs) L.push(`  - ${t("docs")}: ${b.docs}`);
+        }
+        L.push("");
+      }
+      if (dock.length) {
+        L.push(t("pDocker"));
+        for (const d of dock) {
+          tasks++;
+          L.push(`- [${d.severity}] ${d.file}${d.line ? ":" + d.line : ""}${d.service ? " (" + d.service + ")" : ""} — ${tr(d.title)}${tr(d.detail) ? ": " + tr(d.detail) : ""}${d.fix ? " — `" + d.fix + "`" : ""}`);
+        }
+        L.push("");
+      }
       if (nd) {
         tasks++;
         const target = nd.securityFix || nd.latestInLine;
@@ -625,23 +677,26 @@
     L.push(t("pReport"), t("pReportText"));
     return { text: L.join("\n"), tasks, projects: nproj };
   }
-  function openPrompt(ps, rootDir, g) {
-    const pr = promptFor(ps, rootDir, g);
+  function textModal(title, help, text, stats, filename) {
     const close = () => { ov.remove(); document.removeEventListener("keydown", esc); };
     const esc = (e) => { if (e.key === "Escape") close(); };
-    const ta = el("textarea", { class: "prompt", readonly: true, spellcheck: "false" }, pr.text);
+    const ta = el("textarea", { class: "prompt", readonly: true, spellcheck: "false" }, text);
     const dl = () => {
-      const a = el("a", { href: URL.createObjectURL(new Blob([pr.text], { type: "text/markdown" })), download: "depgate-" + baseName(rootDir) + ".md" });
+      const a = el("a", { href: URL.createObjectURL(new Blob([text], { type: "text/markdown" })), download: filename });
       document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
     };
-    const dlg = el("div", { class: "modal wide", role: "dialog", "aria-modal": "true", "aria-label": t("aiTitle") },
-      el("div", { class: "mhead" }, el("div", { class: "h3" }, t("aiTitle")), el("div", { class: "quiet" }, t("aiHelp"))),
+    const dlg = el("div", { class: "modal wide", role: "dialog", "aria-modal": "true", "aria-label": title },
+      el("div", { class: "mhead" }, el("div", { class: "h3" }, title), el("div", { class: "quiet" }, help), el("div", { class: "quiet small" }, t("readOnlyNote"))),
       el("div", { class: "pad" }, ta),
-      el("div", { class: "pfoot" }, el("div", { class: "quiet" }, t("aiStats", pr.tasks, pr.projects)), el("span", { class: "grow" }),
+      el("div", { class: "pfoot" }, el("div", { class: "quiet" }, stats), el("span", { class: "grow" }),
         el("button", { onclick: dl }, t("download")), el("button", { onclick: () => close() }, t("close")),
-        el("button", { class: "primary", onclick: () => copy(pr.text) }, t("copy"))));
+        el("button", { class: "primary", onclick: () => copy(text) }, t("copy"))));
     const ov = el("div", { class: "overlay", onclick: (e) => { if (e.target === ov) close(); } }, dlg);
     document.body.append(ov); document.addEventListener("keydown", esc); ta.focus(); ta.setSelectionRange(0, 0);
+  }
+  function openPrompt(ps, rootDir, g) {
+    const pr = promptFor(ps, rootDir, g);
+    textModal(t("aiTitle"), t("aiHelp"), pr.text, t("aiStats", pr.tasks, pr.projects), "depgate-" + baseName(rootDir) + ".md");
   }
 
   // ---------- folder picker ----------
@@ -693,6 +748,81 @@
     const firstBtn = ov.querySelector(".fname"); if (firstBtn) firstBtn.focus();
   }
 
+  function bundleCard(b, where) {
+    return el("div", { class: "card bundle" },
+      el("div", { class: "ctitle" }, el("span", { class: "pkg" }, b.name), b.target ? el("span", { class: "ver" }, el("span", { class: "arr" }, "→"), b.target) : null,
+        el("span", { class: "chip " + impClass(b.impact) }, t("qImpact").replace(/^②\s*/, "") + " " + impText(b.impact)),
+        where ? el("span", { class: "chip" }, where) : null),
+      el("ul", { class: "why" }, list(b.why)),
+      el("table", { class: "btable" }, el("tbody", null, (b.items || []).map((it) => el("tr", null,
+        el("td", null, el("code", null, it.pkg), it.dev ? el("span", { class: "chip" }, "dev") : null),
+        el("td", null, it.current),
+        el("td", { class: it.target ? "good" : "quiet" }, it.target ? "→ " + it.target : t("bundleStays")),
+        el("td", { class: "quiet small" }, tr(it.note)))))),
+      b.command ? el("div", { class: "fix" }, el("div", { class: "row" }, el("code", null, b.command), copyBtn(b.command))) : null,
+      safeURL(b.docs) ? el("div", { class: "cfoot" }, el("a", { href: b.docs, target: "_blank", rel: "noopener noreferrer" }, t("docs") + ": " + b.docs)) : null);
+  }
+  function bundlesSection(items) {
+    if (!items.length) return null;
+    return el("details", { class: "grp", id: "g-bundles", open: true },
+      el("summary", null, t("bundlesTitle"), el("span", { class: "c" }, `(${items.length})`)), items);
+  }
+  const SEVC = { high: "sev-high", medium: "sev-moderate", low: "" };
+  function dockerCard(issues, files, label) {
+    if (!files.length) return null;
+    const head = el("div", { class: "h3" }, t("dockerTitle"), el("span", { class: "chip" }, issues.length ? t("dockerN", issues.length) : t("hygOk")));
+    if (!issues.length) return el("div", { class: "card docker" }, head, el("div", { class: "quiet small" }, t("dockerOk", files.join(", "))));
+    return el("div", { class: "card docker" }, head,
+      el("div", { class: "quiet small" }, t("readOnlyNote")),
+      issues.map((d) => el("div", { class: "ditem" },
+        el("div", { class: "drow" }, el("span", { class: "chip " + (SEVC[d.severity] || "") }, d.severity), el("b", null, tr(d.title))),
+        el("div", { class: "quiet small" }, (label ? label(d) : d.file) + (d.line ? ":" + d.line : "") + (d.service ? " · " + d.service : "")),
+        tr(d.detail) ? el("div", { class: "d" }, tr(d.detail)) : null,
+        d.fix ? el("code", { class: "dfix" }, d.fix) : null)));
+  }
+  // normalise "a/b/../c" so the same compose file seen from two projects is one entry
+  function joinPath(dir, rel) {
+    const out = [];
+    for (const part of (dir + "/" + rel).split("/")) {
+      if (part === "" || part === ".") continue;
+      if (part === "..") out.pop(); else out.push(part);
+    }
+    return "/" + out.join("/");
+  }
+  function rulesFor(ps, g) {
+    const L = [], day = new Date().toISOString().slice(0, 10);
+    let nr = 0, nx = 0;
+    for (const p of ps) {
+      const r = p.report && p.report.aiRules;
+      if (!r) continue;
+      if (ps.length > 1) L.push(`### ${g ? relName(p, g) : p.report.name}${g && p.name !== baseName(p.dir) ? " (" + p.name + ")" : ""}`, "");
+      if (r.stack && r.stack.length) {
+        L.push("Stack (exact versions from the lockfile):");
+        for (const x of r.stack) L.push(`- ${x.pkg} ${x.version}${x.docs ? " — " + x.docs : ""}`);
+        L.push("", "Write code for these exact versions. Do not use APIs from other major versions; when unsure, check the linked docs or the package's own docs in node_modules.", "");
+      }
+      let topic = "";
+      for (const x of r.rules || []) {
+        nr++;
+        if (x.topic !== topic) { topic = x.topic; L.push(`${topic}${x.docs ? " (" + x.docs + ")" : ""}:`); }
+        L.push(`- ${x.text}`);
+      }
+      if ((r.rules || []).length) L.push("");
+      if (r.replace && r.replace.length) {
+        L.push("Prefer built-in or maintained alternatives (suggest, ask before replacing existing code):");
+        for (const x of r.replace) { nx++; L.push(`- \`${x.pkg}\` → ${x.use} — ${x.why}${x.docs ? " (" + x.docs + ")" : ""}`); }
+        L.push("");
+      }
+    }
+    if (!L.length) return { text: t("rulesNothing"), rules: 0, repl: 0 };
+    const text = [`<!-- depgate:ai-rules — generated by DepGate on ${day} from the installed versions; regenerate after upgrades -->`, "## Dependency versions and rules", "", ...L, "<!-- /depgate:ai-rules -->"].join("\n");
+    return { text, rules: nr, repl: nx };
+  }
+  function openRules(ps, rootDir, g) {
+    const r = rulesFor(ps, g);
+    textModal(t("rulesTitle"), t("rulesHelp"), r.text, t("rulesStats", r.rules, r.repl), "AGENTS-depgate-" + baseName(rootDir) + ".md");
+  }
+
   function project(p) {
     const s = p.summary || {};
     const tile = (n, l, cls, grp) => el("div", { class: "tile " + cls + (n ? "" : " zero"), onclick: () => { const d = document.getElementById("g-" + grp); if (d) { d.open = true; d.scrollIntoView({ behavior: "smooth" }); } } },
@@ -718,6 +848,8 @@
 
     return el("div", null, head,
       el("div", { class: "side" }, nodeCard(p), hygieneCard(p)),
+      dockerCard(p.docker || [], p.dockerFiles || []),
+      bundlesSection((p.bundles || []).map((b) => bundleCard(b))),
       toolbar, groups,
       p.errors && p.errors.length ? el("details", { class: "errs" }, el("summary", null, t("warningsN", p.errors.length)), el("ul", null, p.errors.map((e) => el("li", null, e)))) : null);
   }

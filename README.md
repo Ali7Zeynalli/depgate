@@ -156,6 +156,15 @@ Add a folder (a monorepo or a folder of projects) and it shows up as one entry i
 
 ![Folder overview](docs/folder-overview.png)
 ![AI prompt](docs/ai-prompt.png)
+![AI rules](docs/ai-rules.png)
+
+## Update together, Docker, AI rules
+
+DepGate never changes your files. Everything below is shown and suggested; you (or your AI agent) apply it.
+
+- **Update together.** Some packages are released in lockstep: `react` + `react-dom` (+ matching `@types/react`), `next` + `eslint-config-next`, the core `@nestjs/*` packages, `@angular/*`, Vue, Storybook, Nx, Prisma, typescript-eslint, Tiptap. When one of them needs a new version, or their versions have drifted apart, DepGate shows one card with every member, its target and a single command. Packages that are versioned on their own (for example `@nestjs/config`) are left out.
+- **Docker security.** Dockerfiles and compose files in the project and its repo root are checked: running as root, `latest` tags, secrets in `ENV`/`ARG`/`environment`, `npm install` instead of `npm ci`, `curl | sh`, a missing `.dockerignore` (so `.env` can end up in the image), `privileged`, the Docker socket mounted into a container, databases published on all interfaces, host network/PID, unconfined seccomp/AppArmor and more. Each finding has the file, line, service and a suggested line.
+- **AI rules.** AI models are trained on older versions, so they write `getServerSideProps` in a Next.js 16 app or `.eslintrc` for ESLint 9. **AI rules** builds an `AGENTS.md` / `CLAUDE.md` / `.cursor/rules` block from the versions in your lockfile: the exact stack, version-specific rules with links to the official upgrade guides (Next.js, React, Tailwind, ESLint, Express, NestJS, Prisma, Zod, TanStack Query, React Router, TypeScript, Node.js) and built-in or maintained replacements for outdated packages (`request`, `moment`, `node-fetch`, `dotenv`, `rimraf`, …). Copy it or download it as `.md`.
 
 ## Data sources
 
