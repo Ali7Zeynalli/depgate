@@ -103,6 +103,15 @@ Terminal mesajları standart olaraq ingiliscədir; `DEPGATE_LANG=az` ilə Azərb
 - **Node.js runtime:** Dockerfile, `.nvmrc`, `.node-version`, `.tool-versions`, `engines`, GitHub Actions; təhlükəsizlik relizləri və EOL tarixləri.
 - **Layihə gigiyenası:** lockfile, install skriptləri, cooldown ayarı, Node versiyasının uyğunluğu.
 
+## Qovluqlar və AI prompt
+
+Qovluq əlavə edəndə (monorepo və ya bir neçə layihənin olduğu qovluq) sol paneldə bir başlıq kimi görünür, layihələri isə onun altında sıralanır. Qovluğun adına klikləyəndə bütün layihələrin ümumi səhifəsi açılır: əvvəl layihələr cədvəli, sonra bütün tapıntılar kateqoriyalar üzrə. Eyni tapıntı bir neçə layihədə varsa, bir dəfə göstərilir: altında hansı layihələrdə olduğu və hər biri üçün işlədiləcək əmr yazılır.
+
+**AI üçün prompt** (qovluqda və ya tək layihədə) Claude Code, Cursor və ya başqa agent üçün bir tapşırıq yazır. Orada hər paket üçün harada olduğu, hansı versiyaya və niyə yenilənməli olduğu, advisory-lər, koda təsiri və dəqiq əmr göstərilir. Qaydalar da var: əvvəl zərərli paketlər, ən təhlükəsiz minimum versiya, build və testləri işlətmək. Sonda agentin nəyi hesabat verməli olduğu yazılır. Promptu kopyalaya və ya `.md` kimi yükləyə bilərsən.
+
+![Qovluq səhifəsi](docs/folder-overview.png)
+![AI prompt](docs/ai-prompt.png)
+
 ## Mənbələr
 
 Hər qərar açıq və pulsuz mənbələrə əsaslanır. İnterfeysdəki **Mənbələr** düyməsi onları göstərir: hər mənbə nə üçün istifadə olunur və son skanda neçə sorğuya cavab verib (və ya alınmayıb). Eyni siyahının linki hər layihənin altında da var.

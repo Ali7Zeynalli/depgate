@@ -147,6 +147,50 @@
     srcNotYet: ["hələ skan yoxdur", "no scan yet"],
     srcCache: ["keşdən (offline)", "from cache (offline)"],
     srcFoot: ["Mənbələr: {0}", "Sources: {0}"],
+    folderSub: ["{0} layihə · {1} paket", "{0} projects · {1} packages"],
+    folderProjects: ["Layihələr", "Projects"],
+    folderNotScanned: ["Bu qovluqda hələ skan olunmuş layihə yoxdur.", "No project in this folder has been scanned yet."],
+    colProject: ["Layihə", "Project"],
+    whereN: ["Harada ({0} layihə)", "Where ({0} projects)"],
+    whereN1: ["Harada", "Where"],
+    whereAll: ["Hamısını kopyala", "Copy all"],
+    nodeAll: ["Node.js (layihələr üzrə)", "Node.js (per project)"],
+    hygAll: ["Gigiyena (layihələr üzrə)", "Hygiene (per project)"],
+    inProjects: ["layihələr: {0}", "projects: {0}"],
+    aiBtn: ["AI üçün prompt", "AI prompt"],
+    aiTitle: ["AI üçün tapşırıq (prompt)", "Task for an AI agent (prompt)"],
+    aiHelp: ["Bunu Claude Code, Cursor və ya başqa AI agentə ver: bütün tapıntılar, harada olduqları, hansı versiyaya və niyə yenilənməli olduqları burada yazılıb.", "Give this to Claude Code, Cursor or another AI agent: every finding, where it is, which version to move to and why."],
+    aiStats: ["{0} tapşırıq · {1} layihə", "{0} tasks · {1} projects"],
+    download: ["Yüklə (.md)", "Download (.md)"],
+    aiNothing: ["Görüləcək iş yoxdur — hər şey qaydasındadır.", "Nothing to do — everything is fine."],
+    pH1: ["# Asılılıq yeniləmə tapşırığı (DepGate)", "# Dependency update task (DepGate)"],
+    pIntro: ["Sən təcrübəli Node.js mühəndisisən. Aşağıdakı layihələrdə DepGate-in tapdığı npm paket problemlərini düzəlt. Hər bəndə nə, harada, hansı versiyaya və niyə yazılıb.", "You are an experienced Node.js engineer. Fix the npm package problems DepGate found in the projects below. Each item says what, where, which version and why."],
+    pScope: ["Əhatə", "Scope"],
+    pScanned: ["Skan vaxtı", "Scanned at"],
+    pRules: ["## Qaydalar", "## Rules"],
+    pRule1: ["Sıra ilə işlə: əvvəl ZƏRƏRLİ paketlər, sonra «İndi et», sonra «Planla». «İstəyə görə» bəndləri yalnız vaxt qalarsa.", "Work in order: MALICIOUS packages first, then “Do now”, then “Plan”. “Optional” items only if time allows."],
+    pRule2: ["Göstərilən hədəf versiya «ən təhlükəsiz minimumdur» — lazım olmadan daha yuxarı (xüsusən yeni major) qalxma.", "The given target is the safest minimum — do not go higher (especially to a new major) unless needed."],
+    pRule3: ["Hər layihədə öz qovluğunda və öz paket menecerinlə işlə; lockfile-ı da yenilə və commit et.", "Work inside each project's own folder with its own package manager; update and commit the lockfile too."],
+    pRule4: ["Hər layihədən sonra install, build və testləri işlət. «Koda təsir: Bəli» olan bəndlərdə changelog/miqrasiya bələdçisinə bax və kodu uyğunlaşdır.", "After each project run install, build and tests. For items with “Code impact: Yes”, read the changelog / migration guide and adapt the code."],
+    pRule5: ["Override yalnız müvəqqəti həlldir — valideyn paket düzəlişi tələb edən kimi sil.", "An override is only a temporary fix — remove it once the parent package requires the fixed version."],
+    pRule6: ["Zərərli paket varsa: node_modules-u sil, npm/GitHub/bulud token-lərini və .env sirlərini dəyiş, CI loglarını yoxla.", "If a package is malicious: delete node_modules, rotate npm/GitHub/cloud tokens and .env secrets, review CI logs."],
+    pProject: ["## Layihə: {0}", "## Project: {0}"],
+    pPath: ["Yol", "Path"],
+    pMgr: ["Paket meneceri", "Package manager"],
+    pProblem: ["Problem", "Problem"],
+    pAdv: ["Advisory", "Advisories"],
+    pWhy: ["Niyə yenilənməli", "Why update"],
+    pImpact: ["Koda təsir", "Code impact"],
+    pFix: ["Nə etməli", "What to do"],
+    pNote: ["Qeyd", "Note"],
+    pWarn: ["Diqqət", "Warning"],
+    pChain: ["Zəncir", "Chain"],
+    pOptional: ["### İstəyə görə yeniləmələr", "### Optional updates"],
+    pNode: ["### Node.js", "### Node.js"],
+    pHyg: ["### Layihə gigiyenası", "### Project hygiene"],
+    pReport: ["## Sonda hesabat ver", "## Report back"],
+    pReportText: ["Cədvəl: layihə | paket | köhnə → yeni versiya | nəticə (edildi / alınmadı + səbəb). Sonra build/test nəticəsi və etdiyin kod dəyişiklikləri.", "A table: project | package | old → new version | result (done / failed + reason). Then the build/test results and any code changes you made."],
+    prod: ["prod", "prod"],
     removeFolderConfirm: ["«{0}» qovluğundakı {1} layihə siyahıdan silinsin? (fayllara toxunulmur)", "Remove the {1} projects in “{0}” from the list? (files are not touched)"],
   };
   let lang = "en";
@@ -230,9 +274,11 @@
     return data;
   }
   async function load() { setState(await api("GET", "api/state")); }
+  const FOLDER = "folder:";
+  const currentGroup = () => current.startsWith(FOLDER) ? groupsOf(st.projects).find((g) => FOLDER + g.dir === current && g.items.length > 1) : null;
   function setState(s) {
     st = s;
-    if (!st.projects.some((p) => p.dir === current)) current = st.projects.length ? st.projects[0].dir : "";
+    if (!currentGroup() && !st.projects.some((p) => p.dir === current)) current = st.projects.length ? st.projects[0].dir : "";
     render();
     clearTimeout(pollT);
     if (st.busy) pollT = setTimeout(() => load().catch(() => {}), 1200);
@@ -283,6 +329,8 @@
 
     const main = $("#main");
     if (!ps.length) { main.replaceChildren(welcome()); return; }
+    const cg = currentGroup();
+    if (cg) { main.replaceChildren(folderView(cg)); return; }
     const p = ps.find((x) => x.dir === current) || ps[0];
     main.replaceChildren(projectView(p));
   }
@@ -321,10 +369,11 @@
   function groupNav(g) {
     if (g.items.length === 1 && g.items[0].dir === g.dir) return projButton(g.items[0], baseName(g.dir), false);
     const open = !collapsed[g.dir];
-    const head = el("button", { class: "fgrp" + (g.items.some((p) => p.dir === current) ? " has-active" : ""), title: g.dir, "aria-expanded": String(open), onclick: () => toggleGroup(g.dir) },
-      el("span", { class: "caret", "aria-hidden": "true" }, open ? "▾" : "▸"),
-      el("span", { class: "nm" }, el("span", { class: "lbl" }, baseName(g.dir)), el("span", { class: "pkg" }, t("nProjects", g.items.length))),
-      countsEl(g.items));
+    const head = el("div", { class: "fgrp" + (FOLDER + g.dir === current ? " active" : "") + (g.items.some((p) => p.dir === current) ? " has-active" : "") },
+      el("button", { class: "caret", "aria-expanded": String(open), "aria-label": t("expand"), title: t("expand"), onclick: () => toggleGroup(g.dir) }, open ? "▾" : "▸"),
+      el("button", { class: "gname", title: g.dir, onclick: () => select(FOLDER + g.dir) },
+        el("span", { class: "nm" }, el("span", { class: "lbl" }, baseName(g.dir)), el("span", { class: "pkg" }, t("nProjects", g.items.length))),
+        countsEl(g.items)));
     return el("div", { class: "fgroup" }, head,
       open ? el("div", { class: "kids", role: "group" }, g.items.map((p) => projButton(p, relTo(p.dir, g.dir) || t("folderRoot"), true))) : null);
   }
@@ -343,7 +392,8 @@
       el("div", { class: "pdir", title: p.dir }, p.dir),
       p.scanning ? el("span", { class: "chip busy" }, el("span", { class: "spin" }), t("scanningChip")) : p.queued ? el("span", { class: "chip busy" }, t("queued")) : null,
       st.readOnly ? null : el("button", { class: "small", disabled: p.scanning || p.queued || undefined, onclick: () => scan([p.dir]) }, t("scan")),
-      st.readOnly ? null : el("button", { class: "small ghost danger", onclick: () => removeProject(p) }, t("remove")));
+      st.readOnly ? null : el("button", { class: "small ghost danger", onclick: () => removeProject(p) }, t("remove")),
+      p.report ? el("button", { class: "small primary", onclick: () => openPrompt([p], p.dir) }, t("aiBtn")) : null);
     const g = groupsOf(st.projects).find((x) => x.items.includes(p));
     if (g && g.items.length > 1 && !st.readOnly) {
       bar.append(el("span", { class: "gsep" }),
@@ -389,6 +439,207 @@
     const p = st && (st.projects || []).find((x) => x.dir === current);
     openSources(p && p.report && p.report.sources ? p.report : null);
   });
+
+  // ---------- folder overview: every project of a folder on one page ----------
+  const relName = (p, g) => relTo(p.dir, g.dir) || t("folderRoot");
+  const cdPrefix = (p, g) => { const r = relTo(p.dir, g.dir); return r ? "cd " + (/\s/.test(r) ? JSON.stringify(r) : r) + " && " : ""; };
+  function mergeFindings(ps) {
+    const by = new Map();
+    for (const p of ps) for (const f of (p.report && p.report.findings) || []) {
+      const k = f.group + "|" + f.key + "|" + f.current + ">" + (f.target || "");
+      if (!by.has(k)) by.set(k, { f, where: [] });
+      by.get(k).where.push({ p, f });
+    }
+    return [...by.values()].sort((a, b) => (b.f.priority || 0) - (a.f.priority || 0) || a.f.pkg.localeCompare(b.f.pkg));
+  }
+  function folderView(g) {
+    const ps = g.items, scanned = ps.filter((p) => p.report);
+    const busy = ps.some((p) => p.scanning || p.queued);
+    const bar = el("div", { class: "pbar" },
+      el("div", { class: "pdir", title: g.dir }, g.dir),
+      busy ? el("span", { class: "chip busy" }, el("span", { class: "spin" }), t("scanningChip")) : null,
+      st.readOnly ? null : el("button", { class: "small", disabled: st.busy || undefined, onclick: () => scan(ps.map((x) => x.dir)) }, t("scanFolder", ps.length)),
+      st.readOnly ? null : el("button", { class: "small ghost danger", onclick: () => removeGroup(g) }, t("removeFolder", ps.length)),
+      scanned.length ? el("button", { class: "small primary", onclick: () => openPrompt(scanned, g.dir, g) }, t("aiBtn")) : null);
+    if (!scanned.length) return el("div", null, bar, el("div", { class: "empty" }, el("h1", null, baseName(g.dir)), busy ? t("firstScan") : t("folderNotScanned")));
+
+    const merged = mergeFindings(scanned);
+    const n = (grp) => merged.filter((e) => e.f.group === grp).length;
+    const pkgs = scanned.reduce((a, p) => a + (p.report.packages || 0), 0);
+    const tile = (cnt, l, cls, grp) => el("div", { class: "tile " + cls + (cnt ? "" : " zero"), onclick: () => { const d = document.getElementById("g-" + grp); if (d) { d.open = true; d.scrollIntoView({ behavior: "smooth" }); } } },
+      el("div", { class: "n" }, cnt || 0), el("div", { class: "l" }, l));
+    const head = el("div", { class: "phead" },
+      el("div", null, el("h1", null, baseName(g.dir)), el("div", { class: "sub" }, t("folderSub", ps.length, pkgs))),
+      el("div", { class: "tiles" },
+        tile(n("now_easy"), t("tEasy"), "easy", "now_easy"), tile(n("now_code"), t("tCode"), "code", "now_code"),
+        tile(n("plan"), t("tPlan"), "", "plan"), tile(n("optional"), t("tOptional"), "", "optional"), tile(n("ok"), t("tOk"), "", "ok")));
+
+    const rows = el("div", { class: "card ptable" }, el("div", { class: "h3" }, t("folderProjects")),
+      el("table", null,
+        el("thead", null, el("tr", null, el("th", null, t("colProject")), el("th", null, t("tEasy")), el("th", null, t("tCode")), el("th", null, t("tPlan")), el("th", null, t("tOptional")), el("th", null, "Node"))),
+        el("tbody", null, ps.map((p) => {
+          const s = (p.report && p.report.summary) || {};
+          const num = (v, bad) => el("td", { class: "num" + (v && bad ? " bad" : "") }, p.report ? v || 0 : "—");
+          const nd = p.report && p.report.node;
+          return el("tr", { class: "clickable", onclick: () => select(p.dir) },
+            el("td", null, el("div", null, s.malware ? el("span", { class: "chip sev-critical" }, t("malicious")) : null, " ", relName(p, g)), p.name !== baseName(p.dir) ? el("div", { class: "quiet small" }, p.name) : null),
+            num(s.now_easy, true), num(s.now_code, true), num(s.plan), num(s.optional),
+            el("td", { class: nd && nd.need === "now" ? "bad" : "" }, nd ? (nd.version || nd.line || "?") + (nd.securityFix && nd.securityFix !== nd.version ? " → " + nd.securityFix : "") : "—"));
+        }))));
+
+    const toolbar = el("div", { class: "toolbar" },
+      el("input", { type: "search", placeholder: t("search"), value: state.q, oninput: (e) => { state.q = e.target.value; rerender(); } }),
+      el("select", { onchange: (e) => { state.sev = e.target.value; rerender(); } },
+        ...[["", t("allSev")], ["critical", "critical"], ["high", "high+"], ["moderate", "moderate+"]].map(([v, l]) => el("option", { value: v, selected: state.sev === v }, l))),
+      el("label", null, el("input", { type: "checkbox", checked: state.dev, onchange: (e) => { state.dev = e.target.checked; rerender(); } }), "devDependencies"));
+    const groups = el("div");
+    function rerender() { groups.replaceChildren(...renderFolderGroups(g, merged)); }
+    rerender();
+    return el("div", null, bar, head, rows,
+      el("div", { class: "side" }, folderNodeCard(g, scanned), folderHygieneCard(g, scanned)),
+      toolbar, groups);
+  }
+  function renderFolderGroups(g, merged) {
+    const out = [];
+    for (const [grp, title, open] of GROUPS) {
+      const es = merged.filter((e) => e.f.group === grp && visible(e.f));
+      if (!es.length) continue;
+      const body = [];
+      if (grp === "now_easy") {
+        const lines = [];
+        for (const p of g.items) {
+          const fs = es.flatMap((e) => e.where.filter((w) => w.p === p).map((w) => w.f));
+          const cmd = fs.length ? bulkCommand(fs, p.report.manager) : "";
+          if (cmd) lines.push(cdPrefix(p, g) + cmd);
+        }
+        if (lines.length) body.push(el("div", { class: "bulk multi" }, el("pre", null, lines.join("\n")), copyBtn(lines.join("\n"))));
+      }
+      if (grp === "ok") body.push(el("div", { class: "oklist" }, es.map((e) => el("div", null, `${e.f.pkg}@${e.f.current}`, e.where.length > 1 ? el("span", { class: "quiet" }, " ×" + e.where.length) : null))));
+      else body.push(es.map((e) => card(e.f, e.where[0].p.report, e.where, g)));
+      out.push(el("details", { class: "grp", id: "g-" + grp, open: open || undefined },
+        el("summary", null, t(title), el("span", { class: "c" }, `(${es.length})`)), body));
+    }
+    if (!out.length) out.push(el("div", { class: "empty" }, t("noMatch")));
+    return out;
+  }
+  function folderNodeCard(g, ps) {
+    const withNode = ps.filter((p) => p.report.node);
+    if (!withNode.length) return el("div", { class: "card" }, el("div", { class: "h3" }, "Node.js"), el("div", { class: "sub quiet" }, t("noNode")));
+    const bad = withNode.some((p) => p.report.node.need === "now");
+    return el("div", { class: "card" + (bad ? " bad" : "") }, el("div", { class: "h3" }, t("nodeAll")),
+      withNode.map((p) => {
+        const nd = p.report.node, target = nd.securityFix || nd.latestInLine;
+        return el("div", { class: "q nrow" }, el("span", { class: "dot " + needClass(nd.need) }),
+          el("span", { class: "lbl" }, relName(p, g)),
+          el("span", { class: "ans" }, "Node " + (nd.version || nd.line || "?") + (target && nd.version && target !== nd.version ? " → " + target : "")),
+          el("span", { class: "quiet small" }, needText("node", nd.need)));
+      }));
+  }
+  function folderHygieneCard(g, ps) {
+    const by = new Map();
+    for (const p of ps) for (const h of p.report.hygiene || []) {
+      if (!by.has(h.id)) by.set(h.id, { h, bad: [], all: 0 });
+      const e = by.get(h.id); e.all++; if (!h.ok) e.bad.push(p);
+    }
+    const es = [...by.values()];
+    const nbad = es.filter((e) => e.bad.length).length;
+    return el("div", { class: "card hyg" },
+      el("div", { class: "h3" }, t("hygAll"), el("span", { class: "chip" }, nbad ? t("hygBad", nbad) : t("hygOk"))),
+      es.map(({ h, bad }) => el("div", { class: "item " + (bad.length ? "no" : "ok") },
+        el("span", { class: "mk" }, bad.length ? "!" : "✓"),
+        el("div", null, el("div", null, tr(h.title)),
+          bad.length ? el("div", { class: "d" }, t("inProjects", bad.map((p) => relName(p, g)).join(", "))) : null,
+          bad.length && h.fix ? el("div", null, h.file ? el("span", { class: "d" }, h.file + ": ") : null, el("code", null, h.fix)) : null))));
+  }
+
+  // ---------- AI prompt: everything to fix, where, to which version and why ----------
+  function promptFor(ps, rootDir, g) {
+    const L = [], join = (xs) => (xs || []).map(tr).filter(Boolean).join("; ");
+    const label = (p) => g ? relName(p, g) + (p.name !== baseName(p.dir) ? " (" + p.name + ")" : "") : p.name;
+    let tasks = 0, nproj = 0;
+    const hygAll = new Map();
+    const code = (x) => x.includes("\n") ? ["", "```", x, "```"] : ["`" + x + "`"];
+    L.push(t("pH1"), "", t("pIntro"), "");
+    L.push(`- ${t("pScope")}: ${rootDir}${g ? " — " + t("nProjects", ps.length) : ""}`);
+    const when = ps.map((p) => p.report.scannedAt).filter(Boolean).sort().pop() || st.lastScan;
+    if (when) L.push(`- ${t("pScanned")}: ${fmtTime(when)} (${st.tool || "depgate"})`);
+    L.push("", t("pRules"), ...["pRule1", "pRule2", "pRule3", "pRule4", "pRule5", "pRule6"].map((k, i) => `${i + 1}. ${t(k)}`), "");
+    const order = { malware: 0 };
+    for (const p of ps) {
+      const r = p.report, fs = (r.findings || []).filter((f) => ["now_easy", "now_code", "plan"].includes(f.group));
+      fs.sort((a, b) => (order[a.kind] ?? 1) - (order[b.kind] ?? 1) || (b.priority || 0) - (a.priority || 0));
+      const opt = (r.findings || []).filter((f) => f.group === "optional");
+      const nd = r.node && r.node.need && r.node.need !== "none" ? r.node : null;
+      for (const h of (r.hygiene || []).filter((h) => !h.ok)) {
+        const k = h.id + "|" + (h.file || "") + "|" + (h.fix || "");
+        if (!hygAll.has(k)) hygAll.set(k, { h, where: [] });
+        hygAll.get(k).where.push(label(p));
+      }
+      if (!fs.length && !opt.length && !nd) continue;
+      nproj++;
+      L.push(t("pProject", label(p)), "");
+      L.push(`- ${t("pPath")}: ${p.dir}`);
+      L.push(`- ${t("pMgr")}: ${r.manager || "npm"}${r.lockfile ? " · " + r.lockfile : " · " + t("noLockfile")}${r.node && r.node.version ? " · Node " + r.node.version : ""}`);
+      if (r.approximate) L.push(`- ${t("pWarn")}: ${t("approx")}`);
+      L.push("");
+      fs.forEach((f, i) => {
+        tasks++;
+        const tags = [f.kind === "malware" ? t("malicious") : needText(f.kind, f.needUpdate), f.severity, f.kind === "vuln" || f.kind === "malware" ? "P" + f.priority : null, f.direct ? t("direct") : t("transitive"), f.dev ? "dev" : t("prod")].filter(Boolean);
+        L.push(`### ${i + 1}. ${f.pkg} ${f.current}${f.target ? " → " + f.target : ""}  [${tags.join(" · ")}]`);
+        if (f.title) L.push(`- ${t("pProblem")}: ${f.title}`);
+        if (!f.direct && f.chain && f.chain.length > 1) L.push(`- ${t("pChain")}: ${f.chain.join(" → ")}`);
+        if (f.advisories && f.advisories.length) L.push(`- ${t("pAdv")}: ` + f.advisories.map((a) => [a.id, (a.aliases || []).filter((x) => x.startsWith("CVE-")).join(", "), a.severity, a.cvss ? "CVSS " + a.cvss : "", a.epss ? "EPSS " + Math.round(a.epss * 100) + "%" : "", a.kev ? "CISA KEV" : "", a.fixed ? t("fixedIn", a.fixed).replace(/^ · /, "") : "", a.url].filter(Boolean).join(" · ")).join("; "));
+        L.push(`- ${t("pWhy")}: ${join(f.why)}`);
+        L.push(`- ${t("pImpact")}: ${impText(f.codeImpact)}${(f.impactWhy || []).length ? " — " + join(f.impactWhy) : ""}`);
+        if (f.fix) {
+          L.push(`- ${t("pFix")} (${strat(f.fix.strategy)}):${f.fix.command ? " `" + f.fix.command.split("   #")[0] + "`" : ""}`);
+          if (f.fix.snippet) L.push("", "```json" + (f.fix.file ? "  // " + f.fix.file : ""), f.fix.snippet, "```");
+          if (tr(f.fix.note)) L.push(`- ${t("pNote")}: ${tr(f.fix.note)}`);
+        }
+        if (f.warnings && f.warnings.length) L.push(`- ${t("pWarn")}: ${join(f.warnings)}`);
+        L.push("");
+      });
+      if (nd) {
+        tasks++;
+        const target = nd.securityFix || nd.latestInLine;
+        L.push(t("pNode"), `- Node ${nd.version || nd.line || "?"}${target && target !== nd.version ? " → " + target : ""} [${needText("node", nd.need)}] — ${t("pImpact")}: ${impText(nd.impact)}`);
+        if (nd.why && nd.why.length) L.push(`- ${t("pWhy")}: ${join(nd.why)}`);
+        if (nd.sources && nd.sources.length) L.push(`- ${t("pPath")}: ` + nd.sources.map((x) => `${x.file}: ${x.value}`).join("; "));
+        if (nd.command) L.push(`- ${t("pFix")}: \`${nd.command.split("   #")[0]}\``);
+        L.push("");
+      }
+      if (opt.length) { L.push(t("pOptional"), ...opt.map((f) => `- ${f.pkg} ${f.current} → ${f.target || f.latest || "?"}${f.dev ? " (dev)" : ""}${f.fix && f.fix.command ? " — `" + f.fix.command.split("   #")[0] + "`" : ""}`), ""); }
+    }
+    if (hygAll.size) {
+      L.push("## " + t("pHyg").replace(/^#+\s*/, ""));
+      for (const { h, where } of hygAll.values()) {
+        L.push(`- ${tr(h.title)}${tr(h.detail) ? " — " + tr(h.detail) : ""}${ps.length > 1 ? " (" + t("inProjects", where.join(", ")) + ")" : ""}`);
+        if (h.fix) { const c = code(h.fix); L.push(`  ${h.file ? h.file + ": " : ""}${c[0]}`, ...c.slice(1)); }
+      }
+      L.push("");
+    }
+    if (!nproj && !hygAll.size) return { text: t("aiNothing"), tasks: 0, projects: 0 };
+    L.push(t("pReport"), t("pReportText"));
+    return { text: L.join("\n"), tasks, projects: nproj };
+  }
+  function openPrompt(ps, rootDir, g) {
+    const pr = promptFor(ps, rootDir, g);
+    const close = () => { ov.remove(); document.removeEventListener("keydown", esc); };
+    const esc = (e) => { if (e.key === "Escape") close(); };
+    const ta = el("textarea", { class: "prompt", readonly: true, spellcheck: "false" }, pr.text);
+    const dl = () => {
+      const a = el("a", { href: URL.createObjectURL(new Blob([pr.text], { type: "text/markdown" })), download: "depgate-" + baseName(rootDir) + ".md" });
+      document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+    };
+    const dlg = el("div", { class: "modal wide", role: "dialog", "aria-modal": "true", "aria-label": t("aiTitle") },
+      el("div", { class: "mhead" }, el("div", { class: "h3" }, t("aiTitle")), el("div", { class: "quiet" }, t("aiHelp"))),
+      el("div", { class: "pad" }, ta),
+      el("div", { class: "pfoot" }, el("div", { class: "quiet" }, t("aiStats", pr.tasks, pr.projects)), el("span", { class: "grow" }),
+        el("button", { onclick: dl }, t("download")), el("button", { onclick: () => close() }, t("close")),
+        el("button", { class: "primary", onclick: () => copy(pr.text) }, t("copy"))));
+    const ov = el("div", { class: "overlay", onclick: (e) => { if (e.target === ov) close(); } }, dlg);
+    document.body.append(ov); document.addEventListener("keydown", esc); ta.focus(); ta.setSelectionRange(0, 0);
+  }
 
   // ---------- folder picker ----------
   let picker = null;
@@ -516,7 +767,7 @@
   const impClass = (i) => (IMPACT[i] || IMPACT.unknown)[1];
   const list = (xs) => (xs || []).filter((x) => tr(x)).map((w) => el("li", null, tr(w)));
 
-  function card(f, p) {
+  function card(f, p, where, g) {
     const vuln = f.kind === "vuln" || f.kind === "malware";
     const cls = "card" + (f.kind === "malware" ? " mal bad" : "");
     const title = el("div", { class: "ctitle" },
@@ -536,11 +787,20 @@
     kids.push(el("div", { class: "q" }, el("span", { class: "dot " + impClass(f.codeImpact) }), el("span", { class: "lbl" }, t("qImpact")), el("span", { class: "ans" }, impText(f.codeImpact))));
     if (f.impactWhy && f.impactWhy.length) kids.push(el("ul", { class: "why" }, list(f.impactWhy)));
     if (f.warnings && f.warnings.length) kids.push(el("div", { class: "warnbox" }, f.warnings.map((w) => el("div", null, "⚠ " + tr(w)))));
+    if (where) {
+      const lines = where.map((w) => w.f.fix && w.f.fix.command ? cdPrefix(w.p, g) + w.f.fix.command.split("   #")[0] : "").filter(Boolean);
+      kids.push(el("div", { class: "where" },
+        el("div", { class: "row" }, el("b", null, where.length === 1 ? t("whereN1") : t("whereN", where.length)), el("span", { class: "grow" }), lines.length > 1 ? copyBtn(lines.join("\n"), t("whereAll")) : null),
+        where.map((w) => el("div", { class: "row" },
+          el("button", { class: "link", onclick: () => select(w.p.dir), title: w.p.dir }, relName(w.p, g)),
+          w.f.fix && w.f.fix.command ? [el("code", null, cdPrefix(w.p, g) + w.f.fix.command.split("   #")[0]), copyBtn(cdPrefix(w.p, g) + w.f.fix.command.split("   #")[0])] : null))));
+    }
     if (f.fix) {
       const fx = f.fix;
       const note = tr(fx.note);
+      const cmd = where ? "" : fx.command;
       kids.push(el("div", { class: "fix" },
-        el("div", { class: "row" }, el("span", { class: "chip" }, strat(fx.strategy)), fx.command ? el("code", null, fx.command) : el("span", { class: "grow" }), fx.command ? copyBtn(fx.command.split("   #")[0]) : null),
+        el("div", { class: "row" }, el("span", { class: "chip" }, strat(fx.strategy)), cmd ? el("code", null, cmd) : el("span", { class: "grow" }), cmd ? copyBtn(cmd.split("   #")[0]) : null),
         fx.snippet ? el("pre", null, (fx.file ? "// " + fx.file + "\n" : "") + fx.snippet) : null,
         note ? el("div", { class: "note" }, note) : null));
     }
@@ -552,7 +812,7 @@
         return u ? el("a", { href: u, target: "_blank", rel: "noopener noreferrer" }, label) : el("span", null, label);
       }), f.advisories.length > 6 ? `+${f.advisories.length - 6}` : null));
     }
-    foot.append(el("span", { class: "grow" }), copyBtn(agentTask(f, p), t("agentBtn")));
+    foot.append(el("span", { class: "grow" }), copyBtn(where ? where.map((w) => agentTask(w.f, w.p.report)).join("\n\n---\n\n") : agentTask(f, p), t("agentBtn")));
     kids.push(foot);
     return el("div", { class: cls }, kids);
   }
