@@ -149,6 +149,25 @@ Only package names and versions (OSV, deps.dev, npm registry) and CVE IDs (EPSS)
 
 The UI binds to `127.0.0.1` (in Docker: published on the host's `127.0.0.1`), needs an access token, checks the `Host` header and sends a strict Content Security Policy. Folder browsing is limited to the allowed roots, and DepGate only ever reads your projects.
 
+## Why is there an access token?
+
+DepGate runs a small web server on `127.0.0.1:7777`. Without a token, anything that can reach that address could use it:
+
+- **other websites you visit** — a malicious page or ad can send requests to `127.0.0.1` from your browser (CSRF, DNS rebinding) and try to read your folder list, project names and reports, or start scans;
+- **other programs and users on the same machine** — a localhost port is open to all of them;
+- **your network** — if the Docker port is ever published on `0.0.0.0` instead of `127.0.0.1`, everyone on your Wi-Fi could open the UI.
+
+DepGate can browse your folders and shows where your projects are weak — exactly what an attacker wants — so the UI is locked like a password-protected page.
+
+In practice you hardly notice it:
+
+- you open the link with `?t=…` **once**; the browser keeps the session in an HttpOnly cookie for 30 days, after that `http://127.0.0.1:7777` is enough;
+- the token is created once and **does not change** (stored in the data folder), so you can bookmark the link;
+- set your own with `DEPGATE_TOKEN=some-long-secret` (useful in Docker);
+- `docker compose logs depgate` (or the terminal) always prints the current link.
+
+On top of the token, DepGate checks the `Host` header, requires a custom header on every API call and sends a strict Content Security Policy.
+
 ## Development
 
 ```bash

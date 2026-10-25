@@ -102,6 +102,25 @@ Yalnız paket adları və versiyalar (OSV, deps.dev, npm registry), CVE nömrəl
 
 Veb interfeys `127.0.0.1`-də işləyir (Docker-də host-un `127.0.0.1`-inə açılır), token tələb edir, `Host` başlığını yoxlayır, CSP aktivdir. Qovluq gəzmə icazəli köklərlə məhdudlaşır və DepGate layihələri yalnız oxuyur.
 
+## Token niyə lazımdır?
+
+DepGate kompüterində `127.0.0.1:7777` ünvanında kiçik veb server işlədir. Token olmasa, o ünvana çata bilən hər şey interfeysdən istifadə edə bilər:
+
+- **açdığın başqa saytlar** — zərərli səhifə və ya reklam brauzerin üzərindən `127.0.0.1`-ə sorğu göndərib (CSRF, DNS rebinding) qovluqlarının siyahısını, layihə adlarını və hesabatları oxumağa, skan işə salmağa cəhd edə bilər;
+- **eyni kompüterdəki başqa proqramlar və istifadəçilər** — localhost portu hamısına açıqdır;
+- **şəbəkə** — Docker portu səhvən `127.0.0.1` əvəzinə `0.0.0.0`-a açılsa, eyni Wi-Fi-dakı hər kəs interfeysi görə bilər.
+
+DepGate qovluqlarını gəzə bilir və layihələrinin zəif yerlərini göstərir — hücumçunun axtardığı məhz budur. Ona görə interfeys parollu səhifə kimi bağlıdır.
+
+Praktikada bunu demək olar ki, hiss etmirsən:
+
+- `?t=…` linkini **bir dəfə** açırsan; brauzer sessiyanı 30 gün HttpOnly cookie-də saxlayır, sonra sadəcə `http://127.0.0.1:7777` kifayətdir;
+- token bir dəfə yaranır və **dəyişmir** (data qovluğunda saxlanır) — linki əlfəfinlərə qoya bilərsən;
+- öz tokenini `DEPGATE_TOKEN=uzun-gizli-söz` ilə təyin edə bilərsən (Docker-də rahatdır);
+- cari link həmişə terminalda (və ya `docker compose logs depgate`-də) görünür.
+
+Tokendən əlavə DepGate `Host` başlığını yoxlayır, hər API sorğusunda xüsusi başlıq tələb edir və sərt Content Security Policy göndərir.
+
 ## İnkişaf
 
 ```bash
