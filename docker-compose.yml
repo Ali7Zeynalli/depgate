@@ -1,7 +1,6 @@
 # DepGate in Docker
 #
-#   mkdir -p ~/.config/depgate
-#   docker compose up -d
+#   DEPGATE_UID=$(id -u) DEPGATE_GID=$(id -g) docker compose up -d
 #
 # Open http://127.0.0.1:7777 and set a password on the first visit.
 #
@@ -26,11 +25,17 @@ services:
     volumes:
       # your home, read-only, at the same path
       - ${HOME}:${HOME}:ro
-      # project list, reports, password hash, cache — shared with a native `depgate`
-      - ${HOME}/.config/depgate:/data
+      # project list, reports, password hash, cache — in a Docker volume
+      - depgate-data:/data
+      # alternative: share the data with a native `depgate` on this machine
+      # (run `mkdir -p ~/.config/depgate` first) — replace the line above with:
+      # - ${HOME}/.config/depgate:/data
     read_only: true
     tmpfs:
       - /tmp
     cap_drop: [ALL]
     security_opt:
       - no-new-privileges:true
+
+volumes:
+  depgate-data:
