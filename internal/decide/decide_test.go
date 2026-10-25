@@ -26,6 +26,8 @@ type fake struct {
 	versions map[string][]fakeVer      // package -> versions
 	mans     map[string]map[string]any // "name@ver" -> registry doc
 	epss     map[string]float64        // cve -> score
+	npm      map[string][]sources.NpmAdvisory
+	removed  map[string]bool // "name@ver" -> 404 on the registry
 	calls    map[string]int
 }
 
@@ -36,7 +38,7 @@ type fakeVer struct {
 }
 
 func newFake() *fake {
-	return &fake{vulns: map[string]*sources.Vuln{}, versions: map[string][]fakeVer{}, mans: map[string]map[string]any{}, epss: map[string]float64{}, calls: map[string]int{}}
+	return &fake{vulns: map[string]*sources.Vuln{}, versions: map[string][]fakeVer{}, mans: map[string]map[string]any{}, epss: map[string]float64{}, npm: map[string][]sources.NpmAdvisory{}, removed: map[string]bool{}, calls: map[string]int{}}
 }
 
 func old(vs ...string) []fakeVer {
@@ -135,11 +137,24 @@ func (f *fake) Do(ctx context.Context, method, u string, body []byte, _ map[stri
 			})
 		}
 		return json.Marshal(map[string]any{"versions": items})
+	case strings.HasSuffix(u, "/security/advisories/bulk"):
+		var req map[string][]string
+		_ = json.Unmarshal(body, &req)
+		out := map[string][]sources.NpmAdvisory{}
+		for n := range req {
+			if a, ok := f.npm[n]; ok {
+				out[n] = a
+			}
+		}
+		return json.Marshal(out)
 	case strings.Contains(u, "registry.npmjs.org"):
 		rest := strings.TrimPrefix(u, "https://registry.npmjs.org/")
 		i := strings.LastIndex(rest, "/")
 		name, _ := url.PathUnescape(rest[:i])
 		ver := rest[i+1:]
+		if f.removed[name+"@"+ver] {
+			return nil, sources.ErrNotFound
+		}
 		if m, ok := f.mans[name+"@"+ver]; ok {
 			return json.Marshal(m)
 		}
@@ -410,5 +425,99 @@ func TestPnpmRelockReadsRangeFromRegistry(t *testing.T) {
 	x := got["follow-redirects@1.15.6"]
 	if x.Fix == nil || x.Fix.Strategy != "relock" || x.Fix.Command != "pnpm update --depth Infinity follow-redirects" {
 		t.Fatalf("fix %+v", x.Fix)
+	}
+}
+
+func npmAdv(ghsa, title, sev, rng string, cwe ...string) sources.NpmAdvisory {
+	return sources.NpmAdvisory{ID: 1, URL: "https://github.com/advisories/" + ghsa, Title: title, Severity: sev, VulnerableVersions: rng, CWE: cwe}
+}
+
+// npm knows an advisory OSV has not imported yet: it must still be reported, once.
+func TestNpmAdvisoryNotYetInOSV(t *testing.T) {
+	f := newFake()
+	f.vuln("GHSA-aaaa", "lib", "HIGH", "0", "1.2.0")
+	f.npm["lib"] = []sources.NpmAdvisory{
+		npmAdv("GHSA-aaaa", "already in OSV", "high", "<1.2.0"),
+		npmAdv("GHSA-bbbb", "only in npm", "critical", ">=1.0.0 <1.3.0"),
+		npmAdv("GHSA-cccc", "other versions", "high", "<0.5.0"),
+	}
+	f.versions["lib"] = old("1.1.0", "1.2.0", "1.3.0")
+	got := run(t, f, Input{Lock: lock("npm", lockfile.Package{Name: "lib", Version: "1.1.0", Direct: true, Range: "^1.1.0"})})
+	x := got["lib@1.1.0"]
+	ids := []string{}
+	for _, a := range x.Advisories {
+		ids = append(ids, a.ID)
+	}
+	if strings.Join(ids, ",") != "GHSA-bbbb,GHSA-aaaa" || x.Severity != "critical" || x.Target != "1.3.0" {
+		t.Fatalf("advisories %v severity %s target %s", ids, x.Severity, x.Target)
+	}
+}
+
+// GitHub malware advisories (CWE-506) arrive through npm before OSV.
+func TestNpmMalware(t *testing.T) {
+	f := newFake()
+	f.npm["evil"] = []sources.NpmAdvisory{npmAdv("GHSA-mmmm", "Malware in evil", "critical", "=2.0.1", "CWE-506")}
+	f.versions["evil"] = old("2.0.0", "2.0.1")
+	x := run(t, f, Input{Lock: lock("npm", lockfile.Package{Name: "evil", Version: "2.0.1", Direct: true})})["evil@2.0.1"]
+	if x.Kind != "malware" || x.Target != "2.0.0" || !contains(x.Why, "GitHub Advisory / npm") {
+		t.Fatalf("got %+v", x)
+	}
+}
+
+// npm audit skips prereleases (JFrog, 2025); DepGate must not.
+func TestPrereleaseMatched(t *testing.T) {
+	f := newFake()
+	f.npm["pre"] = []sources.NpmAdvisory{npmAdv("GHSA-pppp", "bad beta", "high", "<2.0.1")}
+	f.versions["pre"] = old("2.0.0-beta.1", "2.0.1")
+	x := run(t, f, Input{Lock: lock("npm", lockfile.Package{Name: "pre", Version: "2.0.0-beta.1", Direct: true})})["pre@2.0.0-beta.1"]
+	if x.Kind != "vuln" || len(x.Advisories) != 1 {
+		t.Fatalf("prerelease not matched: %+v", x)
+	}
+}
+
+func TestRemovedVersion(t *testing.T) {
+	f := newFake()
+	f.versions["gone"] = old("1.0.0", "1.0.1", "1.0.2", "2.0.0")
+	f.removed["gone@1.0.1"] = true
+	f.versions["@acme/local"] = nil // workspace / private: unknown to deps.dev
+	delete(f.versions, "@acme/local")
+	f.removed["@acme/local@1.0.0"] = true
+	got := run(t, f, Input{Lock: lock("npm",
+		lockfile.Package{Name: "gone", Version: "1.0.1", Direct: true},
+		lockfile.Package{Name: "@acme/local", Version: "1.0.0", Direct: true})})
+	x := got["gone@1.0.1"]
+	if x.Kind != "removed" || x.Target != "1.0.2" || x.Need != report.NeedNow {
+		t.Fatalf("got %+v", x)
+	}
+	if y := got["@acme/local@1.0.0"]; y.Kind == "removed" {
+		t.Fatal("private/workspace package reported as removed")
+	}
+}
+
+func TestSecurityPlaceholder(t *testing.T) {
+	f := newFake()
+	f.versions["taken"] = old("0.0.1-security")
+	f.removed["taken@1.4.0"] = true
+	x := run(t, f, Input{Lock: lock("npm", lockfile.Package{Name: "taken", Version: "1.4.0", Direct: true})})["taken@1.4.0"]
+	if x.Kind != "malware" || x.Priority != 100 || !contains(x.Why, "0.0.1-security") {
+		t.Fatalf("got %+v", x)
+	}
+}
+
+func TestNodeCoreVulns(t *testing.T) {
+	nd := &sources.NodeData{
+		Releases: []sources.NodeRelease{{Version: "v22.23.4", LTS: "Jod"}, {Version: "v22.20.0", LTS: "Jod"}},
+		Schedule: map[int]sources.NodeLine{22: {LTS: "2024-10-29", End: "2027-04-30"}},
+		Core: []sources.NodeVuln{
+			{ID: "1", CVE: []string{"CVE-2026-1111"}, Vulnerable: "22.x", Patched: "^22.21.0", Description: "path traversal", Severity: "HIGH", Environment: []string{"all"}},
+			{ID: "2", CVE: []string{"CVE-2026-2222"}, Vulnerable: "20.x", Patched: "^20.19.0", Description: "other line"},
+		},
+	}
+	n := EvalNode([]report.NodeSource{{File: ".nvmrc", Value: "22.20.0"}}, nd, now)
+	if len(n.Vulns) != 1 || n.Vulns[0].CVE[0] != "CVE-2026-1111" || n.SecurityFix != "22.23.4" || n.Need != report.NeedNow || !contains(n.Why, "CVE-2026-1111") {
+		t.Fatalf("got %+v", n)
+	}
+	if n := EvalNode([]report.NodeSource{{File: ".nvmrc", Value: "22.23.4"}}, nd, now); len(n.Vulns) != 0 {
+		t.Fatalf("patched version still reported: %+v", n.Vulns)
 	}
 }

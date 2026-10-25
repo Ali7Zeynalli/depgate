@@ -164,11 +164,19 @@ Every decision is based on public, free sources. The **Sources** button in the U
 | Source | Used for |
 |---|---|
 | [OSV.dev](https://osv.dev) | vulnerabilities (CVE/GHSA) and malicious packages — includes the GitHub Advisory Database and OpenSSF Malicious Packages |
+| [npm advisories](https://docs.npmjs.com/cli/commands/npm-audit) | the source of `npm audit`: the GitHub Advisory Database directly, malware advisories included — catches records OSV has not imported yet |
 | [CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog) | vulnerabilities exploited in real attacks (raises priority) |
 | [FIRST EPSS](https://www.first.org/epss/) | probability of exploitation in the next 30 days (feeds priority) |
 | [deps.dev](https://deps.dev) | every version of a package and its publish date (safest target, cooldown) |
 | [npm registry](https://www.npmjs.com) | the target version's `engines`, peer dependencies, install scripts, provenance, deprecation |
-| [Node.js releases](https://nodejs.org/en/about/previous-releases) | Node.js versions, security releases, end-of-life dates |
+| [Node.js releases](https://nodejs.org/en/about/previous-releases) + [Node.js Security WG](https://github.com/nodejs/security-wg) | Node.js versions, security releases, end-of-life dates, and the CVEs that affect your exact version |
+
+Two checks need no extra source:
+
+- **Removed versions.** If a version in your lockfile is no longer on the npm registry, DepGate says so (a clean install will fail, and npm takes malicious versions down). If npm replaced the whole package with a `0.0.1-security` placeholder, it is reported as malware. Workspace and private packages are skipped.
+- **Prereleases.** `npm audit` does not match prerelease versions such as `2.0.0-beta.1` against advisory ranges; DepGate does.
+
+**Accuracy.** `TestCompareNpmAudit` scans a project with known-vulnerable dependencies and checks that every advisory `npm audit` reports is also in DepGate's report (71 of 71 at the time of writing). It runs weekly in GitHub Actions (`accuracy` workflow), or locally: `DEPGATE_LIVE=1 go test -run TestCompareNpmAudit -v ./internal/scan`.
 
 Read locally: `package.json`, the lockfile, Dockerfile / `.nvmrc` / `.node-version` / `engines` / CI files, `.npmrc`.
 
@@ -176,7 +184,7 @@ Read locally: `package.json`, the lockfile, Dockerfile / `.nvmrc` / `.node-versi
 
 ## Privacy
 
-Only package names and versions (OSV, deps.dev, npm registry) and CVE IDs (EPSS) leave your machine. Source code, file paths, project names and `.env` files never do. Responses are cached in `~/.cache/depgate/`.
+Only package names and versions (OSV, deps.dev, npm registry and its advisory endpoint) and CVE IDs (EPSS) leave your machine. Source code, file paths, project names and `.env` files never do. Responses are cached in `~/.cache/depgate/`.
 
 The UI binds to `127.0.0.1` (in Docker: published on the host's `127.0.0.1`), is protected by your password, checks the `Host` header and sends a strict Content Security Policy. Folder browsing is limited to the allowed roots, and DepGate only ever reads your projects.
 

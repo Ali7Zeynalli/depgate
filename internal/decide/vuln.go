@@ -18,6 +18,10 @@ var rankSev = map[int]string{1: "low", 2: "moderate", 3: "high", 4: "critical"}
 
 // Affects reports whether OSV record v marks name@ver as affected.
 func Affects(v *sources.Vuln, name string, ver semver.Version) bool {
+	if v.NpmRange != "" {
+		r, err := semver.ParseRange(v.NpmRange)
+		return err == nil && v.Affected[0].Package.Name == name && r.ContainsAll(ver)
+	}
 	for _, a := range v.Affected {
 		if a.Package.Name != name || !strings.EqualFold(a.Package.Ecosystem, "npm") {
 			continue
@@ -236,7 +240,24 @@ func vulnFinding(ctx context.Context, d *Data, it *instance, in Input, g *graph,
 		f.Kind = "malware"
 		f.Key = "malware:" + name + "@" + f.Current
 		f.Need, f.Priority, f.Severity = report.NeedNow, 100, "critical"
-		f.Why = append(f.Why, i18n.F("Bu versiya zərərli paket kimi qeydə alınıb (OpenSSF/OSV: %s)", "This version is recorded as a malicious package (OpenSSF/OSV: %s)", f.Advisories[0].ID))
+		src, mid := "OpenSSF/OSV", f.Advisories[0].ID
+		for _, v := range it.vulns {
+			if v.IsMalware() {
+				mid = v.ID
+				switch {
+				case v.ID == HolderID:
+					src = "npm registry"
+				case v.From == "npm":
+					src = "GitHub Advisory / npm"
+				}
+				break
+			}
+		}
+		if mid == HolderID {
+			f.Why = append(f.Why, i18n.F("npm bu paketi təhlükəsizlik səbəbi ilə silib və yerinə 0.0.1-security qoyub — quraşdırdığın versiya zərərli idi", "npm took this package down for security reasons and replaced it with 0.0.1-security — the version you installed was malicious"))
+		} else {
+			f.Why = append(f.Why, i18n.F("Bu versiya zərərli paket kimi qeydə alınıb (%s: %s)", "This version is recorded as a malicious package (%s: %s)", src, mid))
+		}
 		f.Why = append(f.Why, i18n.F("Dərhal: node_modules-u sil, npm/GitHub/bulud token-lərini və .env sirlərini dəyiş, CI loglarını yoxla", "Right now: delete node_modules, rotate npm/GitHub/cloud tokens and .env secrets, review CI logs"))
 		// clean version: highest clean below, else lowest clean above
 		var below *cand
@@ -716,4 +737,64 @@ func overrideFix(mgr, name, ver string) *report.Fix {
 		fx.Command = "npm install"
 	}
 	return fx
+}
+
+// removedFinding: the lockfile pins a version npm no longer serves.
+func removedFinding(ctx context.Context, d *Data, it *instance, in Input, g *graph, opt Options) (report.Finding, error) {
+	name, cur := it.pkg.Name, it.ver
+	f := report.Finding{Pkg: name, Direct: it.pkg.Direct, Dev: it.pkg.Dev, Current: cur.String(), Kind: "removed",
+		Key: "removed:" + name + "@" + cur.String(), Need: report.NeedNow, Impact: report.ImpactUnknown, Priority: 70, Severity: "high"}
+	if !it.pkg.Direct {
+		f.Chain = g.chain(name, it.pkg.Parents)
+	}
+	f.Title = "This version is no longer on the npm registry"
+	f.Why = append(f.Why,
+		i18n.F("Lockfile-dakı %s artıq npm-də yoxdur: ya müəllif silib, ya da npm təhlükəsizlik səbəbi ilə götürüb", "%s from the lockfile is no longer on npm: either the author unpublished it or npm took it down for security reasons", cur),
+		i18n.F("Təmiz quraşdırma (npm ci) alınmayacaq; paketin səhifəsində və GitHub-da səbəbi yoxla", "A clean install (npm ci) will fail; check the package page and its GitHub for the reason"))
+	info, err := d.Pkg(ctx, name)
+	if err != nil {
+		return f, err
+	}
+	f.Latest = info.Default
+	cooldown := time.Duration(opt.CooldownDays) * 24 * time.Hour
+	// lowest existing, mature version above cur: same major first, then any
+	var sameMajor, other *cand
+	for _, c := range candidates(info, cur) {
+		if !semver.Less(cur, c.v) || c.dep || (!c.pub.IsZero() && opt.Now.Sub(c.pub) < cooldown) {
+			continue
+		}
+		major := semver.Diff(cur, c.v) == "major"
+		if (major && other != nil) || (!major && sameMajor != nil) {
+			continue
+		}
+		if _, err := d.Manifest(ctx, name, c.v.String()); err != nil {
+			continue // removed as well
+		}
+		c := c
+		if major {
+			other = &c
+		} else {
+			sameMajor = &c
+			break
+		}
+	}
+	pick := sameMajor
+	if pick == nil {
+		pick = other
+	}
+	if pick != nil {
+		f.Target = pick.v.String()
+		f.Impact = impactOfDiff(cur, pick.v)
+		f.ImpactWhy = append(f.ImpactWhy, diffWhy(cur, pick.v))
+		if it.pkg.Direct {
+			f.Fix = &report.Fix{Strategy: "upgrade", Command: installCmd(in.Mgr, name, f.Target, it.pkg.Dev, true)}
+		} else {
+			f.Fix = &report.Fix{Strategy: "relock", Command: relockCmd(in.Mgr, name), Note: i18n.F("Lockfile-ı yenilə; valideyn paket mövcud versiyanı seçəcək", "Refresh the lockfile; the parent will resolve to an existing version")}
+		}
+	}
+	if in.Lock.Approximate {
+		f.Warnings = append(f.Warnings, i18n.F("Lockfile yoxdur — versiya təxminidir", "No lockfile — version is approximate"))
+	}
+	f.Group = groupOf(f.Need, f.Impact)
+	return f, nil
 }

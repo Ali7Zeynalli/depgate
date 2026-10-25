@@ -33,6 +33,12 @@ type Vuln struct {
 	DatabaseSpecific struct {
 		Severity string `json:"severity"`
 	} `json:"database_specific"`
+
+	// set for records that come from the npm bulk advisory endpoint
+	NpmRange  string `json:"-"` // npm semver range of affected versions
+	Malicious bool   `json:"-"` // CWE-506 malware advisory
+	Link      string `json:"-"` // advisory page
+	From      string `json:"-"` // "npm" when not (yet) known to OSV
 }
 
 type osvSev struct {
@@ -64,7 +70,7 @@ type OSVRange struct {
 }
 
 // IsMalware reports whether the record is an OpenSSF malicious-package entry.
-func (v *Vuln) IsMalware() bool { return strings.HasPrefix(v.ID, "MAL-") }
+func (v *Vuln) IsMalware() bool { return strings.HasPrefix(v.ID, "MAL-") || v.Malicious }
 
 // CVEs returns the CVE aliases (or the ID itself when it is a CVE).
 func (v *Vuln) CVEs() []string {
@@ -82,6 +88,9 @@ func (v *Vuln) CVEs() []string {
 
 // URL returns a human page for the advisory.
 func (v *Vuln) URL() string {
+	if v.Link != "" {
+		return v.Link
+	}
 	if strings.HasPrefix(v.ID, "GHSA-") {
 		return "https://github.com/advisories/" + v.ID
 	}

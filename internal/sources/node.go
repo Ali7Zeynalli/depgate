@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -36,7 +37,23 @@ type NodeLine struct {
 type NodeData struct {
 	Releases []NodeRelease
 	Schedule map[int]NodeLine // keyed by major
+	Core     []NodeVuln       // Node.js core vulnerabilities (security WG), nil when unavailable
 }
+
+// NodeVuln is one entry of nodejs/security-wg vuln/core/index.json — the data
+// behind the official is-my-node-vulnerable tool.
+type NodeVuln struct {
+	ID          string   `json:"-"`
+	CVE         []string `json:"cve"`
+	Ref         string   `json:"ref"`
+	Vulnerable  string   `json:"vulnerable"`
+	Patched     string   `json:"patched"`
+	Description string   `json:"description"`
+	Environment []string `json:"affectedEnvironments"`
+	Severity    string   `json:"severity"`
+}
+
+const nodeCoreURL = "https://raw.githubusercontent.com/nodejs/security-wg/main/vuln/core/index.json"
 
 // Node loads release and schedule data.
 func Node(ctx context.Context, f Fetcher) (*NodeData, error) {
@@ -57,6 +74,16 @@ func Node(ctx context.Context, f Fetcher) (*NodeData, error) {
 					nd.Schedule[n] = v
 				}
 			}
+		}
+	}
+	if cb, err := f.Do(ctx, "GET", nodeCoreURL, nil, nil, 24*time.Hour); err == nil {
+		var raw map[string]NodeVuln
+		if json.Unmarshal(cb, &raw) == nil {
+			for k, v := range raw {
+				v.ID = k
+				nd.Core = append(nd.Core, v)
+			}
+			sort.Slice(nd.Core, func(i, j int) bool { return nd.Core[i].ID < nd.Core[j].ID })
 		}
 	}
 	return nd, nil

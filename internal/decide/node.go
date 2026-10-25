@@ -136,6 +136,12 @@ func EvalNode(srcs []report.NodeSource, nd *sources.NodeData, now time.Time) *re
 				}
 			}
 		}
+		n.Vulns = coreVulns(nd.Core, n.Version)
+		if len(n.Vulns) > 0 && n.SecurityFix == "" && n.LatestInLine != "" {
+			if lv, err := semver.Parse(n.LatestInLine); err == nil && semver.Less(cur, lv) && len(coreVulns(nd.Core, n.LatestInLine)) < len(n.Vulns) {
+				n.SecurityFix = n.LatestInLine
+			}
+		}
 	} else {
 		n.Why = append(n.Why, i18n.F("Yalnız xətt göstərilib (node %d): hər build-də fərqli versiya düşə bilər; dəqiq versiyanı sabitlə", "Only a line is given (node %d): each build may get a different version; pin an exact version", n.Line))
 	}
@@ -162,6 +168,16 @@ func EvalNode(srcs []report.NodeSource, nd *sources.NodeData, now time.Time) *re
 	case n.SecurityFix != "":
 		n.Need, n.Impact = report.NeedNow, report.ImpactNo
 		n.Why = append(n.Why, i18n.F("%s → %s: xəttdə təhlükəsizlik relizi var (eyni major, kod dəyişmir)", "%s → %s: a security release exists in this line (same major, no code change)", n.Version, n.LatestInLine))
+		if len(n.Vulns) > 0 {
+			var ids []string
+			for _, v := range n.Vulns {
+				ids = append(ids, append(v.CVE, v.ID)[0])
+			}
+			if len(ids) > 6 {
+				ids = append(ids[:6], fmt.Sprintf("+%d", len(n.Vulns)-6))
+			}
+			n.Why = append(n.Why, i18n.F("Bu versiyaya aid %d məlum zəiflik (Node.js Security WG): %s", "%d known vulnerabilities affect this version (Node.js security WG): %s", len(n.Vulns), strings.Join(ids, ", ")))
+		}
 	case n.DaysToEOL != nil && *n.DaysToEOL <= 90:
 		n.Need, n.Impact = report.NeedSoon, report.ImpactYes
 		n.Why = append(n.Why, i18n.F("Node %d xəttinin dəstəyi %d gün sonra bitir (%s)", "Node %d reaches end of life in %d days (%s)", n.Line, *n.DaysToEOL, n.EOL))
@@ -229,4 +245,34 @@ func nextLTS(nd *sources.NodeData, line int, now time.Time) int {
 		}
 	}
 	return best
+}
+
+// coreVulns lists the Node.js core vulnerabilities that affect version.
+func coreVulns(all []sources.NodeVuln, version string) []report.NodeVuln {
+	v, err := semver.Parse(version)
+	if err != nil {
+		return nil
+	}
+	var out []report.NodeVuln
+	for _, c := range all {
+		vr, err := semver.ParseRange(c.Vulnerable)
+		if err != nil || !vr.Contains(v) {
+			continue
+		}
+		if c.Patched != "" {
+			if pr, err := semver.ParseRange(c.Patched); err == nil && pr.Contains(v) {
+				continue
+			}
+		}
+		env := c.Environment
+		if len(env) == 1 && env[0] == "all" {
+			env = nil
+		}
+		title := c.Description
+		if title == "" {
+			title = firstLine(c.Ref)
+		}
+		out = append(out, report.NodeVuln{ID: "NSWG-CORE-" + c.ID, CVE: c.CVE, Severity: strings.ToLower(c.Severity), Title: title, Patched: c.Patched, URL: c.Ref, Env: env})
+	}
+	return out
 }

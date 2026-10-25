@@ -107,6 +107,18 @@ type Node struct {
 	Impact       Impact       `json:"impact"`
 	Why          []i18n.T     `json:"why"`
 	Command      string       `json:"command,omitempty"` // e.g. FROM node:22.23.4-bookworm-slim
+	Vulns        []NodeVuln   `json:"vulns,omitempty"`   // core vulnerabilities affecting Version (Node.js security WG)
+}
+
+// NodeVuln is a Node.js core vulnerability that affects the project's version.
+type NodeVuln struct {
+	ID       string   `json:"id"`
+	CVE      []string `json:"cve,omitempty"`
+	Severity string   `json:"severity,omitempty"`
+	Title    string   `json:"title"`
+	Patched  string   `json:"patched,omitempty"`
+	URL      string   `json:"url,omitempty"`
+	Env      []string `json:"env,omitempty"` // e.g. win32 when it only affects Windows
 }
 
 type NodeSource struct {
