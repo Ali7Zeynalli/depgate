@@ -1,17 +1,55 @@
 name: release
+# A release starts either from a pushed tag (v*) or from a change to the VERSION
+# file on main: then this workflow creates the tag itself with GITHUB_TOKEN.
 on:
   push:
     tags: ["v*"]
+    branches: [main]
+    paths: [VERSION]
+  workflow_dispatch:
 permissions:
-  contents: write
-  id-token: write
-  attestations: write
+  contents: read
 jobs:
-  release:
+  prepare:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.t.outputs.tag }}
+      skip: ${{ steps.t.outputs.skip }}
     steps:
       - uses: actions/checkout@v4
         with:
+          fetch-depth: 0
+      - id: t
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"; echo "skip=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          v="v$(tr -d ' \n' < VERSION)"
+          echo "$v" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$' || { echo "bad VERSION: $v"; exit 1; }
+          echo "tag=$v" >> "$GITHUB_OUTPUT"
+          if git rev-parse -q --verify "refs/tags/$v" >/dev/null; then
+            echo "tag $v exists, nothing to do"; echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$v" -m "DepGate $v"
+          git push origin "$v"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+  binaries:
+    needs: prepare
+    if: needs.prepare.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
           fetch-depth: 0
       - uses: actions/setup-go@v5
         with:
@@ -26,7 +64,10 @@ jobs:
       - uses: actions/attest-build-provenance@v2
         with:
           subject-path: "dist/*.tar.gz, dist/*.zip"
+
   docker:
+    needs: prepare
+    if: needs.prepare.outputs.skip != 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -35,6 +76,8 @@ jobs:
       attestations: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
@@ -47,9 +90,13 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository_owner }}/depgate
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{version}},value=${{ needs.prepare.outputs.tag }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.prepare.outputs.tag }}
             type=raw,value=latest
+          labels: |
+            org.opencontainers.image.title=DepGate
+            org.opencontainers.image.description=Local npm dependency security and update advisor for Node.js projects
+            org.opencontainers.image.licenses=MIT
       - id: build
         uses: docker/build-push-action@v6
         with:
@@ -58,7 +105,7 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: VERSION=${{ github.ref_name }}
+          build-args: VERSION=${{ needs.prepare.outputs.tag }}
           provenance: true
           sbom: true
       - uses: actions/attest-build-provenance@v2
