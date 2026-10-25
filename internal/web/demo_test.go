@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Ali7Zeynalli/depgate/internal/app"
+	"github.com/Ali7Zeynalli/depgate/internal/auth"
 	"github.com/Ali7Zeynalli/depgate/internal/decide"
 	"github.com/Ali7Zeynalli/depgate/internal/scan"
 	"github.com/Ali7Zeynalli/depgate/internal/semver"
@@ -65,5 +66,9 @@ func TestServeDemo(t *testing.T) {
 		t.Fatal(err)
 	}
 	fmt.Printf("DEMO http://127.0.0.1:%d/?t=demo-token-0123456789\n", port)
-	_ = http.Serve(ln, (&Server{Token: "demo-token-0123456789", B: m}).Handler())
+	au, err := auth.Open(filepath.Join(t.TempDir(), "auth"), os.Getenv("DEPGATE_DEMO_PASSWORD"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = http.Serve(ln, (&Server{Token: "demo-token-0123456789", B: m, Auth: au}).Handler())
 }

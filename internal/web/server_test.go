@@ -8,7 +8,10 @@ import (
 	"testing"
 
 	"github.com/Ali7Zeynalli/depgate/internal/app"
+	"github.com/Ali7Zeynalli/depgate/internal/auth"
 )
+
+func init() { auth.Iterations = 1000 }
 
 type fakeBackend struct {
 	scanned []string
@@ -37,95 +40,144 @@ func (f *fakeBackend) Browse(p string) (*app.Listing, error) {
 	return &app.Listing{Path: p}, nil
 }
 
-func newSrv() (*fakeBackend, http.Handler) {
-	b := &fakeBackend{}
-	s := &Server{Token: "secret123", B: b, AllowHosts: []string{"depgate.lan"}}
-	return b, s.Handler()
+type env struct {
+	t   *testing.T
+	b   *fakeBackend
+	s   *Server
+	h   http.Handler
+	jar []*http.Cookie
 }
 
-func do(h http.Handler, method, path, host, body string, mod func(*http.Request)) *httptest.ResponseRecorder {
+func newEnv(t *testing.T) *env {
+	a, err := auth.Open(t.TempDir(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := &fakeBackend{}
+	s := &Server{Token: "secret123", B: b, Auth: a, AllowHosts: []string{"depgate.lan"}}
+	return &env{t: t, b: b, s: s, h: s.Handler()}
+}
+
+// do sends a request; api=true adds the X-DepGate header; cookies from earlier responses are sent.
+func (e *env) do(method, path, body string, api bool, host ...string) *httptest.ResponseRecorder {
 	r := httptest.NewRequest(method, path, strings.NewReader(body))
-	r.Host = host
-	if mod != nil {
-		mod(r)
+	r.Host = "127.0.0.1:7777"
+	if len(host) > 0 {
+		r.Host = host[0]
+	}
+	if api {
+		r.Header.Set("X-DepGate", "1")
+	}
+	for _, c := range e.jar {
+		r.AddCookie(c)
 	}
 	w := httptest.NewRecorder()
-	h.ServeHTTP(w, r)
+	e.h.ServeHTTP(w, r)
+	for _, c := range w.Result().Cookies() {
+		e.jar = []*http.Cookie{c}
+		if c.MaxAge < 0 {
+			e.jar = nil
+		}
+	}
 	return w
 }
 
-func authed(r *http.Request) {
-	r.AddCookie(&http.Cookie{Name: cookieName, Value: "secret123"})
-	r.Header.Set("X-DepGate", "1")
-}
-
-func TestHostCheck(t *testing.T) {
-	_, h := newSrv()
-	for host, want := range map[string]int{
-		"evil.example:7777": http.StatusForbidden,
-		"localhost:9999":    http.StatusOK, // published Docker port may differ
-		"127.0.0.1:7777":    http.StatusOK,
-		"[::1]:7777":        http.StatusOK,
-		"depgate.lan:7777":  http.StatusOK,
-	} {
-		if w := do(h, "GET", "/api/state", host, "", authed); w.Code != want {
-			t.Errorf("%s: got %d want %d", host, w.Code, want)
-		}
+func (e *env) expect(w *httptest.ResponseRecorder, code int, what string) {
+	e.t.Helper()
+	if w.Code != code {
+		e.t.Fatalf("%s: got %d want %d (%s)", what, w.Code, code, w.Body.String())
 	}
 }
 
-func TestTokenFlow(t *testing.T) {
-	_, h := newSrv()
-	if w := do(h, "GET", "/", "127.0.0.1:7777", "", nil); w.Code != http.StatusUnauthorized {
-		t.Fatalf("no token: %d", w.Code)
+func TestHostCheckAndHealth(t *testing.T) {
+	e := newEnv(t)
+	e.expect(e.do("GET", "/healthz", "", false), 200, "healthz")
+	e.expect(e.do("GET", "/healthz", "", false, "evil.example"), 403, "healthz foreign host")
+	e.expect(e.do("GET", "/", "", false, "evil.example:7777"), 403, "foreign host")
+	for _, h := range []string{"localhost:9999", "[::1]:7777", "depgate.lan:7777"} {
+		e.expect(e.do("GET", "/", "", false, h), 200, h)
 	}
-	if w := do(h, "GET", "/?t=wrong", "127.0.0.1:7777", "", nil); w.Code != http.StatusForbidden {
-		t.Fatalf("wrong token: %d", w.Code)
-	}
-	w := do(h, "GET", "/?t=secret123", "127.0.0.1:7777", "", nil)
-	if w.Code != http.StatusFound || !strings.Contains(w.Header().Get("Set-Cookie"), "HttpOnly") || !strings.Contains(w.Header().Get("Set-Cookie"), "SameSite=Strict") {
-		t.Fatalf("token exchange: %d %q", w.Code, w.Header().Get("Set-Cookie"))
-	}
-	w = do(h, "GET", "/", "127.0.0.1:7777", "", func(r *http.Request) { r.AddCookie(&http.Cookie{Name: cookieName, Value: "secret123"}) })
-	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "DepGate") {
-		t.Fatalf("index: %d", w.Code)
-	}
+}
+
+func TestSetupLoginLogout(t *testing.T) {
+	e := newEnv(t)
+	// UI shell is public; data is not
+	w := e.do("GET", "/", "", false)
+	e.expect(w, 200, "index")
 	if csp := w.Header().Get("Content-Security-Policy"); !strings.Contains(csp, "script-src 'self'") {
 		t.Fatalf("csp %q", csp)
 	}
+	e.expect(e.do("GET", "/api/state", "", false), 403, "api without header")
+	e.expect(e.do("GET", "/api/state", "", true), 401, "api without session")
+	if w := e.do("GET", "/api/auth", "", true); !strings.Contains(w.Body.String(), `"setup":true`) {
+		t.Fatalf("auth state %s", w.Body.String())
+	}
+	e.expect(e.do("POST", "/api/auth/setup", `{"password":"short"}`, true), 400, "short password")
+	e.expect(e.do("POST", "/api/auth/setup", `{"password":"correct horse"}`, true), 200, "setup")
+	if len(e.jar) == 0 || !e.jar[0].HttpOnly || e.jar[0].SameSite != http.SameSiteStrictMode {
+		t.Fatalf("session cookie %+v", e.jar)
+	}
+	e.expect(e.do("GET", "/api/state", "", true), 200, "state after setup")
+	e.expect(e.do("POST", "/api/auth/setup", `{"password":"another password"}`, true), 409, "second setup")
+	// logout → locked again
+	e.expect(e.do("POST", "/api/auth/logout", "", true), 200, "logout")
+	e.expect(e.do("GET", "/api/state", "", true), 401, "after logout")
+	// login
+	e.expect(e.do("POST", "/api/auth/login", `{"password":"wrong password"}`, true), 401, "wrong")
+	e.expect(e.do("POST", "/api/auth/login", `{"password":"correct horse","remember":true}`, true), 200, "login")
+	if e.jar[0].MaxAge <= 0 {
+		t.Fatal("remember me did not set a persistent cookie")
+	}
+	e.expect(e.do("GET", "/api/state", "", true), 200, "state after login")
 }
 
-func TestAPI(t *testing.T) {
-	b, h := newSrv()
-	if w := do(h, "POST", "/api/scan", "127.0.0.1:7777", `{}`, func(r *http.Request) { r.AddCookie(&http.Cookie{Name: cookieName, Value: "secret123"}) }); w.Code != http.StatusForbidden {
-		t.Fatalf("missing header allowed: %d", w.Code)
+func TestPasswordChangeEndsOtherSessions(t *testing.T) {
+	e := newEnv(t)
+	e.expect(e.do("POST", "/api/auth/setup", `{"password":"correct horse"}`, true), 200, "setup")
+	old := e.jar
+	e.expect(e.do("POST", "/api/auth/password", `{"current":"nope nope","next":"battery staple"}`, true), 401, "wrong current")
+	e.expect(e.do("POST", "/api/auth/password", `{"current":"correct horse","next":"battery staple"}`, true), 200, "change")
+	e.expect(e.do("GET", "/api/state", "", true), 200, "this browser stays logged in")
+	e.jar = old
+	e.expect(e.do("GET", "/api/state", "", true), 401, "old session after change")
+}
+
+func TestTokenAndBearer(t *testing.T) {
+	e := newEnv(t)
+	_ = e.s.Auth.Setup("correct horse")
+	e.expect(e.do("GET", "/?t=wrong", "", false), 403, "wrong token")
+	w := e.do("GET", "/?t=secret123", "", false)
+	e.expect(w, 302, "token link")
+	e.expect(e.do("GET", "/api/state", "", true), 200, "session from token link")
+	// bearer for scripts: no cookie, no custom header needed
+	e.jar = nil
+	r := httptest.NewRequest("GET", "/api/state", nil)
+	r.Host = "127.0.0.1:7777"
+	r.Header.Set("Authorization", "Bearer secret123")
+	rw := httptest.NewRecorder()
+	e.h.ServeHTTP(rw, r)
+	e.expect(rw, 200, "bearer")
+}
+
+func TestAPIWithSession(t *testing.T) {
+	e := newEnv(t)
+	e.expect(e.do("POST", "/api/auth/setup", `{"password":"correct horse"}`, true), 200, "setup")
+	e.expect(e.do("POST", "/api/scan", `{"dirs":["/a"]}`, true), 202, "scan")
+	if len(e.b.scanned) != 1 {
+		t.Fatal("scan not forwarded")
 	}
-	if w := do(h, "POST", "/api/scan", "127.0.0.1:7777", `{"dirs":["/a"]}`, authed); w.Code != http.StatusAccepted || len(b.scanned) != 1 {
-		t.Fatalf("scan: %d %v", w.Code, b.scanned)
-	}
-	if w := do(h, "POST", "/api/projects", "127.0.0.1:7777", `{"path":"/home/x/app"}`, authed); w.Code != http.StatusOK || b.added != "/home/x/app" {
-		t.Fatalf("add: %d", w.Code)
-	}
-	if w := do(h, "POST", "/api/projects", "127.0.0.1:7777", `{"path":"/etc"}`, authed); w.Code != http.StatusForbidden {
-		t.Fatalf("outside root: %d", w.Code)
-	}
-	if w := do(h, "POST", "/api/projects/remove", "127.0.0.1:7777", `{"dir":"/a"}`, authed); w.Code != http.StatusConflict {
-		t.Fatalf("read-only remove: %d", w.Code)
-	}
-	if w := do(h, "POST", "/api/projects", "127.0.0.1:7777", `{bad`, authed); w.Code != http.StatusBadRequest {
-		t.Fatalf("bad json: %d", w.Code)
-	}
-	if w := do(h, "GET", "/api/browse?path=/x", "127.0.0.1:7777", "", authed); w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"/x"`) {
-		t.Fatalf("browse: %d %s", w.Code, w.Body.String())
+	e.expect(e.do("POST", "/api/projects", `{"path":"/home/x/app"}`, true), 200, "add")
+	e.expect(e.do("POST", "/api/projects", `{"path":"/etc"}`, true), 403, "outside root")
+	e.expect(e.do("POST", "/api/projects/remove", `{"dir":"/a"}`, true), 409, "read-only remove")
+	e.expect(e.do("POST", "/api/projects", `{bad`, true), 400, "bad json")
+	if w := e.do("GET", "/api/browse?path=/x", "", true); w.Code != 200 || !strings.Contains(w.Body.String(), `"/x"`) {
+		t.Fatalf("browse %d", w.Code)
 	}
 }
 
-func TestHealthz(t *testing.T) {
-	_, h := newSrv()
-	if w := do(h, "GET", "/healthz", "127.0.0.1:7777", "", nil); w.Code != http.StatusOK || w.Body.String() != "ok\n" {
-		t.Fatalf("healthz %d %q", w.Code, w.Body.String())
-	}
-	if w := do(h, "GET", "/healthz", "evil.example", "", nil); w.Code != http.StatusForbidden {
-		t.Fatalf("healthz foreign host %d", w.Code)
-	}
+func TestNoAuth(t *testing.T) {
+	e := newEnv(t)
+	e.s.NoAuth = true
+	e.expect(e.do("GET", "/api/state", "", true), 200, "no-auth state")
+	e.expect(e.do("GET", "/api/state", "", false), 403, "custom header still required")
 }

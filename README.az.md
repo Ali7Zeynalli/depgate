@@ -44,7 +44,7 @@ go install github.com/Ali7Zeynalli/depgate@latest
 depgate
 ```
 
-`http://127.0.0.1:7777` açılır. Interfeys iki dillidir: brauzerin dili Azərbaycan dilidirsə, özü AZ açılır; yuxarıdakı **AZ / EN** düyməsi ilə yenidən skan etmədən dəyişir. **+ Layihə əlavə et** düyməsini bas, qovluqları gəz (`package.json` olanlar «layihə» kimi işarələnib) və layihəni seç. Bütöv qovluq da seçmək olar: altındakı bütün layihələr, monorepo üzvləri daxil, əlavə olunur və arxa planda skan edilir.
+`http://127.0.0.1:7777` açılır; ilk dəfə parol təyin edirsən. Interfeys iki dillidir: brauzerin dili Azərbaycan dilidirsə, özü AZ açılır; yuxarıdakı **AZ / EN** düyməsi ilə yenidən skan etmədən dəyişir. **+ Layihə əlavə et** düyməsini bas, qovluqları gəz (`package.json` olanlar «layihə» kimi işarələnib) və layihəni seç. Bütöv qovluq da seçmək olar: altındakı bütün layihələr, monorepo üzvləri daxil, əlavə olunur və arxa planda skan edilir.
 
 Layihə siyahısı və son hesabatlar yadda qalır (`~/.config/depgate`), növbəti dəfə hamısı yerindədir. Hər layihə üçün **Skan et** və **Siyahıdan sil**, hamısı üçün **Hamısını skan et**. Layihə qovluğunda `depgate` (və ya `depgate ~/projects`) yazsan, dərhal əlavə olunur.
 
@@ -55,11 +55,17 @@ Qovluq seçici yalnız icazə verilən kökləri göstərir (standart: ev qovlu�
 ### Docker
 
 ```bash
-PROJECTS_DIR=$HOME/projects docker compose up -d
-docker compose logs depgate     # token-li link burada
+git clone https://github.com/Ali7Zeynalli/depgate.git && cd depgate
+mkdir -p ~/.config/depgate
+DEPGATE_UID=$(id -u) DEPGATE_GID=$(id -g) docker compose up -d
 ```
 
-Layihələr `/projects`-ə **yalnız oxuma** rejimində bağlanır; siyahı, hesabatlar və token `/data` volume-unda saxlanır. Port yalnız `127.0.0.1`-də açılır. Sabit link üçün `DEPGATE_TOKEN` təyin et. Başqa qovluq lazımdırsa, `docker-compose.yml`-də `- ${HOME}/work:/projects/work:ro` kimi sətir əlavə et.
+`http://127.0.0.1:7777` aç, parol təyin et və ev qovluğunun istənilən yerindən layihə əlavə et.
+
+- **Ev qovluğun eyni yolla, yalnız oxuma rejimində bağlanır** — interfeysdə real yollar (`/home/sən/...`) görünür, heç nəyi köçürmək lazım deyil. DepGate ora heç nə yazmır.
+- Konteyner **sənin istifadəçinlə** işləyir (`DEPGATE_UID`/`DEPGATE_GID`, standart 1000) ki, fayllarını oxuya bilsin.
+- Siyahı, hesabatlar və parol hash-ı `~/.config/depgate`-dədir — **Docker-siz `depgate` ilə eyni qovluq**, ikisi eyni layihələri görür.
+- Port yalnız `127.0.0.1`-də açılır. `DEPGATE_PASSWORD=…` parolu brauzer əvəzinə əvvəlcədən təyin edir.
 
 ### Bir dəfəlik rejimlər
 
@@ -78,6 +84,8 @@ depgate --offline            # şəbəkəsiz, yalnız keşdən
 | `--root` | Gəzilə bilən qovluq (təkrarlana bilər; `DEPGATE_ROOTS`) | ev qovluğu |
 | `--data` | Siyahı, hesabatlar, token (`DEPGATE_DATA`) | `~/.config/depgate` |
 | `--allow-host` | Əlavə icazəli `Host` adı (təkrarlana bilər) | — |
+| `--reset-password` | Parolu unut; növbəti açılışda yenisi istənir | — |
+| `--no-auth` | Parolu söndür (yalnız 127.0.0.1; tövsiyə olunmur) | söndürülüb |
 | `--no-open` | Brauzeri avtomatik açmır | açır |
 | `--depth` | Layihə axtarışının dərinliyi | 3 |
 
@@ -100,26 +108,24 @@ Terminal mesajları standart olaraq ingiliscədir; `DEPGATE_LANG=az` ilə Azərb
 
 Yalnız paket adları və versiyalar (OSV, deps.dev, npm registry), CVE nömrələri (EPSS). Kod, fayl yolları, layihə adları, `.env` heç vaxt getmir. Cavablar `~/.cache/depgate/` qovluğunda keşlənir.
 
-Veb interfeys `127.0.0.1`-də işləyir (Docker-də host-un `127.0.0.1`-inə açılır), token tələb edir, `Host` başlığını yoxlayır, CSP aktivdir. Qovluq gəzmə icazəli köklərlə məhdudlaşır və DepGate layihələri yalnız oxuyur.
+Veb interfeys `127.0.0.1`-də işləyir (Docker-də host-un `127.0.0.1`-inə açılır), parolla qorunur, `Host` başlığını yoxlayır, CSP aktivdir. Qovluq gəzmə icazəli köklərlə məhdudlaşır və DepGate layihələri yalnız oxuyur.
 
-## Token niyə lazımdır?
+## Parol niyə lazımdır?
 
-DepGate kompüterində `127.0.0.1:7777` ünvanında kiçik veb server işlədir. Token olmasa, o ünvana çata bilən hər şey interfeysdən istifadə edə bilər:
+DepGate kompüterində `127.0.0.1:7777` ünvanında kiçik veb server işlədir. Qorunmasa, o ünvana çata bilən hər şey ondan istifadə edə bilər:
 
-- **açdığın başqa saytlar** — zərərli səhifə və ya reklam brauzerin üzərindən `127.0.0.1`-ə sorğu göndərib (CSRF, DNS rebinding) qovluqlarının siyahısını, layihə adlarını və hesabatları oxumağa, skan işə salmağa cəhd edə bilər;
+- **açdığın başqa saytlar** — zərərli səhifə və ya reklam brauzerin üzərindən `127.0.0.1`-ə sorğu göndərib (CSRF, DNS rebinding) qovluqlarını, layihə adlarını və hesabatları oxumağa cəhd edə bilər;
 - **eyni kompüterdəki başqa proqramlar və istifadəçilər** — localhost portu hamısına açıqdır;
-- **şəbəkə** — Docker portu səhvən `127.0.0.1` əvəzinə `0.0.0.0`-a açılsa, eyni Wi-Fi-dakı hər kəs interfeysi görə bilər.
+- **şəbəkə** — Docker portu səhvən `0.0.0.0`-a açılsa, eyni Wi-Fi-dakı hər kəs interfeysi görə bilər.
 
-DepGate qovluqlarını gəzə bilir və layihələrinin zəif yerlərini göstərir — hücumçunun axtardığı məhz budur. Ona görə interfeys parollu səhifə kimi bağlıdır.
+DepGate qovluqlarını gəzə bilir və layihələrinin zəif yerlərini göstərir — hücumçunun axtardığı məhz budur. Ona görə interfeys parolla qorunur:
 
-Praktikada bunu demək olar ki, hiss etmirsən:
+- **ilk açılış:** parolu özün seçirsən (ən azı 8 simvol) — heç bir token, kopyalanacaq link yoxdur;
+- **sonra:** adi giriş səhifəsi, «məni yadda saxla» (30 gün); yuxarıda **Çıxış** və **Parolu dəyiş** düymələri var (parol dəyişəndə digər brauzerlərdəki sessiyalar bağlanır);
+- **unutmusan?** `depgate --reset-password` (Docker-də: `docker exec depgate depgate --reset-password`), sonra yenisini təyin et;
+- **Docker / avtomatlaşdırma:** `DEPGATE_PASSWORD=…` parolu əvvəlcədən təyin edir; skriptlər API-ni `Authorization: Bearer <token>` ilə çağırır (token `~/.config/depgate/token` faylındadır və ya `DEPGATE_TOKEN` ilə təyin olunur).
 
-- `?t=…` linkini **bir dəfə** açırsan; brauzer sessiyanı 30 gün HttpOnly cookie-də saxlayır, sonra sadəcə `http://127.0.0.1:7777` kifayətdir;
-- token bir dəfə yaranır və **dəyişmir** (data qovluğunda saxlanır) — linki əlfəfinlərə qoya bilərsən;
-- öz tokenini `DEPGATE_TOKEN=uzun-gizli-söz` ilə təyin edə bilərsən (Docker-də rahatdır);
-- cari link həmişə terminalda (və ya `docker compose logs depgate`-də) görünür.
-
-Tokendən əlavə DepGate `Host` başlığını yoxlayır, hər API sorğusunda xüsusi başlıq tələb edir və sərt Content Security Policy göndərir.
+Parol yalnız PBKDF2-SHA256 hash kimi saxlanır (600 000 iterasiya, təsadüfi salt); ardıcıl yanlış cəhdlər yavaşladılır. Bundan əlavə DepGate `Host` başlığını yoxlayır, hər API sorğusunda xüsusi başlıq tələb edir və sərt Content Security Policy göndərir.
 
 ## İnkişaf
 

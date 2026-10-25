@@ -110,6 +110,25 @@
     hygOk: ["hamısı qaydasındadır", "all good"],
     loadFailed: ["Yüklənmədi: {0}", "Failed to load: {0}"],
     langTitle: ["Dil / Language", "Language / Dil"],
+    setupTitle: ["DepGate üçün parol təyin et", "Set a password for DepGate"],
+    setupText: ["Bu parol interfeysi qoruyur: başqa saytlar və kompüterdəki başqa proqramlar onsuz layihələrini görə bilməz. Bir dəfə təyin edirsən, sonra brauzer səni 30 gün yadda saxlayır.", "This password protects the UI: other websites and programs on this computer can't see your projects without it. You set it once; the browser then remembers you for 30 days."],
+    password: ["Parol", "Password"],
+    passwordRepeat: ["Parolu təkrarla", "Repeat password"],
+    passwordHint: ["Ən azı 8 simvol", "At least 8 characters"],
+    setPassword: ["Parolu təyin et", "Set password"],
+    mismatch: ["Parollar eyni deyil", "Passwords don't match"],
+    tooShort: ["Parol ən azı 8 simvol olmalıdır", "Password must be at least 8 characters"],
+    loginTitle: ["DepGate-ə daxil ol", "Sign in to DepGate"],
+    remember: ["Məni 30 gün yadda saxla", "Remember me for 30 days"],
+    signIn: ["Daxil ol", "Sign in"],
+    forgot: ["Parolu unutmusan? Terminalda: depgate --reset-password", "Forgot it? In a terminal: depgate --reset-password"],
+    logout: ["Çıxış", "Sign out"],
+    changePw: ["Parolu dəyiş", "Change password"],
+    currentPw: ["Cari parol", "Current password"],
+    newPw: ["Yeni parol", "New password"],
+    save: ["Yadda saxla", "Save"],
+    pwChanged: ["Parol dəyişdi; digər cihazlardakı sessiyalar bağlandı", "Password changed; sessions on other devices were signed out"],
+    please: ["Gözlə…", "Please wait…"],
   };
   let lang = "en";
   try { lang = localStorage.getItem("depgate-lang") || ""; } catch {}
@@ -124,6 +143,8 @@
     $("#lang").textContent = lang === "az" ? "EN" : "AZ";
     $("#lang").title = t("langTitle");
     $("#addproj").textContent = t("addProject");
+    $("#logout").textContent = t("logout");
+    $("#pwbtn").title = t("changePw"); $("#pwbtn").setAttribute("aria-label", t("changePw"));
   }
 
   // ---------- tiny DOM helper (text only: never innerHTML with data) ----------
@@ -165,6 +186,7 @@
     lang = lang === "az" ? "en" : "az";
     try { localStorage.setItem("depgate-lang", lang); } catch {}
     applyStatic();
+    if (document.body.classList.contains("locked")) { if (authState && authState.setup) showSetup(); else showLogin(); return; }
     if (st) render();
     if (picker) openPicker(picker.dataset.path || "");
   });
@@ -183,6 +205,7 @@
   async function api(method, path, body) {
     const r = await fetch(path, { method, headers: body ? { ...H, "Content-Type": "application/json" } : H, body: body ? JSON.stringify(body) : undefined });
     let data = null; try { data = await r.json(); } catch {}
+    if (r.status === 401 && !path.startsWith("api/auth")) { showAuth(); throw new Error(t("loginTitle")); }
     if (!r.ok) throw new Error((data && (lang === "az" && data.error_az || data.error)) || "HTTP " + r.status);
     return data;
   }
@@ -482,5 +505,91 @@
           !h.ok && h.fix ? el("div", null, h.file ? el("span", { class: "d" }, h.file + ": ") : null, el("code", null, h.fix)) : null))));
   }
 
-  load().catch((e) => { $("#main").replaceChildren(el("div", { class: "empty" }, t("loadFailed", e.message))); });
+  // ---------- authentication ----------
+  let authState = null;
+  function setAuthed(on) {
+    document.body.classList.toggle("locked", !on);
+    const canPw = on && authState && !authState.noAuth && !authState.fromEnv;
+    $("#logout").hidden = !on || !authState || authState.noAuth;
+    $("#pwbtn").hidden = !canPw;
+    if (!on) { $("#scanall").hidden = true; $("#addproj").hidden = true; $("#projects").hidden = true; $("#banner").hidden = true; $("#meta").textContent = ""; }
+  }
+  function field(type, label, ac, hint) {
+    const id = "f" + Math.random().toString(36).slice(2);
+    const input = el("input", { type, id, autocomplete: ac, required: true, minlength: type === "password" ? 8 : undefined });
+    return { input, row: el("div", { class: "frm" }, el("label", { for: id }, label), input, hint ? el("div", { class: "quiet small" }, hint) : null) };
+  }
+  function authCard(title, text, fields, extra, submitLabel, onSubmit) {
+    const err = el("div", { class: "ferr", role: "alert" });
+    const btn = el("button", { class: "primary big", type: "submit" }, submitLabel);
+    const form = el("form", { class: "authcard", novalidate: true, onsubmit: async (ev) => {
+      ev.preventDefault(); err.textContent = ""; btn.disabled = true; const label = btn.textContent; btn.textContent = t("please");
+      try { await onSubmit(err); } catch (e) { err.textContent = e.message; }
+      finally { btn.disabled = false; btn.textContent = label; }
+    } },
+      el("div", { class: "brand big" }, el("span", { class: "logo", "aria-hidden": "true" }), "DepGate"),
+      el("h1", null, title), text ? el("p", { class: "quiet" }, text) : null,
+      fields.map((f) => f.row), extra, err, btn);
+    $("#main").replaceChildren(el("div", { class: "authwrap" }, form));
+    const first = form.querySelector("input"); if (first) first.focus();
+  }
+  async function authPost(path, body) { return api("POST", path, body); }
+  function showSetup() {
+    setAuthed(false);
+    const a = field("password", t("password"), "new-password", t("passwordHint"));
+    const b = field("password", t("passwordRepeat"), "new-password");
+    authCard(t("setupTitle"), t("setupText"), [a, b], null, t("setPassword"), async (err) => {
+      if (a.input.value.length < 8) { err.textContent = t("tooShort"); return; }
+      if (a.input.value !== b.input.value) { err.textContent = t("mismatch"); return; }
+      await authPost("api/auth/setup", { password: a.input.value });
+      await start();
+    });
+  }
+  function showLogin() {
+    setAuthed(false);
+    const a = field("password", t("password"), "current-password");
+    const rem = el("input", { type: "checkbox", checked: true, id: "remember" });
+    authCard(t("loginTitle"), null, [a], [el("label", { class: "chk", for: "remember" }, rem, t("remember")), el("div", { class: "quiet small" }, t("forgot"))], t("signIn"), async () => {
+      await authPost("api/auth/login", { password: a.input.value, remember: rem.checked });
+      await start();
+    });
+  }
+  async function showAuth() {
+    try { authState = await api("GET", "api/auth"); } catch { authState = null; }
+    if (authState && authState.setup) showSetup(); else showLogin();
+  }
+  $("#logout").addEventListener("click", async () => {
+    try { await authPost("api/auth/logout"); } catch {}
+    clearTimeout(pollT); st = null; showLogin();
+  });
+  $("#pwbtn").addEventListener("click", () => {
+    const cur = field("password", t("currentPw"), "current-password");
+    const nw = field("password", t("newPw"), "new-password", t("passwordHint"));
+    const rp = field("password", t("passwordRepeat"), "new-password");
+    const err = el("div", { class: "ferr", role: "alert" });
+    const close = () => { ov.remove(); document.removeEventListener("keydown", esc); };
+    const esc = (e) => { if (e.key === "Escape") close(); };
+    const form = el("form", { class: "modal pwmodal", novalidate: true, onsubmit: async (ev) => {
+      ev.preventDefault(); err.textContent = "";
+      if (nw.input.value.length < 8) { err.textContent = t("tooShort"); return; }
+      if (nw.input.value !== rp.input.value) { err.textContent = t("mismatch"); return; }
+      try { await authPost("api/auth/password", { current: cur.input.value, next: nw.input.value }); close(); toast(t("pwChanged")); }
+      catch (e) { err.textContent = e.message; }
+    } },
+      el("div", { class: "mhead" }, el("div", { class: "h3" }, t("changePw"))),
+      el("div", { class: "pad" }, cur.row, nw.row, rp.row, err),
+      el("div", { class: "pfoot" }, el("span", { class: "grow" }), el("button", { type: "button", onclick: () => close() }, t("close")), el("button", { class: "primary", type: "submit" }, t("save"))));
+    const ov = el("div", { class: "overlay", onclick: (e) => { if (e.target === ov) close(); } }, form);
+    document.body.append(ov); document.addEventListener("keydown", esc); cur.input.focus();
+  });
+
+  async function start() {
+    try { authState = await api("GET", "api/auth"); }
+    catch (e) { $("#main").replaceChildren(el("div", { class: "empty" }, t("loadFailed", e.message))); return; }
+    if (authState.setup && !authState.noAuth) return showSetup();
+    if (!authState.authed) return showLogin();
+    setAuthed(true);
+    await load();
+  }
+  start().catch((e) => { $("#main").replaceChildren(el("div", { class: "empty" }, t("loadFailed", e.message))); });
 })();

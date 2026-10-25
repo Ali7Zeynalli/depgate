@@ -16,9 +16,9 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/Ali7Zeynalli/depgate/internal/app"
+	"github.com/Ali7Zeynalli/depgate/internal/auth"
 )
 
 //go:embed ui
@@ -34,8 +34,12 @@ type Backend interface {
 }
 
 type Server struct {
+	// Token is for automation (Authorization: Bearer, or a one-time ?t= login link).
 	Token string
 	B     Backend
+	// Auth is the user's password; nil together with NoAuth=true disables login.
+	Auth   *auth.Auth
+	NoAuth bool
 	// AllowHosts are extra Host header names (without port) accepted besides localhost.
 	AllowHosts []string
 }
@@ -132,12 +136,72 @@ func (s *Server) Handler() http.Handler {
 	})
 	mux.Handle("GET /", static)
 
+	// ---- authentication (reachable without a session) ----
+	authMux := http.NewServeMux()
+	authMux.HandleFunc("GET /api/auth", func(w http.ResponseWriter, r *http.Request) {
+		st := map[string]bool{"authed": s.authed(r), "noAuth": s.NoAuth}
+		if s.Auth != nil {
+			st["setup"] = !s.Auth.Configured()
+			st["fromEnv"] = s.Auth.FromEnv()
+		}
+		writeJSON(w, http.StatusOK, st)
+	})
+	authMux.HandleFunc("POST /api/auth/setup", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Password string `json:"password"`
+		}
+		if !readJSON(w, r, &req) || s.Auth == nil {
+			return
+		}
+		if err := s.Auth.Setup(req.Password); err != nil {
+			writeAuthErr(w, err)
+			return
+		}
+		s.login(w, true)
+	})
+	authMux.HandleFunc("POST /api/auth/login", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Password string `json:"password"`
+			Remember bool   `json:"remember"`
+		}
+		if !readJSON(w, r, &req) || s.Auth == nil {
+			return
+		}
+		if err := s.Auth.Check(clientKey(r), req.Password); err != nil {
+			writeAuthErr(w, err)
+			return
+		}
+		s.login(w, req.Remember)
+	})
+	authMux.HandleFunc("POST /api/auth/logout", func(w http.ResponseWriter, r *http.Request) {
+		http.SetCookie(w, &http.Cookie{Name: cookieName, Value: "", Path: "/", HttpOnly: true, SameSite: http.SameSiteStrictMode, MaxAge: -1})
+		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+	})
+	authMux.HandleFunc("POST /api/auth/password", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Current string `json:"current"`
+			Next    string `json:"next"`
+		}
+		if !readJSON(w, r, &req) || s.Auth == nil {
+			return
+		}
+		if !s.authed(r) {
+			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "login required", "error_az": "giriş lazımdır"})
+			return
+		}
+		if err := s.Auth.Change(clientKey(r), req.Current, req.Next); err != nil {
+			writeAuthErr(w, err)
+			return
+		}
+		s.login(w, true) // the key rotated: issue a fresh session for this browser
+	})
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !s.hostOK(r.Host) { // DNS-rebinding guard
 			http.Error(w, "forbidden host", http.StatusForbidden)
 			return
 		}
-		if r.URL.Path == "/healthz" { // container health check: no token, no data
+		if r.URL.Path == "/healthz" { // container health check: no data
 			w.Header().Set("Content-Type", "text/plain")
 			_, _ = io.WriteString(w, "ok\n")
 			return
@@ -147,29 +211,102 @@ func (s *Server) Handler() http.Handler {
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("Content-Security-Policy", "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'")
 
+		// one-time login link for automation and as a fallback
 		if t := r.URL.Query().Get("t"); t != "" {
-			if subtle.ConstantTimeCompare([]byte(t), []byte(s.Token)) != 1 {
+			if s.Token == "" || subtle.ConstantTimeCompare([]byte(t), []byte(s.Token)) != 1 {
 				http.Error(w, "bad token", http.StatusForbidden)
 				return
 			}
-			http.SetCookie(w, &http.Cookie{Name: cookieName, Value: s.Token, Path: "/", HttpOnly: true, SameSite: http.SameSiteStrictMode, Expires: time.Now().Add(30 * 24 * time.Hour)})
+			if s.Auth != nil && s.Auth.Configured() {
+				s.setSession(w, true)
+			}
 			http.Redirect(w, r, "/", http.StatusFound)
 			return
 		}
-		c, err := r.Cookie(cookieName)
-		if err != nil || subtle.ConstantTimeCompare([]byte(c.Value), []byte(s.Token)) != 1 {
-			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-			w.WriteHeader(http.StatusUnauthorized)
-			_, _ = io.WriteString(w, "DepGate: open the link printed in the terminal (or docker logs) — a token is required.\nDepGate: terminalda (və ya docker logs-da) göstərilən linki aç — token lazımdır.\n")
+		if !strings.HasPrefix(r.URL.Path, "/api/") {
+			static.ServeHTTP(w, r) // the UI shell holds no data; it shows the login screen itself
 			return
 		}
-		// API calls must carry the custom header too (blocks cross-site form posts)
-		if strings.HasPrefix(r.URL.Path, "/api/") && r.Header.Get("X-DepGate") != "1" {
+		// every API call must carry the custom header (blocks cross-site form posts)
+		if r.Header.Get("X-DepGate") != "1" && !s.bearer(r) {
 			http.Error(w, "missing header", http.StatusForbidden)
+			return
+		}
+		if r.URL.Path == "/api/auth" || strings.HasPrefix(r.URL.Path, "/api/auth/") {
+			authMux.ServeHTTP(w, r)
+			return
+		}
+		if !s.authed(r) {
+			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "login required", "error_az": "giriş lazımdır"})
 			return
 		}
 		mux.ServeHTTP(w, r)
 	})
+}
+
+func (s *Server) bearer(r *http.Request) bool {
+	h := r.Header.Get("Authorization")
+	return s.Token != "" && strings.HasPrefix(h, "Bearer ") && subtle.ConstantTimeCompare([]byte(strings.TrimPrefix(h, "Bearer ")), []byte(s.Token)) == 1
+}
+
+func (s *Server) authed(r *http.Request) bool {
+	if s.NoAuth || s.bearer(r) {
+		return true
+	}
+	if s.Auth == nil {
+		return false
+	}
+	c, err := r.Cookie(cookieName)
+	return err == nil && s.Auth.Valid(c.Value)
+}
+
+func (s *Server) setSession(w http.ResponseWriter, remember bool) {
+	ttl := auth.ShortSession
+	if remember {
+		ttl = auth.LongSession
+	}
+	v, err := s.Auth.Issue(ttl)
+	if err != nil {
+		return
+	}
+	c := &http.Cookie{Name: cookieName, Value: v, Path: "/", HttpOnly: true, SameSite: http.SameSiteStrictMode}
+	if remember {
+		c.MaxAge = int(ttl.Seconds())
+	}
+	http.SetCookie(w, c)
+}
+
+func (s *Server) login(w http.ResponseWriter, remember bool) {
+	s.setSession(w, remember)
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+func clientKey(r *http.Request) string {
+	if h, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+		return h
+	}
+	return r.RemoteAddr
+}
+
+func writeAuthErr(w http.ResponseWriter, err error) {
+	code, az := http.StatusBadRequest, err.Error()
+	switch {
+	case errors.Is(err, auth.ErrWrong):
+		code, az = http.StatusUnauthorized, "parol yanlışdır"
+	case errors.Is(err, auth.ErrLocked):
+		code, az = http.StatusTooManyRequests, "çox cəhd edildi, bir az gözlə"
+	case errors.Is(err, auth.ErrTooShort):
+		az = "parol ən azı 8 simvol olmalıdır"
+	case errors.Is(err, auth.ErrHasPassword):
+		code, az = http.StatusConflict, "parol artıq təyin olunub"
+	case errors.Is(err, auth.ErrNoPassword):
+		code, az = http.StatusConflict, "hələ parol təyin olunmayıb"
+	}
+	en := err.Error()
+	if errors.Is(err, auth.ErrTooShort) {
+		en = "password must be at least 8 characters"
+	}
+	writeJSON(w, code, map[string]string{"error": en, "error_az": az})
 }
 
 func readJSON(w http.ResponseWriter, r *http.Request, v any) bool {
