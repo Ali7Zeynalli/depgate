@@ -5,7 +5,7 @@
 <h1 align="center">DepGate</h1>
 
 <p align="center">
-  <b>Your npm dependencies, triaged in one screen: what to update now, what can wait, and whether the update breaks your code.</b><br>
+  <b>Your npm dependencies, triaged in one screen: what to update now, what can wait, whether it breaks your code — and exactly where.</b><br>
   Local web UI · runs in Docker · zero dependencies · English &amp; Azerbaijani
 </p>
 
@@ -17,7 +17,7 @@
   <img src="https://img.shields.io/badge/third--party%20deps-0-brightgreen" alt="zero dependencies">
 </p>
 
-<p align="center"><a href="#quick-start">Quick start</a> · <a href="#why-now">Why now</a> · <a href="#what-it-checks">What it checks</a> · <a href="#docker">Docker</a> · <a href="README.az.md">Azərbaycan dilində</a></p>
+<p align="center"><a href="#quick-start">Quick start</a> · <a href="#features">Features</a> · <a href="#what-it-checks">What it checks</a> · <a href="#data-sources">Data sources</a> · <a href="#docker">Docker</a> · <a href="README.az.md">Azərbaycan dilində</a></p>
 
 ---
 
@@ -26,12 +26,15 @@
 | For every package | DepGate answers |
 |---|---|
 | ① **Do I need to update?** | **NOW** for malware and critical/high CVEs (weighted by CISA KEV + EPSS) · *soon* · *plan* · *optional* · *not needed* |
-| ② **Will it affect my code?** | **No** — patch/minor, one command · **Maybe** — peer/engines conflicts · **Yes** — major bump, with the migration guide |
-| 🎯 **Which version?** | The *safest minimum*: the lowest clean version in your current major — not "latest", which may break you |
+| ② **Will it affect my code?** | **No** — patch/minor, one command · **Maybe** — peer/engines conflicts · **Yes** — a breaking release |
+| 📍 **Where in my code?** | Every place that must change — `file:line`, why, what to write instead — plus the official codemod |
+| 🎯 **Which version?** | The *safest minimum*: the lowest clean version in your current major, not "latest", which may break you |
 | 🔗 **It's transitive — now what?** | Relock if the parent's range already allows the fix, otherwise upgrade the direct parent, otherwise a ready `overrides` block |
+| 🧩 **Does it move alone?** | `react` + `react-dom`, `next` + `eslint-config-next`, `@nestjs/*`, `@angular/*`… are shown as one group with one command |
 | 🕵️ **Is the new version itself safe?** | Skips versions younger than 3 days and flags new install scripts, lost npm provenance, a changed publisher or repository |
+| 🤖 **Can my AI agent do it?** | One ready prompt with every change, and an `AGENTS.md` block so the agent writes code for *your* versions |
 
-Everything runs on your machine. Only package names, versions and CVE IDs ever leave it — never your code.
+It also checks your Node.js runtime and your Dockerfiles and compose files. Everything runs on your machine and DepGate **never changes your files** — it only shows and suggests.
 
 ![DepGate dashboard](docs/screenshot.png)
 
@@ -53,23 +56,90 @@ go install github.com/Ali7Zeynalli/depgate@latest
 depgate            # opens http://127.0.0.1:7777 — set a password, then "+ Add project"
 ```
 
-or with Docker (clone the repo first):
+or with Docker:
 
 ```bash
+git clone https://github.com/Ali7Zeynalli/depgate.git && cd depgate
 DEPGATE_UID=$(id -u) DEPGATE_GID=$(id -g) docker compose up -d
 ```
 
-Open `http://127.0.0.1:7777`, choose a password, add projects from anywhere in your home folder.
+Open `http://127.0.0.1:7777`, choose a password and add projects from anywhere in your home folder.
 
 If DepGate saves you a bad afternoon, a ⭐ helps other developers find it.
 
-## Install
+<a id="features"></a>
+## Features
 
-```bash
-go install github.com/Ali7Zeynalli/depgate@latest
-```
+### 📍 What changes in your code
 
-Or download a prebuilt binary (Linux, macOS, Windows; amd64, arm64) from [Releases](https://github.com/Ali7Zeynalli/depgate/releases). Every release ships SHA-256 checksums and build provenance attestations.
+"Code change: yes" is not enough, so DepGate shows **where**. When an update crosses a documented breaking release, it reads your project's own files (locally, nothing is sent) and lists every place that needs a change: `file:line`, the line itself, why it breaks and what to write instead, things to check by hand, and the official codemod when one exists. If places are found, the card moves to *Do now — code change*.
+
+Covered with exact places: **Next.js 15 and 16, React 18 and 19, TanStack Query 5, ESLint 9, Tailwind CSS 4, Express 5, NestJS 11, Zod 4, Prisma 7, React Router 6 and 7**. Angular, Nx, Storybook and Expo get their official upgrade tools. For any other package with a major update, DepGate shows the *Breaking changes* sections of the GitHub releases between your version and the target.
+
+When a newer major exists beyond the suggested target, a collapsed **"If you move to the new major"** section shows what that move would touch, so you can plan it without changing today's answer. Matching is text based: review each place, then run the build and tests.
+
+![Code changes](docs/code-changes.png)
+
+### 🗂 Folders and monorepos
+
+Add a folder — a monorepo or a folder of projects — and it appears as one entry in the sidebar with its projects nested below, named by their path. Click the folder name for an overview of all of them: a project table, totals, then every finding by category. A finding that appears in several projects is shown once, with each project that has it and the `cd … && …` command for each one. **Scan folder** and **Remove folder** act on all of them.
+
+![Folder overview](docs/folder-overview.png)
+
+### 🤖 AI prompt and AI rules
+
+- **AI prompt** (folder or project) writes one task for Claude Code, Cursor or any agent: every package to change, where it is, which version and why, the advisories, the code impact, the places in your code, the codemods, rules (malware first, safest minimum version, build and tests after each project) and what to report back.
+- **AI rules** builds an `AGENTS.md` / `CLAUDE.md` / `.cursor/rules` block from the versions in your lockfile. Models are trained on older versions, so they write `getServerSideProps` in a Next.js 16 app or `.eslintrc` for ESLint 9; the block lists your exact stack, version-specific rules with links to the official upgrade guides (Next.js, React, Tailwind, ESLint, Express, NestJS, Prisma, Zod, TanStack Query, React Router, TypeScript, Node.js), and built-in or maintained replacements for outdated packages (`request`, `moment`, `node-fetch`, `dotenv`, `rimraf`, …).
+
+Both can be copied or downloaded as `.md`; DepGate does not write them into your project.
+
+![AI prompt](docs/ai-prompt.png)
+![AI rules](docs/ai-rules.png)
+
+### 🧩 Update together
+
+Some packages are released in lockstep: `react` + `react-dom` (+ matching `@types/react`), `next` + `eslint-config-next`, the core `@nestjs/*` packages, `@angular/*`, Vue, Storybook, Nx, Prisma, typescript-eslint, Tiptap. When one of them needs a new version, or their versions have drifted apart, DepGate shows one card with every member, its target and a single command. Packages versioned on their own (for example `@nestjs/config`) stay out.
+
+### 🐳 Docker security
+
+Dockerfiles and compose files in the project and its repo root are checked: running as root, `latest` tags, secrets in `ENV`/`ARG`/`environment`, `npm install` instead of `npm ci`, `curl | sh`, a missing `.dockerignore` (so `.env` can end up in the image), `privileged`, the Docker socket mounted into a container, databases published on all interfaces, host network or PID, unconfined seccomp/AppArmor, and more — 25 rules. Each finding has the file, line, service and a suggested line; secret values are never shown.
+
+<a id="what-it-checks"></a>
+## What it checks
+
+- **Lockfiles:** `package-lock.json` (v1–v3), `pnpm-lock.yaml` (v5–v9), `yarn.lock` (v1 and Berry), `bun.lock`, workspaces included. Transitive packages are checked. Without a lockfile it reads `node_modules`, and otherwise falls back to a clearly marked approximate mode.
+- **Vulnerabilities and malware:** OSV.dev and the npm advisory endpoint (the data behind `npm audit`), merged without duplicates; prerelease versions are matched too, which `npm audit` skips.
+- **Removed versions:** a locked version that npm no longer serves (a clean install will fail; npm takes malicious versions down); a package replaced by a `0.0.1-security` placeholder is reported as malware.
+- **Priority (0–100):** severity plus [CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog) and [EPSS](https://www.first.org/epss/).
+- **Safest minimum target:** the lowest clean version in the same major line, skipping versions younger than the cooldown.
+- **Transitive fixes:** relock when the parent's range already allows the fix, otherwise upgrade the direct parent, otherwise an `overrides` / `resolutions` block.
+- **Code impact:** semver distance, the target's `engines.node` and `peerDependencies`, and the places in your code that a breaking release touches.
+- **Supply-chain signals on the target version:** new install scripts, lost npm provenance, a different publisher, a changed repository URL.
+- **Node.js runtime:** Dockerfile, `.nvmrc`, `.node-version`, `.tool-versions`, `engines`, GitHub Actions; security releases, end-of-life dates and the CVEs that affect your exact version.
+- **Docker:** Dockerfile and compose security (see above).
+- **Project hygiene:** lockfile committed, install scripts disabled, release cooldown configured, consistent Node.js version.
+
+<a id="data-sources"></a>
+## Data sources
+
+Every decision is based on public, free sources. The **Sources** button lists them, what each one is used for, and how many requests each one answered in the last scan (or whether it failed). The same list is linked under every project.
+
+| Source | Used for |
+|---|---|
+| [OSV.dev](https://osv.dev) | vulnerabilities (CVE/GHSA) and malicious packages — includes the GitHub Advisory Database and OpenSSF Malicious Packages |
+| [npm advisories](https://docs.npmjs.com/cli/commands/npm-audit) | the source of `npm audit`: the GitHub Advisory Database directly, malware advisories included — catches records OSV has not imported yet |
+| [CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog) | vulnerabilities exploited in real attacks (raises priority) |
+| [FIRST EPSS](https://www.first.org/epss/) | probability of exploitation in the next 30 days (feeds priority) |
+| [deps.dev](https://deps.dev) | every version of a package and its publish date (safest target, cooldown) |
+| [npm registry](https://www.npmjs.com) | the target version's `engines`, peer dependencies, install scripts, provenance, deprecation; whether a locked version still exists |
+| [GitHub releases](https://docs.github.com/en/rest/releases/releases) | breaking-change sections of the releases between your version and the target (major updates) |
+| [Node.js releases](https://nodejs.org/en/about/previous-releases) + [Node.js Security WG](https://github.com/nodejs/security-wg) | Node.js versions, security releases, end-of-life dates, and the CVEs that affect your exact version |
+
+Read locally, never sent: `package.json`, the lockfile, your source files (for *What changes in your code*), Dockerfiles and compose files, `.nvmrc` / `.node-version` / `engines` / CI files, `.npmrc`, `.dockerignore`.
+
+**Accuracy.** `TestCompareNpmAudit` scans a project with known-vulnerable dependencies and checks that every advisory `npm audit` reports is also in DepGate's report (71 of 71 at the time of writing). It runs weekly in GitHub Actions (`accuracy` workflow), or locally: `DEPGATE_LIVE=1 go test -run TestCompareNpmAudit -v ./internal/scan`.
+
+![Data sources](docs/sources.png)
 
 ## Usage
 
@@ -81,7 +151,7 @@ depgate
 
 Opens `http://127.0.0.1:7777`. The dashboard is bilingual (English / Azerbaijani): it follows your browser language and the **AZ / EN** button switches instantly, no rescan needed. Click **+ Add project**, browse your folders (folders with a `package.json` are marked as projects) and add one — or a whole folder: every project below it, monorepo workspaces included, is added and scanned in the background.
 
-DepGate remembers your projects and their last reports (`~/.config/depgate`), so next time everything is already there. Per project: **Scan**, **Remove**; for all: **Scan all**. Running `depgate` inside a project folder (or `depgate ~/projects`) adds it right away.
+DepGate remembers your projects and their last reports (`~/.config/depgate`), so next time everything is already there. Per project: **Scan**, **Remove**, **AI rules**, **AI prompt**; per folder the same for all of its projects; **Scan all** in the header. Running `depgate` inside a project folder (or `depgate ~/projects`) adds it right away.
 
 The browser can only see folders under the allowed roots (your home directory by default; `--root` to change).
 
@@ -106,7 +176,7 @@ docker run -d --name depgate -p 127.0.0.1:7777:7777 --user "$(id -u):$(id -g)" \
 - Your **home folder is mounted read-only at the same path**, so the UI shows your real paths and you can add projects from anywhere in it — nothing to move. DepGate never writes there.
 - The container runs **as your user** (`DEPGATE_UID`/`DEPGATE_GID`, default 1000) so it can read your files; a one-shot `depgate-init` step gives the data volume to that user first (this also repairs volumes created by older versions).
 - The project list, reports and password hash live in the **`depgate-data` Docker volume** (survives restarts and upgrades). Prefer sharing them with a native `depgate`? Swap the volume for `${HOME}/.config/depgate:/data` (see the comment in `docker-compose.yml`).
-- The port is published on `127.0.0.1` only. `DEPGATE_PASSWORD=…` sets the password up front instead of in the browser.
+- The port is published on `127.0.0.1` only. `DEPGATE_PASSWORD=…` sets the password up front; `DEPGATE_GITHUB_TOKEN=…` raises the GitHub limit for release notes.
 
 ### One-shot modes
 
@@ -123,7 +193,7 @@ depgate --offline            # no network, cache only
 | `--port` | UI port (next free port if busy) | 7777 |
 | `--addr` | Listen address | 127.0.0.1 (0.0.0.0 in Docker) |
 | `--root` | Folder the UI may browse (repeatable; `DEPGATE_ROOTS`) | home directory |
-| `--data` | Project list, reports, token (`DEPGATE_DATA`) | `~/.config/depgate` |
+| `--data` | Project list, reports, password hash (`DEPGATE_DATA`) | `~/.config/depgate` |
 | `--allow-host` | Extra allowed `Host` name, e.g. a LAN name (repeatable) | — |
 | `--reset-password` | Forget the UI password; the next visit asks for a new one | — |
 | `--no-auth` | Disable the password (127.0.0.1 only; not recommended) | off |
@@ -133,78 +203,18 @@ depgate --offline            # no network, cache only
 | `--cooldown` | Skip versions younger than N days as targets | 3 |
 | `--json`, `--view`, `--ci`, `--fail-on`, `--push`, `--token` | One-shot modes above | — |
 
-Terminal messages are in English; set `DEPGATE_LANG=az` for Azerbaijani.
-
-<a id="what-it-checks"></a>
-## What it checks
-
-- **Lockfiles:** `package-lock.json` (v1–v3), `pnpm-lock.yaml` (v5–v9), `yarn.lock` (v1 and Berry), `bun.lock`, workspaces included. Transitive packages are checked. Without a lockfile it reads `node_modules`, and otherwise falls back to a clearly marked approximate mode.
-- **Vulnerabilities and malware:** [OSV.dev](https://osv.dev), including GitHub Security Advisories and OpenSSF Malicious Packages.
-- **Priority (0–100):** severity plus [CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog) and [EPSS](https://www.first.org/epss/).
-- **Safest minimum target:** the lowest clean version in the same major line, skipping versions younger than the cooldown.
-- **Transitive fixes:** relock when the parent's range already allows the fix, otherwise upgrade the direct parent, otherwise an `overrides` / `resolutions` block.
-- **Code impact:** semver distance, the target's `engines.node` and `peerDependencies` against your project.
-- **Supply-chain signals on the target version:** new install scripts, lost npm provenance, a different publisher, a changed repository URL.
-- **Node.js runtime:** Dockerfile, `.nvmrc`, `.node-version`, `.tool-versions`, `engines`, GitHub Actions; security releases and end-of-life dates.
-- **Project hygiene:** lockfile committed, install scripts disabled, release cooldown configured, consistent Node.js version.
-
-## Folders and AI prompt
-
-Add a folder (a monorepo or a folder of projects) and it shows up as one entry in the sidebar with its projects nested below it. Click the folder name to open an overview of every project: a table of the projects, then all findings by category. A finding that appears in several projects is shown once, with every project that has it and the command to run in each one.
-
-**AI prompt** (on a folder or a single project) writes one task for Claude Code, Cursor or another agent: every package to change, where it is, which version to move to and why, the advisories, the code impact, the exact command, plus rules (malware first, safest minimum version, run build and tests) and what to report back. Copy it or download it as `.md`.
-
-![Folder overview](docs/folder-overview.png)
-![AI prompt](docs/ai-prompt.png)
-![AI rules](docs/ai-rules.png)
-
-## What changes in your code
-
-"Code change: yes" is not enough, so DepGate shows **where**. When an update crosses a documented breaking release, it reads your project's own files (locally, nothing is sent) and lists every place that needs a change: `file:line`, the line itself, why it breaks and what to write instead, plus things to check by hand and the official codemod when one exists.
-
-Covered: Next.js 15 and 16, React 18 and 19, TanStack Query 5, ESLint 9, Tailwind CSS 4, Express 5, NestJS 11, Zod 4, Prisma 7, React Router 6 and 7, and the official upgrade tools of Angular, Nx, Storybook and Expo. For other packages with a major update, DepGate shows the "Breaking changes" sections of the GitHub releases between your version and the target (`DEPGATE_GITHUB_TOKEN` raises GitHub's limit of 60 requests an hour).
-
-If a newer major exists beyond the suggested target, a collapsed **"If you move to the new major"** section shows what that move would touch, so you can plan it. Matching is text based: review each place, then run the build and tests. All of it goes into the AI prompt too.
-
-![Code changes](docs/code-changes.png)
-
-## Update together, Docker, AI rules
-
-DepGate never changes your files. Everything below is shown and suggested; you (or your AI agent) apply it.
-
-- **Update together.** Some packages are released in lockstep: `react` + `react-dom` (+ matching `@types/react`), `next` + `eslint-config-next`, the core `@nestjs/*` packages, `@angular/*`, Vue, Storybook, Nx, Prisma, typescript-eslint, Tiptap. When one of them needs a new version, or their versions have drifted apart, DepGate shows one card with every member, its target and a single command. Packages that are versioned on their own (for example `@nestjs/config`) are left out.
-- **Docker security.** Dockerfiles and compose files in the project and its repo root are checked: running as root, `latest` tags, secrets in `ENV`/`ARG`/`environment`, `npm install` instead of `npm ci`, `curl | sh`, a missing `.dockerignore` (so `.env` can end up in the image), `privileged`, the Docker socket mounted into a container, databases published on all interfaces, host network/PID, unconfined seccomp/AppArmor and more. Each finding has the file, line, service and a suggested line.
-- **AI rules.** AI models are trained on older versions, so they write `getServerSideProps` in a Next.js 16 app or `.eslintrc` for ESLint 9. **AI rules** builds an `AGENTS.md` / `CLAUDE.md` / `.cursor/rules` block from the versions in your lockfile: the exact stack, version-specific rules with links to the official upgrade guides (Next.js, React, Tailwind, ESLint, Express, NestJS, Prisma, Zod, TanStack Query, React Router, TypeScript, Node.js) and built-in or maintained replacements for outdated packages (`request`, `moment`, `node-fetch`, `dotenv`, `rimraf`, …). Copy it or download it as `.md`.
-
-## Data sources
-
-Every decision is based on public, free sources. The **Sources** button in the UI lists them, what each one is used for, and how many requests each one answered in the last scan (or whether it failed). The same list is linked under every project.
-
-| Source | Used for |
+| Environment variable | What it does |
 |---|---|
-| [OSV.dev](https://osv.dev) | vulnerabilities (CVE/GHSA) and malicious packages — includes the GitHub Advisory Database and OpenSSF Malicious Packages |
-| [npm advisories](https://docs.npmjs.com/cli/commands/npm-audit) | the source of `npm audit`: the GitHub Advisory Database directly, malware advisories included — catches records OSV has not imported yet |
-| [CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog) | vulnerabilities exploited in real attacks (raises priority) |
-| [FIRST EPSS](https://www.first.org/epss/) | probability of exploitation in the next 30 days (feeds priority) |
-| [deps.dev](https://deps.dev) | every version of a package and its publish date (safest target, cooldown) |
-| [npm registry](https://www.npmjs.com) | the target version's `engines`, peer dependencies, install scripts, provenance, deprecation |
-| [GitHub releases](https://docs.github.com/en/rest/releases/releases) | breaking-change sections of the releases between your version and the target (major updates) |
-| [Node.js releases](https://nodejs.org/en/about/previous-releases) + [Node.js Security WG](https://github.com/nodejs/security-wg) | Node.js versions, security releases, end-of-life dates, and the CVEs that affect your exact version |
-
-Two checks need no extra source:
-
-- **Removed versions.** If a version in your lockfile is no longer on the npm registry, DepGate says so (a clean install will fail, and npm takes malicious versions down). If npm replaced the whole package with a `0.0.1-security` placeholder, it is reported as malware. Workspace and private packages are skipped.
-- **Prereleases.** `npm audit` does not match prerelease versions such as `2.0.0-beta.1` against advisory ranges; DepGate does.
-
-**Accuracy.** `TestCompareNpmAudit` scans a project with known-vulnerable dependencies and checks that every advisory `npm audit` reports is also in DepGate's report (71 of 71 at the time of writing). It runs weekly in GitHub Actions (`accuracy` workflow), or locally: `DEPGATE_LIVE=1 go test -run TestCompareNpmAudit -v ./internal/scan`.
-
-Read locally: `package.json`, the lockfile, Dockerfile / `.nvmrc` / `.node-version` / `engines` / CI files, `.npmrc`.
-
-![Data sources](docs/sources.png)
+| `DEPGATE_PASSWORD` | Set the UI password up front (min. 8 characters) |
+| `DEPGATE_GITHUB_TOKEN` | GitHub token (no scopes needed) for release notes beyond 60 requests an hour; `GITHUB_TOKEN` works too |
+| `DEPGATE_TOKEN` | API token for scripts (`Authorization: Bearer …`) |
+| `DEPGATE_ROOTS`, `DEPGATE_DATA` | Same as `--root` and `--data` |
+| `DEPGATE_PUSH_TOKEN` | Token for `--push` |
+| `DEPGATE_LANG=az` | Terminal messages in Azerbaijani |
 
 ## Privacy
 
-Only package names and versions (OSV, deps.dev, npm registry and its advisory endpoint) and CVE IDs (EPSS) leave your machine. Source code, file paths, project names and `.env` files never do. Responses are cached in `~/.cache/depgate/`.
+Only public package data leaves your machine: package names and versions (OSV, npm, deps.dev), CVE IDs (EPSS), and the GitHub repository names of packages that get a major update (release notes). Source code, file paths, project names and `.env` files never do. Responses are cached in `~/.cache/depgate/`.
 
 The UI binds to `127.0.0.1` (in Docker: published on the host's `127.0.0.1`), is protected by your password, checks the `Host` header and sends a strict Content Security Policy. Folder browsing is limited to the allowed roots, and DepGate only ever reads your projects.
 
@@ -233,7 +243,7 @@ go vet ./...
 go run . ./testdata/lockfiles/npm-v3
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Security reports: [SECURITY.md](SECURITY.md).
+Standard library only, no third-party Go modules. See [CONTRIBUTING.md](CONTRIBUTING.md). Security reports: [SECURITY.md](SECURITY.md).
 
 ## License
 
