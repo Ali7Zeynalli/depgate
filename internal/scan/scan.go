@@ -1,0 +1,145 @@
+// Package scan runs the whole pipeline for a set of project directories.
+package scan
+
+import (
+	"context"
+	"path/filepath"
+	"sort"
+	"strconv"
+	"time"
+
+	"github.com/Ali7Zeynalli/depgate/internal/decide"
+	"github.com/Ali7Zeynalli/depgate/internal/lockfile"
+	"github.com/Ali7Zeynalli/depgate/internal/project"
+	"github.com/Ali7Zeynalli/depgate/internal/report"
+	"github.com/Ali7Zeynalli/depgate/internal/semver"
+	"github.com/Ali7Zeynalli/depgate/internal/sources"
+)
+
+func init() {
+	lockfile.MinVersion = func(rng string) (string, bool) {
+		r, err := semver.ParseRange(rng)
+		if err != nil {
+			return "", false
+		}
+		v, ok := semver.MinVersion(r)
+		if !ok {
+			return "", false
+		}
+		return v.String(), true
+	}
+}
+
+type Options struct {
+	Version      string // tool version
+	CooldownDays int
+	Offline      bool
+	Now          time.Time
+	Progress     func(msg string)
+}
+
+// Run scans every directory and returns one report.
+func Run(ctx context.Context, f sources.Fetcher, dirs []string, opt Options) *report.Report {
+	if opt.Now.IsZero() {
+		opt.Now = time.Now()
+	}
+	if opt.CooldownDays <= 0 {
+		opt.CooldownDays = 3
+	}
+	say := func(s string) {
+		if opt.Progress != nil {
+			opt.Progress(s)
+		}
+	}
+	rep := &report.Report{Schema: report.Schema, Tool: "depgate " + opt.Version, ScannedAt: opt.Now.UTC(), Offline: opt.Offline}
+	d := decide.NewData(f)
+	say("Node.js buraxılışları və CISA KEV yüklənir…")
+	if nd, err := sources.Node(ctx, f); err == nil {
+		d.Node = nd
+	} else {
+		rep.Errors = append(rep.Errors, err.Error())
+	}
+	if kev, err := sources.KEV(ctx, f); err == nil {
+		d.KEV = kev
+	} else {
+		rep.Errors = append(rep.Errors, err.Error())
+	}
+	for i, dir := range dirs {
+		say(progressLine(i, len(dirs), dir))
+		rep.Projects = append(rep.Projects, One(ctx, d, dir, opt))
+	}
+	return rep
+}
+
+func progressLine(i, n int, dir string) string {
+	return "[" + strconv.Itoa(i+1) + "/" + strconv.Itoa(n) + "] " + filepath.Base(dir) + " skan olunur…"
+}
+
+// One scans a single project directory.
+func One(ctx context.Context, d *decide.Data, dir string, opt Options) report.Project {
+	abs, _ := filepath.Abs(dir)
+	p := report.Project{Dir: abs, Name: filepath.Base(abs), Findings: []report.Finding{}, Hygiene: []report.Check{}}
+	man, err := lockfile.ReadManifest(abs)
+	if err != nil {
+		p.Errors = append(p.Errors, err.Error())
+		return p
+	}
+	if man.Name != "" {
+		p.Name = man.Name
+	}
+	remote, rel := project.Git(abs)
+	p.Repo, p.Path = remote, rel
+	p.ID = project.ID(abs, remote, rel)
+	root := project.RepoRoot(abs)
+
+	lr, err := lockfile.Parse(abs)
+	if err != nil {
+		p.Errors = append(p.Errors, err.Error())
+		return p
+	}
+	p.Manager, p.Lockfile, p.Approximate, p.Packages = decide.ManagerOf(lr), lr.File, lr.Approximate, len(lr.Packages)
+
+	srcs := project.NodeSources(abs, root, man.Engines)
+	p.Node = decide.EvalNode(srcs, d.Node, opt.Now)
+	nodeVer := ""
+	mismatch := false
+	if p.Node != nil {
+		nodeVer, mismatch = p.Node.Version, p.Node.Mismatch
+	}
+	in := decide.Input{Lock: lr, Manifest: man, NodeVersion: nodeVer, Mgr: decide.ManagerOf(lr)}
+	findings, errs := decide.Packages(ctx, d, in, decide.Options{CooldownDays: opt.CooldownDays, Now: opt.Now})
+	p.Findings = findings
+	p.Errors = append(p.Errors, errs...)
+	p.Hygiene = project.Hygiene(abs, root, lr.Manager, lr.Kind, mismatch, opt.CooldownDays)
+	p.Summary = Summarize(p.Findings)
+	sort.SliceStable(p.Errors, func(i, j int) bool { return p.Errors[i] < p.Errors[j] })
+	return p
+}
+
+// Summarize counts findings per group.
+func Summarize(fs []report.Finding) report.Summary {
+	var s report.Summary
+	for _, f := range fs {
+		switch f.Group {
+		case report.GroupNowEasy:
+			s.NowEasy++
+		case report.GroupNowCode:
+			s.NowCode++
+		case report.GroupPlan:
+			s.Plan++
+		case report.GroupOptional:
+			s.Optional++
+		default:
+			s.OK++
+		}
+		switch {
+		case f.Kind == "malware":
+			s.Malware++
+		case f.Kind == "vuln" && f.Severity == "critical":
+			s.Critical++
+		case f.Kind == "vuln" && f.Severity == "high":
+			s.High++
+		}
+	}
+	return s
+}

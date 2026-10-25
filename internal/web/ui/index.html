@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="az">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DepGate</title>
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232563eb'/%3E%3Cpath d='M9 16l5 5 9-10' stroke='white' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="logo" aria-hidden="true"></span>DepGate</div>
+  <div class="meta" id="meta">Yüklənir…</div>
+  <div class="actions">
+    <button id="theme" class="ghost" title="Tema" aria-label="Tema">◐</button>
+    <button id="rescan" class="primary">Yenidən skan et</button>
+  </div>
+</header>
+<div id="banner" class="banner" hidden></div>
+<div class="layout">
+  <nav id="projects" class="projects" aria-label="Layihələr" hidden></nav>
+  <main id="main" class="main">
+    <div class="empty">Hesabat yüklənir…</div>
+  </main>
+</div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script src="app.js"></script>
+</body>
+</html>
