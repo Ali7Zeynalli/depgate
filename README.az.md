@@ -5,7 +5,7 @@
 <p align="center"><b>npm asılılıqların bir ekranda: nəyi indi yeniləmək lazımdır, nə gözləyə bilər, yeniləmə kodunu sındırırmı və dəqiq harada.</b><br>
 Lokal veb interfeys · Docker · sıfır asılılıq · Azərbaycan və ingilis dili</p>
 
-<p align="center"><a href="#tez-başla">Tez başla</a> · <a href="#imkanlar">İmkanlar</a> · <a href="#nə-yoxlayır">Nə yoxlayır</a> · <a href="#mənbələr">Mənbələr</a> · <a href="#docker">Docker</a> · <a href="README.md">English</a></p>
+<p align="center"><a href="#tez-başla">Tez başla</a> · <a href="#imkanlar">İmkanlar</a> · <a href="#mcp">MCP</a> · <a href="#nə-yoxlayır">Nə yoxlayır</a> · <a href="#mənbələr">Mənbələr</a> · <a href="#docker">Docker</a> · <a href="README.md">English</a></p>
 
 ---
 
@@ -20,7 +20,7 @@ Lokal veb interfeys · Docker · sıfır asılılıq · Azərbaycan və ingilis 
 | 🔗 **Dolayı paketdirsə?** | Valideynin aralığı icazə verirsə lockfile yeniləməsi, yoxsa birbaşa valideynin yenilənməsi, o da olmasa hazır `overrides` bloku |
 | 🧩 **Tək yenilənir?** | `react` + `react-dom`, `next` + `eslint-config-next`, `@nestjs/*`, `@angular/*`… bir qrup və bir əmr kimi göstərilir |
 | 🕵️ **Yeni versiyanın özü təhlükəsizdirmi?** | 3 gündən yeni versiyaları keçir; yeni install skriptini, itən npm provenance-ı, dəyişən dərc edəni və ya repo-nu işarələyir |
-| 🤖 **AI agentim edə bilər?** | Bütün dəyişikliklərlə hazır bir prompt və agentin *sənin* versiyalarına görə kod yazması üçün `AGENTS.md` bloku |
+| 🤖 **AI agentim edə bilər?** | Bütün dəyişikliklərlə hazır bir prompt, agentin *sənin* versiyalarına görə kod yazması üçün `AGENTS.md` bloku. Agent DepGate-dən **MCP** ilə özü də soruşa bilər: hər layihəyə ayrıca qoşulur və hər paketi quraşdırmazdan əvvəl yoxlayır |
 
 Node.js runtime-ı, Dockerfile və compose faylları da yoxlanır. Hər şey sənin kompüterində işləyir və DepGate **heç bir faylı dəyişmir** — yalnız göstərir və təklif edir.
 
@@ -53,6 +53,12 @@ DEPGATE_UID=$(id -u) DEPGATE_GID=$(id -g) docker compose up -d
 ```
 
 `http://127.0.0.1:7777` aç, parol seç və ev qovluğunun istənilən yerindən layihə əlavə et.
+
+AI agentini layihəyə qoş ([MCP](#mcp)-yə bax):
+
+```bash
+cd ~/projects/shop && claude mcp add depgate -s project -- depgate mcp --project "$PWD"
+```
 
 Faydalı olsa, ⭐ başqa developerlərin onu tapmasına kömək edir.
 
@@ -87,6 +93,34 @@ Hər ikisini kopyalaya və ya `.md` kimi yükləyə bilərsən; DepGate onları 
 
 ![AI prompt](docs/ai-prompt.png)
 ![AI qaydaları](docs/ai-rules.png)
+
+<a id="mcp"></a>
+### 🔌 MCP ilə AI agentlər
+
+`depgate mcp` [Model Context Protocol](https://modelcontextprotocol.io) server-idir. Claude Code, Cursor, VS Code və ya istənilən MCP klienti DepGate-dən özü soruşur, sənin promptu kopyalayıb yapışdırmağına ehtiyac qalmır. Hər layihə üçün ayrıca işləyir: alətlər agentin açıldığı layihəyə (və ya `--project` ilə verilənə) aiddir. Hər çağırışda başqa layihə də göstərmək olar: yol, paket adı və ya monorepo içində qovluq, məsələn `apps/api`.
+
+```bash
+cd ~/projects/shop && claude mcp add depgate -s project -- depgate mcp --project "$PWD"
+# DepGate Docker-dədirsə:
+claude mcp add depgate -s project -- docker exec -i depgate depgate mcp --project "$PWD"
+```
+
+Hər layihə və qovluqdakı **AI agent (MCP)** düyməsi bu əmrləri yolu doldurulmuş halda göstərir. Cursor və digər kliyentlər üçün JSON da orada var.
+
+| Alət | Agent nə alır |
+|---|---|
+| `project_status` | skan vaxtı, Node.js, saylar, indi ediləcəklər, birlikdə yenilənən qruplar, Docker problemləri |
+| `get_findings` | tapıntılar: hədəf versiya, səbəb, koda təsir və dəqiq əmr |
+| `get_fix_plan` | bütöv, ardıcıl tapşırıq (monorepo-nun bütün layihələri üçün də) |
+| `get_code_changes` | bir paket üçün: dəyişəcək `fayl:sətir` yerləri, codemod, əl ilə yoxlamalar, release notes |
+| `get_ai_rules` | kod yazmaq üçün dəqiq stack və versiya qaydaları |
+| `check_package` | **hər quraşdırmadan əvvəl**: `ad@versiya` təhlükəsizdirmi — zəifliklər, zərərli paket, silinmiş və ya təzə çıxmış versiya, install skriptləri, provenance, Node və peer uyğunluğu — və əvəzinə hansı versiya |
+| `scan_project` | dəyişiklikdən sonra yenidən skan edib təsdiqləmək |
+| `list_projects` | DepGate-in bildiyi bütün layihələr |
+
+Server DepGate-in data qovluğunu istifadə edir, yəni interfeysdəki layihələr və hesabatlar burada da görünür. Hesabatı olmayan layihəni lazım olanda skan edir. Heç vaxt layihə əlavə etmir və fayl dəyişmir. Advisory və release notes mətnləri məlumat kimi sitat gətirilir ki, AI onları əmr kimi qəbul etməsin.
+
+![MCP](docs/mcp.png)
 
 ### 🧩 Birlikdə yenilə
 
@@ -186,6 +220,7 @@ depgate --view report.json   # saxlanmış hesabatı interfeysdə aç
 depgate --ci --fail-on high  # CI: high/critical və ya zərərli paket varsa çıxış kodu 1
 depgate --push URL --token T # skan et və hesabatı göndər
 depgate --offline            # şəbəkəsiz, yalnız keşdən
+depgate mcp --project DIR    # AI agentlər üçün MCP server (stdio)
 ```
 
 | Bayraq | Nə edir | Standart |
@@ -210,6 +245,7 @@ depgate --offline            # şəbəkəsiz, yalnız keşdən
 | `DEPGATE_TOKEN` | Skriptlər üçün API token-i (`Authorization: Bearer …`) |
 | `DEPGATE_ROOTS`, `DEPGATE_DATA` | `--root` və `--data` ilə eynidir |
 | `DEPGATE_PUSH_TOKEN` | `--push` üçün token |
+| `DEPGATE_PROJECT` | `depgate mcp` üçün standart layihə (`--project` ilə eyni) |
 | `DEPGATE_LANG=az` | Terminal mesajları Azərbaycan dilində |
 
 ## Kənara nə gedir

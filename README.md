@@ -17,7 +17,7 @@
   <img src="https://img.shields.io/badge/third--party%20deps-0-brightgreen" alt="zero dependencies">
 </p>
 
-<p align="center"><a href="#quick-start">Quick start</a> · <a href="#features">Features</a> · <a href="#what-it-checks">What it checks</a> · <a href="#data-sources">Data sources</a> · <a href="#docker">Docker</a> · <a href="README.az.md">Azərbaycan dilində</a></p>
+<p align="center"><a href="#quick-start">Quick start</a> · <a href="#features">Features</a> · <a href="#mcp">MCP</a> · <a href="#what-it-checks">What it checks</a> · <a href="#data-sources">Data sources</a> · <a href="#docker">Docker</a> · <a href="README.az.md">Azərbaycan dilində</a></p>
 
 ---
 
@@ -32,7 +32,7 @@
 | 🔗 **It's transitive — now what?** | Relock if the parent's range already allows the fix, otherwise upgrade the direct parent, otherwise a ready `overrides` block |
 | 🧩 **Does it move alone?** | `react` + `react-dom`, `next` + `eslint-config-next`, `@nestjs/*`, `@angular/*`… are shown as one group with one command |
 | 🕵️ **Is the new version itself safe?** | Skips versions younger than 3 days and flags new install scripts, lost npm provenance, a changed publisher or repository |
-| 🤖 **Can my AI agent do it?** | One ready prompt with every change, and an `AGENTS.md` block so the agent writes code for *your* versions |
+| 🤖 **Can my AI agent do it?** | One ready prompt with every change, an `AGENTS.md` block so the agent writes code for *your* versions — or the agent asks DepGate itself over **MCP**, per project, and checks every package before installing it |
 
 It also checks your Node.js runtime and your Dockerfiles and compose files. Everything runs on your machine and DepGate **never changes your files** — it only shows and suggests.
 
@@ -65,6 +65,12 @@ DEPGATE_UID=$(id -u) DEPGATE_GID=$(id -g) docker compose up -d
 
 Open `http://127.0.0.1:7777`, choose a password and add projects from anywhere in your home folder.
 
+Connect your AI agent to a project (see [MCP](#mcp)):
+
+```bash
+cd ~/projects/shop && claude mcp add depgate -s project -- depgate mcp --project "$PWD"
+```
+
 If DepGate saves you a bad afternoon, a ⭐ helps other developers find it.
 
 <a id="features"></a>
@@ -95,6 +101,34 @@ Both can be copied or downloaded as `.md`; DepGate does not write them into your
 
 ![AI prompt](docs/ai-prompt.png)
 ![AI rules](docs/ai-rules.png)
+
+<a id="mcp"></a>
+### 🔌 AI agents over MCP
+
+`depgate mcp` is a [Model Context Protocol](https://modelcontextprotocol.io) server, so Claude Code, Cursor, VS Code or any MCP client can ask DepGate itself instead of you pasting prompts. It works **per project**: tools act on the project the agent runs in (or the one set with `--project`), and any call can name another one — a path, a package name or a folder inside a monorepo such as `apps/api`.
+
+```bash
+cd ~/projects/shop && claude mcp add depgate -s project -- depgate mcp --project "$PWD"
+# DepGate in Docker:
+claude mcp add depgate -s project -- docker exec -i depgate depgate mcp --project "$PWD"
+```
+
+The **AI agent (MCP)** button on every project and folder shows these commands with the path filled in, plus the JSON for Cursor and other clients.
+
+| Tool | What the agent gets |
+|---|---|
+| `project_status` | scan time, Node.js, counts, what to do now, update-together groups, Docker issues |
+| `get_findings` | the findings with target version, why, code impact and the exact command |
+| `get_fix_plan` | the whole ordered task (also for every project of a monorepo) |
+| `get_code_changes` | for one package: `file:line` places to change, codemod, checks, release notes |
+| `get_ai_rules` | the exact stack and version rules for writing code |
+| `check_package` | **before every install**: is `name@version` safe — vulnerabilities, malware, removed or brand-new versions, install scripts, provenance, Node and peer fit — and which version to use instead |
+| `scan_project` | rescan after changes and confirm |
+| `list_projects` | every project DepGate knows |
+
+The server shares DepGate's data folder (same projects and reports as the UI), scans a project on demand when it has no report yet, and never adds projects or changes files. Text from advisories and release notes is quoted as data so it cannot pose as instructions.
+
+![MCP](docs/mcp.png)
 
 ### 🧩 Update together
 
@@ -186,6 +220,7 @@ depgate --view report.json   # open a saved report in the UI
 depgate --ci --fail-on high  # exit 1 on high/critical vulnerabilities or malware
 depgate --push URL --token T # scan and POST the report
 depgate --offline            # no network, cache only
+depgate mcp --project DIR    # MCP server for AI agents (stdio)
 ```
 
 | Flag | What it does | Default |
@@ -210,6 +245,7 @@ depgate --offline            # no network, cache only
 | `DEPGATE_TOKEN` | API token for scripts (`Authorization: Bearer …`) |
 | `DEPGATE_ROOTS`, `DEPGATE_DATA` | Same as `--root` and `--data` |
 | `DEPGATE_PUSH_TOKEN` | Token for `--push` |
+| `DEPGATE_PROJECT` | Default project for `depgate mcp` (same as `--project`) |
 | `DEPGATE_LANG=az` | Terminal messages in Azerbaijani |
 
 ## Privacy

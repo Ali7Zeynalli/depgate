@@ -61,6 +61,22 @@ func Open(dir string) (*Store, error) {
 	return s, nil
 }
 
+// Reload re-reads projects.json (another process — the UI — may have changed it).
+func (s *Store) Reload() {
+	b, err := os.ReadFile(filepath.Join(s.Dir, "projects.json"))
+	if err != nil {
+		return
+	}
+	var doc struct {
+		Projects []Entry `json:"projects"`
+	}
+	if json.Unmarshal(b, &doc) == nil {
+		s.mu.Lock()
+		s.projects = doc.Projects
+		s.mu.Unlock()
+	}
+}
+
 // Token returns the persistent UI token, creating it on first use.
 // DEPGATE_TOKEN overrides it (useful for containers and bookmarks).
 func (s *Store) Token() (string, error) {

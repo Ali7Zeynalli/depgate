@@ -229,14 +229,7 @@ func Packages(ctx context.Context, d *Data, in Input, opt Options) ([]report.Fin
 		}
 		vmu.Lock()
 		defer vmu.Unlock()
-		holder := info.Default == "0.0.1-security"
-		if !holder {
-			holder = true
-			for _, pv := range info.Versions {
-				holder = holder && strings.HasSuffix(pv.Version, "-security")
-			}
-		}
-		if holder {
+		if isHolder(info) {
 			h := &sources.Vuln{ID: HolderID, Summary: "npm replaced " + it.pkg.Name + " with a security placeholder (0.0.1-security)", NpmRange: ">=0.0.0-0", Malicious: true, From: "npm", Link: "https://www.npmjs.com/package/" + it.pkg.Name}
 			h.DatabaseSpecific.Severity = "CRITICAL"
 			var af sources.Affected

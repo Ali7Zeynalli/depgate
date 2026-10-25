@@ -27,6 +27,7 @@ import (
 	"github.com/Ali7Zeynalli/depgate/internal/app"
 	"github.com/Ali7Zeynalli/depgate/internal/auth"
 	"github.com/Ali7Zeynalli/depgate/internal/i18n"
+	"github.com/Ali7Zeynalli/depgate/internal/mcp"
 	"github.com/Ali7Zeynalli/depgate/internal/project"
 	"github.com/Ali7Zeynalli/depgate/internal/report"
 	"github.com/Ali7Zeynalli/depgate/internal/scan"
@@ -80,6 +81,9 @@ func main() {
 }
 
 func run(args []string, stdout, stderr io.Writer) int {
+	if len(args) > 0 && args[0] == "mcp" {
+		return runMCP(args[1:], os.Stdin, stdout, stderr)
+	}
 	var c config
 	container := os.Getenv("DEPGATE_CONTAINER") == "1"
 	fs := flag.NewFlagSet("depgate", flag.ContinueOnError)
@@ -547,4 +551,46 @@ func flushOutbox(ctx context.Context, cacheDir, url, token string, w io.Writer) 
 			fmt.Fprintln(w, L("Köhnə hesabat göndərildi:", "Queued report sent:"), e.Name())
 		}
 	}
+}
+
+// runMCP serves the Model Context Protocol on stdin/stdout for AI agents.
+// stdout carries protocol messages only; diagnostics go to stderr.
+func runMCP(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("depgate mcp", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	projectDir := fs.String("project", os.Getenv("DEPGATE_PROJECT"), "default project for every tool (default: the working directory; DEPGATE_PROJECT)")
+	data := fs.String("data", os.Getenv("DEPGATE_DATA"), "DepGate data folder (shared with the UI)")
+	offline := fs.Bool("offline", false, "never use the network, cache only")
+	cooldown := fs.Int("cooldown", 3, "never suggest versions younger than N days")
+	fs.Usage = func() {
+		fmt.Fprintln(stderr, "Usage: depgate mcp [--project DIR]\n\nModel Context Protocol server (stdio) for AI coding agents, e.g.\n  claude mcp add depgate -- depgate mcp\n\nFlags:")
+		fs.PrintDefaults()
+	}
+	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return 0
+		}
+		return 2
+	}
+	dataDir, cacheDir := dirsFor(*data)
+	st, err := store.Open(dataDir)
+	if err != nil {
+		fmt.Fprintln(stderr, "depgate mcp:", err)
+		return 1
+	}
+	s := &mcp.Server{
+		Store:   st,
+		Fetcher: func() sources.Fetcher { return sources.NewHTTP(cacheDir, *offline, version) },
+		Opt:     scan.Options{Version: version, CooldownDays: *cooldown, Offline: *offline},
+		Project: *projectDir,
+		Version: version,
+		Log:     stderr,
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	if err := s.Serve(ctx, stdin, stdout); err != nil && ctx.Err() == nil {
+		fmt.Fprintln(stderr, "depgate mcp:", err)
+		return 1
+	}
+	return 0
 }

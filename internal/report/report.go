@@ -64,6 +64,7 @@ type Source struct {
 
 type Project struct {
 	ID          string        `json:"id"` // sha256 of repo remote + path, or of absolute path
+	ScannedAt   time.Time     `json:"scannedAt,omitempty"`
 	Name        string        `json:"name"`
 	Dir         string        `json:"dir"`
 	Repo        string        `json:"repo,omitempty"`

@@ -163,7 +163,7 @@
     aiTitle: ["AI üçün tapşırıq (prompt)", "Task for an AI agent (prompt)"],
     aiHelp: ["Bunu Claude Code, Cursor və ya başqa AI agentə ver: bütün tapıntılar, harada olduqları, hansı versiyaya və niyə yenilənməli olduqları burada yazılıb.", "Give this to Claude Code, Cursor or another AI agent: every finding, where it is, which version to move to and why."],
     aiStats: ["{0} tapşırıq · {1} layihə", "{0} tasks · {1} projects"],
-    download: ["Yüklə (.md)", "Download (.md)"],
+    download: ["Yüklə ({0})", "Download ({0})"],
     aiNothing: ["Görüləcək iş yoxdur — hər şey qaydasındadır.", "Nothing to do — everything is fine."],
     pH1: ["# Asılılıq yeniləmə tapşırığı (DepGate)", "# Dependency update task (DepGate)"],
     pIntro: ["Sən təcrübəli Node.js mühəndisisən. Aşağıdakı layihələrdə DepGate-in tapdığı npm paket problemlərini düzəlt. Hər bəndə nə, harada, hansı versiyaya və niyə yazılıb.", "You are an experienced Node.js engineer. Fix the npm package problems DepGate found in the projects below. Each item says what, where, which version and why."],
@@ -212,6 +212,10 @@
     dockerOk: ["Yoxlanan fayllarda problem tapılmadı: {0}", "No issues in the checked files: {0}"],
     dockerN: ["{0} tövsiyə", "{0} suggestions"],
     readOnlyNote: ["DepGate heç bir faylı dəyişmir — yalnız göstərir və təklif edir.", "DepGate never changes your files — it only shows and suggests."],
+    mcpBtn: ["AI agent (MCP)", "AI agent (MCP)"],
+    mcpTitle: ["Bu layihəni AI agentə qoş (MCP)", "Connect this project to an AI agent (MCP)"],
+    mcpHelp: ["Bir dəfə qoş: sonra Claude Code, Cursor və ya başqa agent bu layihənin tapıntılarını, kod dəyişikliklərini və qaydalarını DepGate-dən özü soruşur, yeni paket əlavə etməzdən əvvəl check_package ilə yoxlayır. Hər layihəyə ayrıca qoşulur.", "Connect once: Claude Code, Cursor or any agent then asks DepGate itself for this project's findings, code changes and rules, and checks every new package with check_package before installing it. Each project is connected on its own."],
+    mcpStats: ["8 alət · yalnız oxuyur", "8 tools · read-only"],
     rulesBtn: ["AI qaydaları", "AI rules"],
     rulesTitle: ["AI agentlər üçün versiya qaydaları", "Version rules for AI agents"],
     rulesHelp: ["Bunu layihənin AGENTS.md, CLAUDE.md və ya .cursor/rules faylına əlavə et: AI köhnə versiyalara görə yox, sənin quraşdırdığın versiyalara görə kod yazacaq. DepGate faylı özü yazmır.", "Add this to the project's AGENTS.md, CLAUDE.md or .cursor/rules: the AI will write code for the versions you actually have, not the ones it was trained on. DepGate does not write the file itself."],
@@ -421,6 +425,7 @@
       p.scanning ? el("span", { class: "chip busy" }, el("span", { class: "spin" }), t("scanningChip")) : p.queued ? el("span", { class: "chip busy" }, t("queued")) : null,
       st.readOnly ? null : el("button", { class: "small", disabled: p.scanning || p.queued || undefined, onclick: () => scan([p.dir]) }, t("scan")),
       st.readOnly ? null : el("button", { class: "small ghost danger", onclick: () => removeProject(p) }, t("remove")),
+      st.readOnly ? null : el("button", { class: "small", onclick: () => openMCP(p.dir) }, t("mcpBtn")),
       p.report ? el("button", { class: "small", onclick: () => openRules([p], p.dir) }, t("rulesBtn")) : null,
       p.report ? el("button", { class: "small primary", onclick: () => openPrompt([p], p.dir) }, t("aiBtn")) : null);
     const g = groupsOf(st.projects).find((x) => x.items.includes(p));
@@ -489,6 +494,7 @@
       busy ? el("span", { class: "chip busy" }, el("span", { class: "spin" }), t("scanningChip")) : null,
       st.readOnly ? null : el("button", { class: "small", disabled: st.busy || undefined, onclick: () => scan(ps.map((x) => x.dir)) }, t("scanFolder", ps.length)),
       st.readOnly ? null : el("button", { class: "small ghost danger", onclick: () => removeGroup(g) }, t("removeFolder", ps.length)),
+      st.readOnly ? null : el("button", { class: "small", onclick: () => openMCP(g.dir) }, t("mcpBtn")),
       scanned.length ? el("button", { class: "small", onclick: () => openRules(scanned, g.dir, g) }, t("rulesBtn")) : null,
       scanned.length ? el("button", { class: "small primary", onclick: () => openPrompt(scanned, g.dir, g) }, t("aiBtn")) : null);
     if (!scanned.length) return el("div", null, bar, el("div", { class: "empty" }, el("h1", null, baseName(g.dir)), busy ? t("firstScan") : t("folderNotScanned")));
@@ -710,7 +716,7 @@
       el("div", { class: "mhead" }, el("div", { class: "h3" }, title), el("div", { class: "quiet" }, help), el("div", { class: "quiet small" }, t("readOnlyNote"))),
       el("div", { class: "pad" }, ta),
       el("div", { class: "pfoot" }, el("div", { class: "quiet" }, stats), el("span", { class: "grow" }),
-        el("button", { onclick: dl }, t("download")), el("button", { onclick: () => close() }, t("close")),
+        el("button", { onclick: dl }, t("download", filename.slice(filename.lastIndexOf(".")))), el("button", { onclick: () => close() }, t("close")),
         el("button", { class: "primary", onclick: () => copy(text) }, t("copy"))));
     const ov = el("div", { class: "overlay", onclick: (e) => { if (e.target === ov) close(); } }, dlg);
     document.body.append(ov); document.addEventListener("keydown", esc); ta.focus(); ta.setSelectionRange(0, 0);
@@ -838,6 +844,22 @@
     if (!L.length) return { text: t("rulesNothing"), rules: 0, repl: 0 };
     const text = [`<!-- depgate:ai-rules — generated by DepGate on ${day} from the installed versions; regenerate after upgrades -->`, "## Dependency versions and rules", "", ...L, "<!-- /depgate:ai-rules -->"].join("\n");
     return { text, rules: nr, repl: nx };
+  }
+  function openMCP(dir) {
+    const q = (x) => /^[\w@%+=:,./-]+$/.test(x) ? x : "'" + x.replace(/'/g, "'\\''") + "'";
+    const docker = !!st.container;
+    const cmdline = docker ? ["docker", "exec", "-i", "depgate", "depgate", "mcp", "--project", dir] : ["depgate", "mcp", "--project", dir];
+    const text = [
+      "# Claude Code — run once (writes .mcp.json into the project; the path is for this computer)",
+      `cd ${q(dir)} && claude mcp add depgate -s project -- ${cmdline.map(q).join(" ")}`,
+      "",
+      "# Cursor (.cursor/mcp.json), VS Code, Windsurf and other MCP clients",
+      JSON.stringify({ mcpServers: { depgate: { command: cmdline[0], args: cmdline.slice(1) } } }, null, 2),
+      "",
+      "# Tools: project_status · get_findings · get_fix_plan · get_code_changes · get_ai_rules · check_package · scan_project · list_projects",
+      "# Ask the agent e.g.: \"fix this project's dependencies with DepGate\" or \"check with DepGate before adding a package\"",
+    ].join("\n");
+    textModal(t("mcpTitle"), t("mcpHelp"), text, t("mcpStats"), "depgate-mcp.txt");
   }
   function openRules(ps, rootDir, g) {
     const r = rulesFor(ps, g);
