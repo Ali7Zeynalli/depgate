@@ -2,39 +2,144 @@
 
 <h1 align="center">DepGate</h1>
 
-<p align="center"><b>npm asılılıqların bir ekranda: nəyi indi yeniləmək lazımdır, nə gözləyə bilər və yeniləmə kodunu sındırırmı.</b><br>
+<p align="center"><b>npm asılılıqların bir ekranda: nəyi indi yeniləmək lazımdır, nə gözləyə bilər, yeniləmə kodunu sındırırmı və dəqiq harada.</b><br>
 Lokal veb interfeys · Docker · sıfır asılılıq · Azərbaycan və ingilis dili</p>
 
-<p align="center"><a href="README.md">English</a></p>
+<p align="center"><a href="#tez-başla">Tez başla</a> · <a href="#imkanlar">İmkanlar</a> · <a href="#nə-yoxlayır">Nə yoxlayır</a> · <a href="#mənbələr">Mənbələr</a> · <a href="#docker">Docker</a> · <a href="README.md">English</a></p>
 
 ---
 
-`npm audit` nəyinsə boşluqlu olduğunu deyir. DepGate isə **nə etməli olduğunu** deyir:
+`npm audit` nəyinsə zəif olduğunu deyir. DepGate isə **nə etməli olduğunu** deyir:
 
 | Hər paket üçün | DepGate-in cavabı |
 |---|---|
 | ① **Yeniləmək lazımdır?** | Zərərli paket və critical/high CVE üçün **DƏRHAL** (CISA KEV + EPSS ilə çəkilir) · növbəti baxımda · planla · istəyə görə · lazım deyil |
-| ② **Koda təsir edir?** | **Xeyr** — patch/minor, bir əmr · **Ola bilər** — peer/engines münaqişəsi · **Bəli** — major, miqrasiya bələdçisi ilə |
-| 🎯 **Hansı versiya?** | «Ən təhlükəsiz minimum»: cari major-da boşluğu düzəldən ən kiçik versiya, «latest» yox |
-| 🔗 **Dolayı paketdirsə?** | Lockfile yeniləməsi → birbaşa valideynin yenilənməsi → hazır `overrides` bloku |
-| 🕵️ **Yeni versiyanın özü təhlükəsizdirmi?** | 3 gündən cavan versiyaları keçir; yeni install skriptini, itən provenance-ı, dəyişən dərc edəni və ya repo-nu işarələyir |
+| ② **Koda təsir edir?** | **Xeyr** — patch/minor, bir əmr · **Ola bilər** — peer/engines münaqişəsi · **Bəli** — breaking reliz |
+| 📍 **Kodumda harada?** | Dəyişməli olan hər yer — `fayl:sətir`, səbəb, əvəzinə nə yazmaq lazımdır — və rəsmi codemod |
+| 🎯 **Hansı versiya?** | «Ən təhlükəsiz minimum»: cari major-da zəifliyi olmayan ən kiçik versiya, səni sındıra biləcək «latest» yox |
+| 🔗 **Dolayı paketdirsə?** | Valideynin aralığı icazə verirsə lockfile yeniləməsi, yoxsa birbaşa valideynin yenilənməsi, o da olmasa hazır `overrides` bloku |
+| 🧩 **Tək yenilənir?** | `react` + `react-dom`, `next` + `eslint-config-next`, `@nestjs/*`, `@angular/*`… bir qrup və bir əmr kimi göstərilir |
+| 🕵️ **Yeni versiyanın özü təhlükəsizdirmi?** | 3 gündən yeni versiyaları keçir; yeni install skriptini, itən npm provenance-ı, dəyişən dərc edəni və ya repo-nu işarələyir |
+| 🤖 **AI agentim edə bilər?** | Bütün dəyişikliklərlə hazır bir prompt və agentin *sənin* versiyalarına görə kod yazması üçün `AGENTS.md` bloku |
 
-Hər şey sənin kompüterində işləyir. Kənara yalnız paket adları, versiyalar və CVE nömrələri gedir, kod heç vaxt getmir.
+Node.js runtime-ı, Dockerfile və compose faylları da yoxlanır. Hər şey sənin kompüterində işləyir və DepGate **heç bir faylı dəyişmir** — yalnız göstərir və təklif edir.
 
-![DepGate dashboard](docs/screenshot-az.png)
+![DepGate](docs/screenshot-az.png)
 
 ## Niyə indi
 
-2026-cı il npm təchizat zənciri üçün ən ağır il oldu: martda 100 milyondan çox həftəlik yüklənməsi olan [Axios ələ keçirildi](https://unit42.paloaltonetworks.com/axios-supply-chain-attack/), mayda [Mini Shai-Hulud](https://braindetox.kr/en/posts/npm_supply_chain_attack_2026.html) 22 dəqiqədə 314 paketi zərərli versiyalarla əvəz etdi, iyunda `binding.gyp` vasitəsilə [57 paket](https://threatcluster.io/cluster/large-scale-supply-chain-attack-targets-npm-packages-via-bin-4588b024) götürüldü, oktyabrda isə Node.js-in özündə Brotli RCE (CVE-2026-111497) daxil olmaqla [10 boşluq düzəldildi](https://securityonline.info/nodejs-security-release-october-2026/).
+2026-cı il npm təchizat zənciri üçün ən ağır il oldu:
 
-Faydalı olsa, ⭐ başqa developerlərin onu tapmasına kömək edir.
+- **Mart** — həftədə 100 milyondan çox yüklənən [Axios paketi](https://unit42.paloaltonetworks.com/axios-supply-chain-attack/) Şimali Koreya ilə əlaqəli qrup tərəfindən ələ keçirildi və arxa qapı ilə yayıldı.
+- **May** — [Mini Shai-Hulud qurdu](https://braindetox.kr/en/posts/npm_supply_chain_attack_2026.html) 22 dəqiqədə 314 paketi 637 zərərli versiya ilə əvəz etdi.
+- **İyun** — `binding.gyp` vasitəsilə [57 paket](https://threatcluster.io/cluster/large-scale-supply-chain-attack-targets-npm-packages-via-bin-4588b024) ələ keçirildi; kod `npm install` zamanı işləyirdi.
+- **Oktyabr** — Node.js-in özündə Brotli RCE (CVE-2026-111497) daxil olmaqla [10 zəiflik düzəldildi](https://securityonline.info/nodejs-security-release-october-2026/).
 
-## Quraşdırma
+Dependabot hər paket üçün ayrıca PR açır; `npm audit fix --force` major-ları atlayıb build-i sındıra bilər. DepGate bütün layihələrinin tam mənzərəsini runtime ilə birlikdə göstərir və hər biri üçün ən kiçik təhlükəsiz addımı verir.
+
+<a id="tez-başla"></a>
+## Tez başla
 
 ```bash
 go install github.com/Ali7Zeynalli/depgate@latest
-# və ya Releases-dən hazır binary (linux, macOS, Windows; amd64, arm64)
+depgate            # http://127.0.0.1:7777 açılır — parol təyin et, sonra «+ Layihə əlavə et»
 ```
+
+və ya Docker ilə:
+
+```bash
+git clone https://github.com/Ali7Zeynalli/depgate.git && cd depgate
+DEPGATE_UID=$(id -u) DEPGATE_GID=$(id -g) docker compose up -d
+```
+
+`http://127.0.0.1:7777` aç, parol seç və ev qovluğunun istənilən yerindən layihə əlavə et.
+
+Faydalı olsa, ⭐ başqa developerlərin onu tapmasına kömək edir.
+
+<a id="imkanlar"></a>
+## İmkanlar
+
+### 📍 Kodunda nə dəyişəcək
+
+"Koda təsir: Bəli" yazmaq kifayət deyil, ona görə DepGate **harada** dəyişəcəyini də göstərir. Yeniləmə sənədləşdirilmiş breaking reliz-dən keçirsə, layihənin öz fayllarını oxuyur və dəyişməli olan hər yeri sıralayır. Oxuma kompüterində gedir, heç nə göndərilmir. Hər yer üçün `fayl:sətir`, sətrin özü, niyə sınacağı və əvəzinə nə yazmaq lazım olduğu göstərilir. Əl ilə yoxlanmalı olan şeylər və mövcud olanda rəsmi codemod da yazılır. Belə yerlər tapılsa, kart «İndi et — kod dəyişir» qrupuna keçir.
+
+Dəqiq yerlərlə əhatə olunanlar: **Next.js 15 və 16, React 18 və 19, TanStack Query 5, ESLint 9, Tailwind CSS 4, Express 5, NestJS 11, Zod 4, Prisma 7, React Router 6 və 7**. Angular, Nx, Storybook və Expo üçün onların rəsmi upgrade alətləri göstərilir. Major yeniləməsi olan digər paketlər üçün sənin versiyan ilə hədəf arasındakı GitHub release-lərin *Breaking changes* bölmələri göstərilir.
+
+Təklif olunan hədəfdən sonra daha yeni major varsa, bağlı **«Yeni major-a keçsən»** bölməsi o keçidin nələrə toxunacağını göstərir. Beləcə onu bugünkü cavabı dəyişmədən planlaya bilərsən. Axtarış mətn nümunələrinə əsaslanır: hər yeri yoxla, sonra build və testləri işlət.
+
+![Kod dəyişiklikləri](docs/code-changes.png)
+
+### 🗂 Qovluqlar və monorepo-lar
+
+Qovluq əlavə edəndə (monorepo və ya bir neçə layihənin olduğu qovluq) sol paneldə bir başlıq kimi görünür, layihələri isə onun altında öz yolları ilə sıralanır. Qovluğun adına klikləyəndə hamısının ümumi səhifəsi açılır: layihələr cədvəli, cəm göstəricilər, sonra bütün tapıntılar kateqoriyalar üzrə. Eyni tapıntı bir neçə layihədə varsa, bir dəfə göstərilir: altında hansı layihələrdə olduğu və hər biri üçün `cd … && …` əmri yazılır. **Qovluğu skan et** və **Qovluğu sil** hamısına birlikdə təsir edir.
+
+![Qovluq səhifəsi](docs/folder-overview.png)
+
+### 🤖 AI prompt və AI qaydaları
+
+- **AI üçün prompt** (qovluqda və ya layihədə) Claude Code, Cursor və ya istənilən agent üçün bir tapşırıq yazır. Orada dəyişməli olan hər paket, harada olduğu, hansı versiyaya və niyə keçməli olduğu, advisory-lər, koda təsiri, kodundakı yerlər və codemod-lar olur. Qaydalar da var: əvvəl zərərli paketlər, ən təhlükəsiz minimum versiya, hər layihədən sonra build və testlər. Sonda agentin nəyi hesabat verməli olduğu yazılır.
+- **AI qaydaları** lockfile-dakı versiyalardan `AGENTS.md` / `CLAUDE.md` / `.cursor/rules` üçün blok hazırlayır. AI modelləri köhnə versiyalarla öyrədilib: Next.js 16 layihəsində `getServerSideProps`, ESLint 9-da `.eslintrc` yazırlar. Blokda bunlar olur:
+  - dəqiq stack;
+  - versiyaya uyğun qaydalar (Next.js, React, Tailwind, ESLint, Express, NestJS, Prisma, Zod, TanStack Query, React Router, TypeScript, Node.js), rəsmi upgrade bələdçilərinin linkləri ilə;
+  - köhnəlmiş paketlərin daxili və ya dəstəklənən əvəzləri (`request`, `moment`, `node-fetch`, `dotenv`, `rimraf` və s.).
+
+Hər ikisini kopyalaya və ya `.md` kimi yükləyə bilərsən; DepGate onları layihənə yazmır.
+
+![AI prompt](docs/ai-prompt.png)
+![AI qaydaları](docs/ai-rules.png)
+
+### 🧩 Birlikdə yenilə
+
+Bəzi paketlər həmişə birlikdə buraxılır: `react` + `react-dom` (+ uyğun `@types/react`), `next` + `eslint-config-next`, əsas `@nestjs/*` paketləri, `@angular/*`, Vue, Storybook, Nx, Prisma, typescript-eslint, Tiptap. Onlardan biri yeni versiyaya keçməlidirsə və ya versiyaları bir-birindən ayrılıbsa, DepGate bir kart göstərir: hər paket, onun hədəf versiyası və hamısı üçün bir əmr. Öz versiya xətti olan paketlər (məsələn `@nestjs/config`) qrupa salınmır.
+
+### 🐳 Docker təhlükəsizliyi
+
+Layihədəki və repo kökündəki Dockerfile və compose faylları 25 qayda ilə yoxlanır. Bunlara daxildir:
+- konteynerin root ilə işləməsi, `latest` teqləri;
+- `ENV`/`ARG`/`environment` içində sirlər;
+- `npm ci` əvəzinə `npm install`, `curl | sh`;
+- `.dockerignore`-un olmaması (bu halda `.env` image-ə düşə bilər);
+- `privileged`, Docker socket-in konteynerə bağlanması;
+- bütün interfeyslərə açılmış verilənlər bazası, host şəbəkəsi və ya PID, söndürülmüş seccomp/AppArmor.
+
+Hər tapıntıda fayl, sətir, servis və təklif olunan sətir göstərilir; sirlərin dəyəri heç vaxt göstərilmir.
+
+<a id="nə-yoxlayır"></a>
+## Nə yoxlayır
+
+- **Lockfile-lar:** `package-lock.json` (v1–v3), `pnpm-lock.yaml` (v5–v9), `yarn.lock` (v1 və Berry), `bun.lock`, workspace-lər daxil. Dolayı paketlər də yoxlanır. Lockfile yoxdursa `node_modules`-dan oxuyur, o da yoxdursa açıq işarələnmiş «təxmini» rejimə keçir.
+- **Zəifliklər və zərərli paketlər:** OSV.dev və npm advisory endpoint-i (`npm audit`-in məlumatı) təkrarsız birləşdirilir. `npm audit`-in buraxdığı prerelease versiyalar da yoxlanır.
+- **Silinmiş versiyalar:** npm-in artıq vermədiyi versiya. Bu halda təmiz quraşdırma alınmayacaq; npm zərərli versiyaları silir. `0.0.1-security` ilə əvəzlənmiş paket zərərli kimi göstərilir.
+- **Prioritet (0–100):** severity + [CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog) + [EPSS](https://www.first.org/epss/).
+- **Ən təhlükəsiz minimum hədəf:** eyni major xəttində zəifliyi olmayan ən kiçik versiya; gözləmə müddətindən yeni versiyalar keçilir.
+- **Dolayı paket düzəlişi:** relock → birbaşa valideynin yenilənməsi → `overrides` / `resolutions` bloku.
+- **Koda təsir:** semver fərqi, hədəf versiyanın `engines.node` və `peerDependencies` tələbləri və breaking relizin kodunda toxunduğu yerlər.
+- **Hədəf versiyada təchizat zənciri siqnalları:** yeni install skripti, itən npm provenance, fərqli dərc edən, dəyişən repo linki.
+- **Node.js runtime:** Dockerfile, `.nvmrc`, `.node-version`, `.tool-versions`, `engines`, GitHub Actions; təhlükəsizlik relizləri, EOL tarixləri və dəqiq versiyana aid CVE-lər.
+- **Docker:** Dockerfile və compose təhlükəsizliyi (yuxarıya bax).
+- **Layihə gigiyenası:** lockfile commit olunub, install skriptləri söndürülüb, gözləmə müddəti ayarlanıb, Node versiyası hər yerdə eynidir.
+
+<a id="mənbələr"></a>
+## Mənbələr
+
+Hər qərar açıq və pulsuz mənbələrə əsaslanır. **Mənbələr** düyməsi onları göstərir: hər mənbə nə üçün istifadə olunur və son skanda neçə sorğuya cavab verib (və ya alınmayıb). Eyni siyahının linki hər layihənin altında da var.
+
+| Mənbə | Nə üçün |
+|---|---|
+| [OSV.dev](https://osv.dev) | zəifliklər (CVE/GHSA) və zərərli paketlər — GitHub Advisory Database və OpenSSF Malicious Packages daxil |
+| [npm advisories](https://docs.npmjs.com/cli/commands/npm-audit) | `npm audit`-in mənbəyi: GitHub Advisory Database birbaşa, zərərli paketlər daxil — OSV-nin hələ almadığı qeydləri tutur |
+| [CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog) | real hücumlarda istifadə olunan zəifliklər (prioriteti qaldırır) |
+| [FIRST EPSS](https://www.first.org/epss/) | yaxın 30 gündə istismar ehtimalı (prioritetə təsir edir) |
+| [deps.dev](https://deps.dev) | paketin bütün versiyaları və buraxılış tarixləri (hədəf versiya, gözləmə müddəti) |
+| [npm registry](https://www.npmjs.com) | hədəf versiyanın `engines`, peer asılılıqları, install skriptləri, provenance, deprecated qeydi; lockfile-dakı versiyanın hələ mövcud olub-olmadığı |
+| [GitHub releases](https://docs.github.com/en/rest/releases/releases) | major yeniləmələrdə versiyan ilə hədəf arasındakı release-lərin breaking changes bölmələri |
+| [Node.js releases](https://nodejs.org/en/about/previous-releases) + [Node.js Security WG](https://github.com/nodejs/security-wg) | Node.js versiyaları, təhlükəsizlik relizləri, EOL tarixləri və dəqiq versiyana aid CVE-lər |
+
+Kompüterində oxunanlar heç yerə göndərilmir: `package.json`, lockfile, mənbə faylların («Kodunda nə dəyişəcək» üçün), Dockerfile və compose faylları, `.nvmrc` / `.node-version` / `engines` / CI faylları, `.npmrc`, `.dockerignore`.
+
+**Dəqiqlik.** `TestCompareNpmAudit` testi məlum zəif asılılıqları olan bir layihəni skan edir. Sonra `npm audit`-in tapdığı hər advisory-nin DepGate hesabatında da olduğunu yoxlayır (yazılan vaxt 71/71). Test GitHub Actions-da hər həftə işləyir (`accuracy` workflow). Lokal işlətmək üçün: `DEPGATE_LIVE=1 go test -run TestCompareNpmAudit -v ./internal/scan`.
+
+![Mənbələr](docs/sources.png)
 
 ## İstifadə
 
@@ -44,27 +149,34 @@ go install github.com/Ali7Zeynalli/depgate@latest
 depgate
 ```
 
-`http://127.0.0.1:7777` açılır; ilk dəfə parol təyin edirsən. Interfeys iki dillidir: brauzerin dili Azərbaycan dilidirsə, özü AZ açılır; yuxarıdakı **AZ / EN** düyməsi ilə yenidən skan etmədən dəyişir. **+ Layihə əlavə et** düyməsini bas, qovluqları gəz (`package.json` olanlar «layihə» kimi işarələnib) və layihəni seç. Bütöv qovluq da seçmək olar: altındakı bütün layihələr, monorepo üzvləri daxil, əlavə olunur və arxa planda skan edilir.
+`http://127.0.0.1:7777` açılır. İnterfeys iki dillidir (Azərbaycan / ingilis): brauzerin dilinə uyğun açılır, **AZ / EN** düyməsi isə yenidən skan etmədən dərhal dəyişir. **+ Layihə əlavə et** düyməsini bas, qovluqları gəz (`package.json` olanlar «layihə» kimi işarələnib) və layihəni seç. Bütöv qovluq da seçmək olar: altındakı bütün layihələr, monorepo üzvləri daxil, əlavə olunur və arxa planda skan edilir.
 
-Layihə siyahısı və son hesabatlar yadda qalır (`~/.config/depgate`), növbəti dəfə hamısı yerindədir. Hər layihə üçün **Skan et** və **Siyahıdan sil**, hamısı üçün **Hamısını skan et**. Layihə qovluğunda `depgate` (və ya `depgate ~/projects`) yazsan, dərhal əlavə olunur.
+Layihə siyahısı və son hesabatlar yadda qalır (`~/.config/depgate`), növbəti dəfə hamısı yerindədir. Hər layihə üçün **Skan et**, **Siyahıdan sil**, **AI qaydaları**, **AI üçün prompt** düymələri var. Qovluqda eyniləri bütün layihələrinə təsir edir. Yuxarıda **Hamısını skan et** var. Layihə qovluğunda `depgate` (və ya `depgate ~/projects`) yazsan, dərhal əlavə olunur.
 
 Qovluq seçici yalnız icazə verilən kökləri göstərir (standart: ev qovluğu; `--root` ilə dəyişir).
 
 ![Layihə əlavə etmək](docs/add-project.png)
 
+<a id="docker"></a>
 ### Docker
 
 ```bash
-git clone https://github.com/Ali7Zeynalli/depgate.git && cd depgate
 DEPGATE_UID=$(id -u) DEPGATE_GID=$(id -g) docker compose up -d
 ```
 
-`http://127.0.0.1:7777` aç, parol təyin et və ev qovluğunun istənilən yerindən layihə əlavə et.
+və ya compose-suz:
 
-- **Ev qovluğun eyni yolla, yalnız oxuma rejimində bağlanır** — interfeysdə real yollar (`/home/sən/...`) görünür, heç nəyi köçürmək lazım deyil. DepGate ora heç nə yazmır.
-- Konteyner **sənin istifadəçinlə** işləyir (`DEPGATE_UID`/`DEPGATE_GID`, standart 1000) ki, fayllarını oxuya bilsin; əvvəlcə qısa `depgate-init` addımı data volume-unu həmin istifadəçiyə verir (köhnə versiyaların yaratdığı volume-ları da düzəldir).
-- Siyahı, hesabatlar və parol hash-ı **`depgate-data` Docker volume-unda** saxlanır (yenidən başlatma və yeniləmədə itmir). Docker-siz `depgate` ilə ortaq istifadə etmək istəsən, volume-u `${HOME}/.config/depgate:/data` ilə əvəz et (`docker-compose.yml`-dəki şərhə bax).
-- Port yalnız `127.0.0.1`-də açılır. `DEPGATE_PASSWORD=…` parolu brauzer əvəzinə əvvəlcədən təyin edir.
+```bash
+docker run -d --name depgate -p 127.0.0.1:7777:7777 --user "$(id -u):$(id -g)" \
+  -e HOME=$HOME -e DEPGATE_ROOTS=$HOME \
+  -v $HOME:$HOME:ro -v depgate-data:/data \
+  --read-only --tmpfs /tmp --cap-drop ALL ghcr.io/ali7zeynalli/depgate:latest
+```
+
+- **Ev qovluğun eyni yolla, yalnız oxuma rejimində bağlanır.** Ona görə interfeysdə real yollar görünür və heç nəyi köçürmək lazım deyil. DepGate ora heç nə yazmır.
+- Konteyner **sənin istifadəçinlə** işləyir (`DEPGATE_UID`/`DEPGATE_GID`, standart 1000) ki, fayllarını oxuya bilsin. Əvvəlcə qısa `depgate-init` addımı data volume-unu həmin istifadəçiyə verir; köhnə versiyaların yaratdığı volume-ları da düzəldir.
+- Siyahı, hesabatlar və parol hash-ı **`depgate-data` Docker volume-unda** saxlanır və yenidən başlatmada və yeniləmədə itmir. Docker-siz `depgate` ilə ortaq istifadə etmək istəsən, volume-u `${HOME}/.config/depgate:/data` ilə əvəz et (`docker-compose.yml`-dəki şərhə bax).
+- Port yalnız `127.0.0.1`-də açılır. `DEPGATE_PASSWORD=…` parolu əvvəlcədən təyin edir; `DEPGATE_GITHUB_TOKEN=…` release notes üçün GitHub limitini artırır.
 
 ### Bir dəfəlik rejimlər
 
@@ -81,87 +193,30 @@ depgate --offline            # şəbəkəsiz, yalnız keşdən
 | `--port` | Veb interfeysin portu (məşğuldursa növbəti) | 7777 |
 | `--addr` | Dinlənilən ünvan | 127.0.0.1 (Docker-də 0.0.0.0) |
 | `--root` | Gəzilə bilən qovluq (təkrarlana bilər; `DEPGATE_ROOTS`) | ev qovluğu |
-| `--data` | Siyahı, hesabatlar, token (`DEPGATE_DATA`) | `~/.config/depgate` |
-| `--allow-host` | Əlavə icazəli `Host` adı (təkrarlana bilər) | — |
+| `--data` | Siyahı, hesabatlar, parol hash-ı (`DEPGATE_DATA`) | `~/.config/depgate` |
+| `--allow-host` | Əlavə icazəli `Host` adı, məsələn lokal şəbəkə adı (təkrarlana bilər) | — |
 | `--reset-password` | Parolu unut; növbəti açılışda yenisi istənir | — |
 | `--no-auth` | Parolu söndür (yalnız 127.0.0.1; tövsiyə olunmur) | söndürülüb |
 | `--no-open` | Brauzeri avtomatik açmır | açır |
+| `--offline` | Şəbəkəyə heç vaxt çıxmır | söndürülüb |
 | `--depth` | Layihə axtarışının dərinliyi | 3 |
+| `--cooldown` | Bundan yeni versiyaları (gün) hədəf seçmir | 3 |
+| `--json`, `--view`, `--ci`, `--fail-on`, `--push`, `--token` | Yuxarıdakı bir dəfəlik rejimlər | — |
 
-Terminal mesajları standart olaraq ingiliscədir; `DEPGATE_LANG=az` ilə Azərbaycan dilinə keçir.
-| `--cooldown` | Bundan cavan versiyaları (gün) hədəf seçmir | 3 |
-
-## Nə yoxlayır
-
-- **Paketlər:** `package-lock.json` (v1–v3), `pnpm-lock.yaml` (v5–v9), `yarn.lock` (v1 və berry), `bun.lock`. Dolayı paketlər daxil. Lockfile yoxdursa `node_modules`-dan oxuyur, o da yoxdursa «təxmini» rejimə keçir.
-- **Boşluqlar və zərərli paketlər:** [OSV.dev](https://osv.dev) (GitHub Advisory və OpenSSF Malicious Packages daxil).
-- **Prioritet:** severity + [CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog) + [EPSS](https://www.first.org/epss/).
-- **Hədəf versiya — «ən təhlükəsiz minimum»:** eyni major xəttində boşluğu düzəldən ən kiçik versiya; 3 gündən cavan versiyalar keçilir.
-- **Dolayı paket:** relock → birbaşa valideynin yenilənməsi → override bloku.
-- **Koda təsir:** semver fərqi, hədəf versiyanın `engines.node` və `peerDependencies` tələbləri.
-- **Təchizat zənciri siqnalları:** yeni install skripti, itən provenance, dərc edən hesabın dəyişməsi, repo linkinin dəyişməsi.
-- **Node.js runtime:** Dockerfile, `.nvmrc`, `.node-version`, `.tool-versions`, `engines`, GitHub Actions; təhlükəsizlik relizləri və EOL tarixləri.
-- **Layihə gigiyenası:** lockfile, install skriptləri, cooldown ayarı, Node versiyasının uyğunluğu.
-
-## Qovluqlar və AI prompt
-
-Qovluq əlavə edəndə (monorepo və ya bir neçə layihənin olduğu qovluq) sol paneldə bir başlıq kimi görünür, layihələri isə onun altında sıralanır. Qovluğun adına klikləyəndə bütün layihələrin ümumi səhifəsi açılır: əvvəl layihələr cədvəli, sonra bütün tapıntılar kateqoriyalar üzrə. Eyni tapıntı bir neçə layihədə varsa, bir dəfə göstərilir: altında hansı layihələrdə olduğu və hər biri üçün işlədiləcək əmr yazılır.
-
-**AI üçün prompt** (qovluqda və ya tək layihədə) Claude Code, Cursor və ya başqa agent üçün bir tapşırıq yazır. Orada hər paket üçün harada olduğu, hansı versiyaya və niyə yenilənməli olduğu, advisory-lər, koda təsiri və dəqiq əmr göstərilir. Qaydalar da var: əvvəl zərərli paketlər, ən təhlükəsiz minimum versiya, build və testləri işlətmək. Sonda agentin nəyi hesabat verməli olduğu yazılır. Promptu kopyalaya və ya `.md` kimi yükləyə bilərsən.
-
-![Qovluq səhifəsi](docs/folder-overview.png)
-![AI prompt](docs/ai-prompt.png)
-![AI rules](docs/ai-rules.png)
-
-## Kodunda nə dəyişəcək
-
-"Koda təsir: Bəli" yazmaq kifayət deyil, ona görə DepGate **harada** dəyişəcəyini də göstərir. Yeniləmə sənədləşdirilmiş breaking reliz-dən keçirsə, layihənin öz fayllarını oxuyur və dəyişməli olan hər yeri sıralayır. Oxuma kompüterində gedir, heç nə göndərilmir. Hər yer üçün `fayl:sətir`, sətrin özü, niyə sınacağı və əvəzinə nə yazmaq lazım olduğu göstərilir. Əl ilə yoxlanmalı olan şeylər və mövcud olanda rəsmi codemod da yazılır.
-
-Əhatə olunanlar: Next.js 15 və 16, React 18 və 19, TanStack Query 5, ESLint 9, Tailwind CSS 4, Express 5, NestJS 11, Zod 4, Prisma 7, React Router 6 və 7, həmçinin Angular, Nx, Storybook və Expo-nun rəsmi upgrade alətləri. Major yeniləməsi olan digər paketlər üçün DepGate sənin versiyan ilə hədəf arasındakı GitHub release-lərin "Breaking changes" bölmələrini göstərir. GitHub saatda 60 sorğu limiti qoyur, `DEPGATE_GITHUB_TOKEN` bu limiti artırır.
-
-Təklif olunan hədəfdən sonra daha yeni major varsa, bağlı **"Yeni major-a keçsən"** bölməsi o keçidin nələrə toxunacağını göstərir, ki onu planlaya biləsən. Axtarış mətn nümunələrinə əsaslanır: hər yeri yoxla, sonra build və testləri işlət. Bunların hamısı AI promptuna da düşür.
-
-![Kod dəyişiklikləri](docs/code-changes.png)
-
-## Birlikdə yenilə, Docker, AI qaydaları
-
-DepGate heç bir faylı dəyişmir. Aşağıdakıların hamısını yalnız göstərir və təklif edir; tətbiq etmək sənin (və ya AI agentinin) işidir.
-
-- **Birlikdə yenilə.** Bəzi paketlər həmişə birlikdə buraxılır: `react` + `react-dom` (+ uyğun `@types/react`), `next` + `eslint-config-next`, əsas `@nestjs/*` paketləri, `@angular/*`, Vue, Storybook, Nx, Prisma, typescript-eslint, Tiptap. Onlardan biri yeni versiyaya keçməlidirsə və ya versiyaları bir-birindən ayrılıbsa, DepGate bir kart göstərir: hər paket, onun hədəf versiyası və hamısı üçün bir əmr. Öz versiya xətti olan paketlər (məsələn `@nestjs/config`) qrupa salınmır.
-- **Docker təhlükəsizliyi.** Layihədəki və repo kökündəki Dockerfile və compose faylları yoxlanır: konteynerin root ilə işləməsi, `latest` teqləri, `ENV`/`ARG`/`environment` içində sirlər, `npm ci` əvəzinə `npm install`, `curl | sh`, `.dockerignore`-un olmaması (bu halda `.env` image-ə düşə bilər), `privileged`, Docker socket-in konteynerə bağlanması, bütün interfeyslərə açılmış verilənlər bazası, host şəbəkəsi və PID, söndürülmüş seccomp/AppArmor və s. Hər tapıntıda fayl, sətir, servis və təklif olunan sətir göstərilir.
-- **AI qaydaları.** AI modelləri köhnə versiyalarla öyrədilib: Next.js 16 layihəsində `getServerSideProps`, ESLint 9-da `.eslintrc` yazırlar. **AI qaydaları** lockfile-dakı versiyalardan `AGENTS.md` / `CLAUDE.md` / `.cursor/rules` üçün blok hazırlayır. Blokda dəqiq stack, versiyaya uyğun qaydalar (Next.js, React, Tailwind, ESLint, Express, NestJS, Prisma, Zod, TanStack Query, React Router, TypeScript, Node.js; hər biri rəsmi upgrade bələdçisinin linki ilə) və köhnəlmiş paketlərin daxili və ya dəstəklənən əvəzləri (`request`, `moment`, `node-fetch`, `dotenv`, `rimraf` və s.) olur. Bloku kopyalaya və ya `.md` kimi yükləyə bilərsən.
-
-## Mənbələr
-
-Hər qərar açıq və pulsuz mənbələrə əsaslanır. İnterfeysdəki **Mənbələr** düyməsi onları göstərir: hər mənbə nə üçün istifadə olunur və son skanda neçə sorğuya cavab verib (və ya alınmayıb). Eyni siyahının linki hər layihənin altında da var.
-
-| Mənbə | Nə üçün |
+| Mühit dəyişəni | Nə edir |
 |---|---|
-| [OSV.dev](https://osv.dev) | zəifliklər (CVE/GHSA) və zərərli paketlər — GitHub Advisory Database və OpenSSF Malicious Packages daxil |
-| [npm advisories](https://docs.npmjs.com/cli/commands/npm-audit) | `npm audit`-in mənbəyi: GitHub Advisory Database birbaşa, zərərli paketlər daxil — OSV-nin hələ almadığı qeydləri tutur |
-| [CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog) | real hücumlarda istifadə olunan zəifliklər (prioriteti qaldırır) |
-| [FIRST EPSS](https://www.first.org/epss/) | yaxın 30 gündə istismar ehtimalı (prioritetə təsir edir) |
-| [deps.dev](https://deps.dev) | paketin bütün versiyaları və buraxılış tarixləri (hədəf versiya, gözləmə müddəti) |
-| [npm registry](https://www.npmjs.com) | hədəf versiyanın `engines`, peer asılılıqları, install skriptləri, provenance, deprecated qeydi |
-| [GitHub releases](https://docs.github.com/en/rest/releases/releases) | major yeniləmələrdə versiyan ilə hədəf arasındakı release-lərin breaking changes bölmələri |
-| [Node.js releases](https://nodejs.org/en/about/previous-releases) + [Node.js Security WG](https://github.com/nodejs/security-wg) | Node.js versiyaları, təhlükəsizlik relizləri, EOL tarixləri və dəqiq versiyana aid CVE-lər |
-
-Əlavə mənbə tələb etməyən iki yoxlama:
-
-- **Silinmiş versiyalar.** Lockfile-dakı versiya npm registry-də artıq yoxdursa, DepGate bunu göstərir: təmiz quraşdırma alınmayacaq, npm isə zərərli versiyaları silir. npm bütün paketi `0.0.1-security` ilə əvəz edibsə, bu zərərli paket kimi göstərilir. Workspace və özəl paketlər yoxlanmır.
-- **Prerelease versiyalar.** `npm audit` `2.0.0-beta.1` kimi versiyaları advisory aralıqları ilə müqayisə etmir, DepGate isə edir.
-
-**Dəqiqlik.** `TestCompareNpmAudit` testi məlum zəif asılılıqları olan bir layihəni skan edir və `npm audit`-in tapdığı hər advisory-nin DepGate hesabatında da olduğunu yoxlayır (yazılan vaxt 71/71). Test GitHub Actions-da hər həftə işləyir (`accuracy` workflow). Lokal işlətmək üçün: `DEPGATE_LIVE=1 go test -run TestCompareNpmAudit -v ./internal/scan`.
-
-Kompüterində oxunanlar: `package.json`, lockfile, Dockerfile / `.nvmrc` / `.node-version` / `engines` / CI faylları, `.npmrc`.
-
-![Mənbələr](docs/sources.png)
+| `DEPGATE_PASSWORD` | Parolu əvvəlcədən təyin edir (ən azı 8 simvol) |
+| `DEPGATE_GITHUB_TOKEN` | Release notes üçün GitHub token-i (heç bir icazə lazım deyil), saatda 60 sorğu limitini artırır; `GITHUB_TOKEN` də işləyir |
+| `DEPGATE_TOKEN` | Skriptlər üçün API token-i (`Authorization: Bearer …`) |
+| `DEPGATE_ROOTS`, `DEPGATE_DATA` | `--root` və `--data` ilə eynidir |
+| `DEPGATE_PUSH_TOKEN` | `--push` üçün token |
+| `DEPGATE_LANG=az` | Terminal mesajları Azərbaycan dilində |
 
 ## Kənara nə gedir
 
-Yalnız paket adları və versiyalar (OSV, deps.dev, npm registry və onun advisory endpoint-i), CVE nömrələri (EPSS). Kod, fayl yolları, layihə adları, `.env` heç vaxt getmir. Cavablar `~/.cache/depgate/` qovluğunda keşlənir.
+Kompüterindən yalnız açıq paket məlumatı çıxır: paket adları və versiyalar (OSV, npm, deps.dev), CVE nömrələri (EPSS) və major yeniləməsi olan paketlərin GitHub repo adları (release notes üçün). Kod, fayl yolları, layihə adları və `.env` faylları heç vaxt getmir. Cavablar `~/.cache/depgate/` qovluğunda keşlənir.
 
-Veb interfeys `127.0.0.1`-də işləyir (Docker-də host-un `127.0.0.1`-inə açılır), parolla qorunur, `Host` başlığını yoxlayır, CSP aktivdir. Qovluq gəzmə icazəli köklərlə məhdudlaşır və DepGate layihələri yalnız oxuyur.
+Veb interfeys `127.0.0.1`-də işləyir (Docker-də host-un `127.0.0.1`-inə açılır) və parolla qorunur. Həmçinin `Host` başlığını yoxlayır və sərt Content Security Policy göndərir. Qovluq gəzmə icazəli köklərlə məhdudlaşır və DepGate layihələri yalnız oxuyur.
 
 ## Parol niyə lazımdır?
 
@@ -188,6 +243,8 @@ go vet ./...
 go run . ./testdata/lockfiles/npm-v3
 ```
 
+Yalnız standart kitabxana, üçüncü tərəf Go modulu yoxdur. [CONTRIBUTING.md](CONTRIBUTING.md)-yə bax. Təhlükəsizlik bildirişləri: [SECURITY.md](SECURITY.md).
+
 ## Lisenziya
 
-MIT
+[MIT](LICENSE)
