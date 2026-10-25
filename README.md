@@ -65,10 +65,12 @@ DEPGATE_UID=$(id -u) DEPGATE_GID=$(id -g) docker compose up -d
 
 Open `http://127.0.0.1:7777`, choose a password and add projects from anywhere in your home folder.
 
-Connect your AI agent to a project (see [MCP](#mcp)):
+Connect your AI agent to a project (see [MCP](#mcp)) — easiest with the **AI agent (MCP)** button, which fills in the path and token; by hand:
 
 ```bash
-cd ~/projects/shop && claude mcp add depgate -s project -- depgate mcp --project "$PWD"
+cd ~/projects/shop && claude mcp add --transport http depgate -s local \
+  "http://127.0.0.1:7777/mcp?project=$PWD" --header "Authorization: Bearer $(depgate --print-token)"
+# token in Docker:  docker exec depgate depgate --print-token
 ```
 
 If DepGate saves you a bad afternoon, a ⭐ helps other developers find it.
@@ -108,10 +110,22 @@ Both can be copied or downloaded as `.md`; DepGate does not write them into your
 `depgate mcp` is a [Model Context Protocol](https://modelcontextprotocol.io) server, so Claude Code, Cursor, VS Code or any MCP client can ask DepGate itself instead of you pasting prompts. It works **per project**: tools act on the project the agent runs in (or the one set with `--project`), and any call can name another one — a path, a package name or a folder inside a monorepo such as `apps/api`.
 
 ```bash
-cd ~/projects/shop && claude mcp add depgate -s project -- depgate mcp --project "$PWD"
-# DepGate in Docker:
-claude mcp add depgate -s project -- docker exec -i depgate depgate mcp --project "$PWD"
+# over HTTP to the running DepGate (recommended: same data as the UI, works with Docker)
+cd ~/projects/shop && claude mcp add --transport http depgate -s local \
+  "http://127.0.0.1:7777/mcp?project=$PWD" --header "Authorization: Bearer $(depgate --print-token)"
+# token in Docker:  docker exec depgate depgate --print-token
+# or over stdio, the agent starts DepGate itself
+cd ~/projects/shop && claude mcp add depgate -s local -- depgate mcp --project "$PWD"
 ```
+
+**Where the agent's data comes from**
+
+| Connection | Data | Use it when |
+|---|---|---|
+| **HTTP** — `http://127.0.0.1:7777/mcp?project=…` with the DepGate token | the running DepGate server: the same projects and reports as the UI | always recommended; DepGate runs in Docker; the agent runs on another machine (start DepGate with `--addr 0.0.0.0 --allow-host <name>`, keep the token secret) |
+| **stdio** — `depgate mcp --project …` | the local data folder (`~/.config/depgate`), or the container's with `docker exec -i depgate depgate mcp` | no server running; CI; offline |
+
+If stdio finds no local projects while a DepGate server is running, it says so and points to the HTTP connection. `/mcp` accepts only the `Authorization: Bearer` token (no browser session), rejects foreign `Origin` headers and only reads folders under DepGate's roots.
 
 The **AI agent (MCP)** button on every project and folder shows these commands with the path filled in, plus the JSON for Cursor and other clients.
 
@@ -123,6 +137,7 @@ The **AI agent (MCP)** button on every project and folder shows these commands w
 | `get_code_changes` | for one package: `file:line` places to change, codemod, checks, release notes |
 | `get_ai_rules` | the exact stack and version rules for writing code |
 | `check_package` | **before every install**: is `name@version` safe — vulnerabilities, malware, removed or brand-new versions, install scripts, provenance, Node and peer fit — and which version to use instead |
+| `get_docker_issues` | Dockerfile, compose and image findings with file, line, why and the line to use |
 | `scan_project` | rescan after changes and confirm |
 | `list_projects` | every project DepGate knows |
 
@@ -134,9 +149,17 @@ The server shares DepGate's data folder (same projects and reports as the UI), s
 
 Some packages are released in lockstep: `react` + `react-dom` (+ matching `@types/react`), `next` + `eslint-config-next`, the core `@nestjs/*` packages, `@angular/*`, Vue, Storybook, Nx, Prisma, typescript-eslint, Tiptap. When one of them needs a new version, or their versions have drifted apart, DepGate shows one card with every member, its target and a single command. Packages versioned on their own (for example `@nestjs/config`) stay out.
 
-### 🐳 Docker security
+### 🐳 Docker: security, Compose standard, images
 
-Dockerfiles and compose files in the project and its repo root are checked: running as root, `latest` tags, secrets in `ENV`/`ARG`/`environment`, `npm install` instead of `npm ci`, `curl | sh`, a missing `.dockerignore` (so `.env` can end up in the image), `privileged`, the Docker socket mounted into a container, databases published on all interfaces, host network or PID, unconfined seccomp/AppArmor, and more — 25 rules. Each finding has the file, line, service and a suggested line; secret values are never shown.
+Dockerfiles and compose files in the project and its repo root get three kinds of checks, each finding with file, line, service and the line to use instead (secret values are never shown):
+
+- **Security** (25 rules): running as root, `latest` tags, secrets in `ENV`/`ARG`/`environment`, `npm install` instead of `npm ci`, `curl | sh`, a missing `.dockerignore` (so `.env` can end up in the image), `privileged`, the Docker socket mounted into a container, databases published on all interfaces, host network or PID, unconfined seccomp/AppArmor, and more.
+- **Compose Specification:** unknown or misspelled keys (`enviroment` → `environment`), volumes and networks used but not declared, `depends_on` pointing at a missing service, `condition: service_healthy` on a service without a healthcheck, missing `env_file` and build folders, the obsolete `version:` key, legacy `links` — plus production basics that are missing: healthchecks, restart policies, memory limits.
+- **Images** (from [endoflife.date](https://endoflife.date)): end-of-life release lines (`redis:6.2`, `postgres:12`, `python:3.8`), lines that end within four months, pinned versions behind the newest patch (`postgres:15.2` → `15.14`), and end-of-life OS variants (`node:18-buster`, `…-alpine3.16`) — for postgres, redis, nginx, python, mysql, mariadb, mongo, php, golang, ruby, rabbitmq, elasticsearch, alpine, debian, ubuntu and more. Node.js images are covered by the Node.js card.
+
+DepGate does not pull images, so it cannot list the CVEs of the system packages *inside* an image; use an image scanner such as Trivy for that. An end-of-life base image or OS is the strongest sign that those CVEs will never be fixed.
+
+![Docker](docs/docker.png)
 
 <a id="what-it-checks"></a>
 ## What it checks
@@ -167,6 +190,7 @@ Every decision is based on public, free sources. The **Sources** button lists th
 | [deps.dev](https://deps.dev) | every version of a package and its publish date (safest target, cooldown) |
 | [npm registry](https://www.npmjs.com) | the target version's `engines`, peer dependencies, install scripts, provenance, deprecation; whether a locked version still exists |
 | [GitHub releases](https://docs.github.com/en/rest/releases/releases) | breaking-change sections of the releases between your version and the target (major updates) |
+| [endoflife.date](https://endoflife.date) | support dates and latest patch releases of the Docker images you use |
 | [Node.js releases](https://nodejs.org/en/about/previous-releases) + [Node.js Security WG](https://github.com/nodejs/security-wg) | Node.js versions, security releases, end-of-life dates, and the CVEs that affect your exact version |
 
 Read locally, never sent: `package.json`, the lockfile, your source files (for *What changes in your code*), Dockerfiles and compose files, `.nvmrc` / `.node-version` / `engines` / CI files, `.npmrc`, `.dockerignore`.
@@ -230,6 +254,7 @@ depgate mcp --project DIR    # MCP server for AI agents (stdio)
 | `--root` | Folder the UI may browse (repeatable; `DEPGATE_ROOTS`) | home directory |
 | `--data` | Project list, reports, password hash (`DEPGATE_DATA`) | `~/.config/depgate` |
 | `--allow-host` | Extra allowed `Host` name, e.g. a LAN name (repeatable) | — |
+| `--print-token` | Print the API/MCP token (Docker: `docker exec depgate depgate --print-token`) | — |
 | `--reset-password` | Forget the UI password; the next visit asks for a new one | — |
 | `--no-auth` | Disable the password (127.0.0.1 only; not recommended) | off |
 | `--no-open` | Don't open the browser | opens |
@@ -250,7 +275,7 @@ depgate mcp --project DIR    # MCP server for AI agents (stdio)
 
 ## Privacy
 
-Only public package data leaves your machine: package names and versions (OSV, npm, deps.dev), CVE IDs (EPSS), and the GitHub repository names of packages that get a major update (release notes). Source code, file paths, project names and `.env` files never do. Responses are cached in `~/.cache/depgate/`.
+Only public package data leaves your machine: package names and versions (OSV, npm, deps.dev), CVE IDs (EPSS), the GitHub repository names of packages that get a major update (release notes), and the product names of your Docker images (endoflife.date). Source code, file paths, project names and `.env` files never do. Responses are cached in `~/.cache/depgate/`.
 
 The UI binds to `127.0.0.1` (in Docker: published on the host's `127.0.0.1`), is protected by your password, checks the `Host` header and sends a strict Content Security Policy. Folder browsing is limited to the allowed roots, and DepGate only ever reads your projects.
 

@@ -11,6 +11,7 @@ import (
 	"github.com/Ali7Zeynalli/depgate/internal/airules"
 	"github.com/Ali7Zeynalli/depgate/internal/decide"
 	"github.com/Ali7Zeynalli/depgate/internal/docker"
+	"github.com/Ali7Zeynalli/depgate/internal/images"
 	"github.com/Ali7Zeynalli/depgate/internal/lockfile"
 	"github.com/Ali7Zeynalli/depgate/internal/project"
 	"github.com/Ali7Zeynalli/depgate/internal/report"
@@ -144,6 +145,8 @@ func One(ctx context.Context, d *decide.Data, dir string, opt Options) report.Pr
 	p.Errors = append(p.Errors, errs...)
 	p.Hygiene = project.Hygiene(abs, root, lr.Manager, lr.Kind, mismatch, opt.CooldownDays)
 	p.Docker, p.DockerFiles = docker.Scan(abs, root)
+	p.Docker = append(p.Docker, images.Check(ctx, d.F, docker.ImageRefs(abs, root), opt.Now)...)
+	docker.SortIssues(p.Docker)
 	p.Summary = Summarize(p.Findings)
 	sort.SliceStable(p.Errors, func(i, j int) bool { return p.Errors[i] < p.Errors[j] })
 	return p

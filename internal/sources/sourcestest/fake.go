@@ -33,6 +33,7 @@ type Fake struct {
 	Removed  map[string]bool                  // "name@ver" npm no longer serves
 	NodeCore map[string]sources.NodeVuln      // Node.js security WG core vulnerabilities
 	Releases map[string][]sources.Release     // GitHub releases by "owner/repo"
+	EOL      map[string][]map[string]any      // endoflife.date cycles (original API format) by product
 	// Match decides whether a vuln applies to name@version (set to decide.Affects by callers).
 	Match func(v *sources.Vuln, name, version string) bool
 
@@ -40,7 +41,7 @@ type Fake struct {
 }
 
 func New(now time.Time) *Fake {
-	return &Fake{Now: now, Vulns: map[string]*sources.Vuln{}, Versions: map[string][]Version{}, Manifest: map[string]map[string]any{}, EPSS: map[string]float64{}, Schedule: map[string]sources.NodeLine{}, NpmAdv: map[string][]sources.NpmAdvisory{}, Removed: map[string]bool{}, NodeCore: map[string]sources.NodeVuln{}, Releases: map[string][]sources.Release{}}
+	return &Fake{Now: now, Vulns: map[string]*sources.Vuln{}, Versions: map[string][]Version{}, Manifest: map[string]map[string]any{}, EPSS: map[string]float64{}, Schedule: map[string]sources.NodeLine{}, NpmAdv: map[string][]sources.NpmAdvisory{}, Removed: map[string]bool{}, NodeCore: map[string]sources.NodeVuln{}, Releases: map[string][]sources.Release{}, EOL: map[string][]map[string]any{}}
 }
 
 // Old returns versions published long ago (past any cooldown).
@@ -166,6 +167,15 @@ func (f *Fake) Do(ctx context.Context, method, u string, body []byte, _ map[stri
 			}
 		}
 		return json.Marshal(out)
+	case strings.HasPrefix(u, "https://endoflife.date/api/"):
+		if strings.Contains(u, "/v1/") {
+			return nil, sources.ErrNotFound // tests use the original format
+		}
+		cs, ok := f.EOL[strings.TrimSuffix(strings.TrimPrefix(u, "https://endoflife.date/api/"), ".json")]
+		if !ok {
+			return nil, sources.ErrNotFound
+		}
+		return json.Marshal(cs)
 	case strings.Contains(u, "api.github.com/repos/"):
 		repo := strings.TrimSuffix(strings.SplitN(strings.TrimPrefix(u, "https://api.github.com/repos/"), "/releases", 2)[0], "/")
 		return json.Marshal(f.Releases[repo])

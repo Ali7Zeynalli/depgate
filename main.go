@@ -53,6 +53,7 @@ type config struct {
 	version   bool
 	health    bool
 	resetPw   bool
+	printTok  bool
 	chownData string
 	noAuth    bool
 	view      string
@@ -105,6 +106,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	fs.StringVar(&c.token, "token", os.Getenv("DEPGATE_PUSH_TOKEN"), "bearer token for --push (or DEPGATE_PUSH_TOKEN)")
 	fs.BoolVar(&c.version, "version", false, "print the version")
 	fs.BoolVar(&c.health, "health", false, "check a running server (Docker HEALTHCHECK); exit 0 = healthy")
+	fs.BoolVar(&c.printTok, "print-token", false, "print the API/MCP token (for agents connecting to /mcp) and exit")
 	fs.BoolVar(&c.resetPw, "reset-password", false, "forget the UI password; the next visit asks for a new one")
 	fs.StringVar(&c.chownData, "chown-data", "", "UID:GID — give the data folder to this user and exit (Docker init step, needs root)")
 	fs.BoolVar(&c.noAuth, "no-auth", false, "disable the UI password (only allowed on 127.0.0.1; not recommended)")
@@ -151,6 +153,18 @@ func run(args []string, stdout, stderr io.Writer) int {
 		}
 		return 0
 	}
+	if c.printTok {
+		st, err := store.Open(dataDir)
+		if err == nil {
+			var tok string
+			if tok, err = st.Token(); err == nil {
+				fmt.Fprintln(stdout, tok)
+				return 0
+			}
+		}
+		fmt.Fprintln(stderr, "depgate:", err)
+		return 1
+	}
 	if c.resetPw {
 		if err := auth.Reset(dataDir); err != nil {
 			fmt.Fprintln(stderr, "depgate:", err)
@@ -171,7 +185,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintln(stderr, L("depgate: depgate/report@1 hesabatı deyil:", "depgate: not a depgate/report@1 report:"), c.view)
 			return 2
 		}
-		return serve(ctx, c, app.ReadOnly(&rep), web.NewToken(), nil, stderr)
+		return serve(ctx, c, app.ReadOnly(&rep), web.NewToken(), nil, stderr, nil)
 	}
 
 	opt := scan.Options{Version: version, CooldownDays: c.cooldown, Offline: c.offline}
@@ -276,7 +290,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		}
 	}
 	fmt.Fprintf(stderr, L("Yadda saxlanan layihələr: %d · Kök qovluqlar: %s\n", "Remembered projects: %d · Browsable roots: %s\n"), len(st.Projects()), strings.Join(roots, ", "))
-	return serve(ctx, c, m, token, au, stderr)
+	mcpSrv := &mcp.Server{Store: st, Fetcher: fetcher, Opt: opt, Version: version, Roots: roots, Log: stderr}
+	return serve(ctx, c, m, token, au, stderr, mcpSrv.HTTPHandler())
 }
 
 // permArgs orders the arguments of the permission message for the current language.
@@ -368,14 +383,14 @@ func within(p string, roots []string) bool {
 	return false
 }
 
-func serve(ctx context.Context, c config, b web.Backend, token string, au *auth.Auth, stderr io.Writer) int {
+func serve(ctx context.Context, c config, b web.Backend, token string, au *auth.Auth, stderr io.Writer, mcpH http.Handler) int {
 	ln, port, err := web.Listen(c.addr, c.port)
 	if err != nil {
 		fmt.Fprintln(stderr, L("depgate: port açılmadı:", "depgate: cannot open port:"), err)
 		return 1
 	}
 	readOnly := au == nil && !c.noAuth // --view: one-time link, no password
-	srv := &web.Server{Token: token, B: b, Auth: au, NoAuth: c.noAuth || readOnly, AllowHosts: c.allowHost}
+	srv := &web.Server{Token: token, B: b, Auth: au, NoAuth: c.noAuth || readOnly, AllowHosts: c.allowHost, MCP: mcpH}
 	url := fmt.Sprintf("http://127.0.0.1:%d/", port)
 	fmt.Fprintf(stderr, "\nDepGate: %s\n", url)
 	switch {
@@ -578,7 +593,17 @@ func runMCP(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "depgate mcp:", err)
 		return 1
 	}
+	hint := ""
+	if len(st.Projects()) == 0 {
+		cl := &http.Client{Timeout: 700 * time.Millisecond}
+		if resp, err := cl.Get("http://127.0.0.1:7777/healthz"); err == nil {
+			resp.Body.Close()
+			hint = "A DepGate server is running at http://127.0.0.1:7777 with its own data (for example in Docker). To see its projects, connect the agent over HTTP instead: open a project in the DepGate UI and use the \"AI agent (MCP)\" button."
+			fmt.Fprintln(stderr, "depgate mcp:", hint)
+		}
+	}
 	s := &mcp.Server{
+		Hint:    hint,
 		Store:   st,
 		Fetcher: func() sources.Fetcher { return sources.NewHTTP(cacheDir, *offline, version) },
 		Opt:     scan.Options{Version: version, CooldownDays: *cooldown, Offline: *offline},

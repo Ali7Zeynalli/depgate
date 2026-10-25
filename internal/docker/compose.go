@@ -54,7 +54,10 @@ func items(n *yNode) []*yNode {
 	return n.Items
 }
 
-func checkCompose(file, src string) []report.DockerIssue {
+func checkCompose(file, src string) []report.DockerIssue { return checkComposeAt(file, src, "") }
+
+// checkComposeAt also checks files the compose file refers to; dir is its folder.
+func checkComposeAt(file, src, dir string) []report.DockerIssue {
 	root, err := parseYAML(src)
 	if err != nil || root == nil || root.Kind != yMap {
 		return nil
@@ -78,6 +81,7 @@ func checkCompose(file, src string) []report.DockerIssue {
 			c.service(e.Name, e.Val)
 		}
 	}
+	c.spec(root, dir)
 	return c.out
 }
 

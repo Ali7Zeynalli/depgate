@@ -39,9 +39,22 @@ type Server struct {
 	Version string
 	Log     io.Writer // diagnostics (stderr); never stdout
 
+	// Roots limits the folders a call may name (empty: no limit; the HTTP server sets the UI roots).
+	Roots []string
+	// Hint is shown when the local data has no projects (e.g. "a DepGate server runs at …").
+	Hint string
+
 	mu      sync.Mutex
 	out     io.Writer
+	cacheMu sync.Mutex
 	scanned map[string]*report.Project // on-demand scans of projects not in the list
+}
+
+type ctxKey struct{}
+
+// withProject sets the default project of one request (HTTP: ?project=).
+func withProject(ctx context.Context, dir string) context.Context {
+	return context.WithValue(ctx, ctxKey{}, dir)
 }
 
 type request struct {
@@ -66,12 +79,7 @@ type rpcError struct {
 // Serve reads requests from r and writes responses to w until r ends or ctx is done.
 func (s *Server) Serve(ctx context.Context, r io.Reader, w io.Writer) error {
 	s.out = w
-	if s.scanned == nil {
-		s.scanned = map[string]*report.Project{}
-	}
-	if s.Cwd == "" {
-		s.Cwd, _ = os.Getwd()
-	}
+	s.init()
 	br := bufio.NewReaderSize(r, 1<<16)
 	for {
 		line, err := br.ReadBytes('\n')
@@ -90,24 +98,40 @@ func (s *Server) Serve(ctx context.Context, r io.Reader, w io.Writer) error {
 	}
 }
 
+func (s *Server) init() {
+	s.cacheMu.Lock()
+	if s.scanned == nil {
+		s.scanned = map[string]*report.Project{}
+	}
+	s.cacheMu.Unlock()
+	if s.Cwd == "" {
+		s.Cwd, _ = os.Getwd()
+	}
+}
+
 func (s *Server) handle(ctx context.Context, line []byte) {
+	if resp := s.process(ctx, line); resp != nil {
+		s.send(*resp)
+	}
+}
+
+// process answers one JSON-RPC message; nil for notifications.
+func (s *Server) process(ctx context.Context, line []byte) *response {
 	var req request
 	if err := json.Unmarshal(line, &req); err != nil || req.JSONRPC != "2.0" || req.Method == "" {
-		s.send(response{JSONRPC: "2.0", ID: json.RawMessage("null"), Error: &rpcError{-32700, "parse error"}})
-		return
+		return &response{JSONRPC: "2.0", ID: json.RawMessage("null"), Error: &rpcError{-32700, "parse error"}}
 	}
-	notification := len(req.ID) == 0
 	result, rerr := s.dispatch(ctx, req)
-	if notification {
-		return
+	if len(req.ID) == 0 {
+		return nil
 	}
-	resp := response{JSONRPC: "2.0", ID: req.ID}
+	resp := &response{JSONRPC: "2.0", ID: req.ID}
 	if rerr != nil {
 		resp.Error = rerr
 	} else {
 		resp.Result = result
 	}
-	s.send(resp)
+	return resp
 }
 
 func (s *Server) send(v any) {
@@ -186,11 +210,27 @@ type target struct {
 	entry *store.Entry // nil when the project is not in DepGate's list
 }
 
-// resolve picks the project a call is about.
-func (s *Server) resolve(arg string) (target, error) {
+// resolve picks the project a call is about, within the allowed roots.
+func (s *Server) resolve(ctx context.Context, arg string) (target, error) {
+	t, err := s.pick(ctx, arg)
+	if err != nil || len(s.Roots) == 0 {
+		return t, err
+	}
+	for _, r := range s.Roots {
+		if within(t.dir, filepath.Clean(r)) {
+			return t, nil
+		}
+	}
+	return target{}, fmt.Errorf("%s is outside the folders DepGate may read (%s)", t.dir, strings.Join(s.Roots, ", "))
+}
+
+func (s *Server) pick(ctx context.Context, arg string) (target, error) {
 	s.Store.Reload()
 	entries := s.Store.Projects()
 	base := s.Project
+	if p, ok := ctx.Value(ctxKey{}).(string); ok && p != "" {
+		base = p
+	}
 	if base == "" {
 		base = s.Cwd
 	}
@@ -311,8 +351,13 @@ func (s *Server) reportOf(ctx context.Context, t target) (*report.Project, error
 		if p := s.Store.Report(t.dir); p != nil {
 			return p, nil
 		}
-	} else if p := s.scanned[t.dir]; p != nil {
-		return p, nil
+	} else {
+		s.cacheMu.Lock()
+		p := s.scanned[t.dir]
+		s.cacheMu.Unlock()
+		if p != nil {
+			return p, nil
+		}
 	}
 	return s.scan(ctx, t)
 }
@@ -327,7 +372,9 @@ func (s *Server) scan(ctx context.Context, t target) (*report.Project, error) {
 	if t.entry != nil {
 		_ = s.Store.SaveReport(p) // the UI shows it too
 	} else {
+		s.cacheMu.Lock()
 		s.scanned[t.dir] = p
+		s.cacheMu.Unlock()
 	}
 	return p, nil
 }
