@@ -394,15 +394,24 @@ func serve(ctx context.Context, c config, b web.Backend, token string, au *auth.
 	hosts := append([]string(nil), c.allowHost...)
 	// DEPGATE_ALLOW_HOSTS: the names or IPs you open DepGate with from other machines (comma or space separated)
 	hosts = append(hosts, strings.FieldsFunc(os.Getenv("DEPGATE_ALLOW_HOSTS"), func(r rune) bool { return r == ',' || r == ' ' || r == ';' })...)
-	srv := &web.Server{Token: token, B: b, Auth: au, NoAuth: c.noAuth || readOnly, AllowHosts: hosts, MCP: mcpH, Log: stderr}
+	srv := &web.Server{Token: token, B: b, Auth: au, NoAuth: c.noAuth || readOnly, AllowHosts: hosts, MCP: mcpH, Log: stderr,
+		AllowPublic: os.Getenv("DEPGATE_ALLOW_PUBLIC") == "1"}
+	if os.Getenv("DEPGATE_CONTAINER") != "1" {
+		if n, err := os.Hostname(); err == nil {
+			srv.SetMachineName(n) // in a container this would be the container id
+		}
+	}
 	url := fmt.Sprintf("http://127.0.0.1:%d/", port)
 	fmt.Fprintf(stderr, "\nDepGate: %s\n", url)
 	for _, h := range hosts {
 		fmt.Fprintf(stderr, "         http://%s/\n", net.JoinHostPort(h, strconv.Itoa(port)))
 	}
-	if !loopback(c.addr) && len(hosts) == 0 {
-		fmt.Fprintln(stderr, L("  Başqa kompüterdən açmaq üçün: DEPGATE_ALLOW_HOSTS=<serverin IP-si və ya adı> (və ya --allow-host).",
-			"  To open it from another machine: DEPGATE_ALLOW_HOSTS=<the server's IP or name> (or --allow-host)."))
+	if !loopback(c.addr) {
+		fmt.Fprintln(stderr, L("  Yerli şəbəkədən: http://<serverin IP-si>:"+strconv.Itoa(port)+"/ — ayar lazım deyil. İnternetdən gələn qoşulmalar bağlıdır.",
+			"  From your network: http://<the server's IP>:"+strconv.Itoa(port)+"/ — no settings needed. Connections from the internet are refused."))
+		for _, a := range localAddrs() {
+			fmt.Fprintf(stderr, "         http://%s/\n", net.JoinHostPort(a, strconv.Itoa(port)))
+		}
 	}
 	switch {
 	case c.noAuth:
@@ -629,4 +638,22 @@ func runMCP(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return 1
 	}
 	return 0
+}
+
+// localAddrs lists this machine's local-network IPv4 addresses (in a container: the container's own).
+func localAddrs() []string {
+	var out []string
+	if os.Getenv("DEPGATE_CONTAINER") == "1" {
+		return nil // the container's addresses are not the ones you type
+	}
+	as, err := net.InterfaceAddrs()
+	if err != nil {
+		return nil
+	}
+	for _, a := range as {
+		if n, ok := a.(*net.IPNet); ok && n.IP.To4() != nil && !n.IP.IsLoopback() && (n.IP.IsPrivate() || n.IP.IsLinkLocalUnicast()) {
+			out = append(out, n.IP.String())
+		}
+	}
+	return out
 }
