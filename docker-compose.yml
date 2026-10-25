@@ -1,0 +1,33 @@
+# DepGate in Docker
+#
+#   PROJECTS_DIR=$HOME/projects docker compose up -d
+#   docker compose logs depgate      # shows the URL with the access token
+#
+# Open http://127.0.0.1:7777 — the port is published on localhost only.
+services:
+  depgate:
+    image: ghcr.io/ali7zeynalli/depgate:latest
+    build: .
+    container_name: depgate
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:7777:7777"
+    environment:
+      # optional: a fixed token so the bookmarked link keeps working
+      # (otherwise one is generated once and kept in the data volume)
+      - DEPGATE_TOKEN=${DEPGATE_TOKEN:-}
+    volumes:
+      # your projects, read-only: DepGate never changes them.
+      # Add more lines for more folders, e.g. - ${HOME}/work:/projects/work:ro
+      - ${PROJECTS_DIR:-${HOME}/projects}:/projects:ro
+      # project list, last reports, token and HTTP cache
+      - depgate-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  depgate-data:

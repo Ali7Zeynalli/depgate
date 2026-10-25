@@ -25,27 +25,59 @@ Or download a prebuilt binary (Linux, macOS, Windows; amd64, arm64) from [Releas
 
 ## Usage
 
+### Web UI (default)
+
 ```bash
-cd ~/projects/my-app
-depgate                      # scan and open the report at http://127.0.0.1:7777
-depgate ~/projects           # every project below (each folder with a package.json)
-depgate --json > report.json # machine-readable (schema depgate/report@1)
+depgate
+```
+
+Opens `http://127.0.0.1:7777`. Click **+ Add project**, browse your folders (folders with a `package.json` are marked as projects) and add one — or a whole folder: every project below it, monorepo workspaces included, is added and scanned in the background.
+
+DepGate remembers your projects and their last reports (`~/.config/depgate`), so next time everything is already there. Per project: **Scan**, **Remove**; for all: **Scan all**. Running `depgate` inside a project folder (or `depgate ~/projects`) adds it right away.
+
+The browser can only see folders under the allowed roots (your home directory by default; `--root` to change).
+
+![Adding a project](docs/add-project.png)
+
+### Docker
+
+```bash
+PROJECTS_DIR=$HOME/projects docker compose up -d
+docker compose logs depgate     # the URL with the access token
+```
+
+or without compose:
+
+```bash
+docker run -d --name depgate -p 127.0.0.1:7777:7777 \
+  -v $HOME/projects:/projects:ro -v depgate-data:/data \
+  --read-only --cap-drop ALL ghcr.io/ali7zeynalli/depgate:latest
+```
+
+Projects are mounted **read-only** at `/projects`; the project list, reports and token live in the `/data` volume. The port is published on `127.0.0.1` only. Set `DEPGATE_TOKEN` for a fixed, bookmarkable link.
+
+### One-shot modes
+
+```bash
+depgate --json > report.json # scan, print JSON (schema depgate/report@1), exit
 depgate --view report.json   # open a saved report in the UI
 depgate --ci --fail-on high  # exit 1 on high/critical vulnerabilities or malware
+depgate --push URL --token T # scan and POST the report
 depgate --offline            # no network, cache only
 ```
 
 | Flag | What it does | Default |
 |---|---|---|
 | `--port` | UI port (next free port if busy) | 7777 |
+| `--addr` | Listen address | 127.0.0.1 (0.0.0.0 in Docker) |
+| `--root` | Folder the UI may browse (repeatable; `DEPGATE_ROOTS`) | home directory |
+| `--data` | Project list, reports, token (`DEPGATE_DATA`) | `~/.config/depgate` |
+| `--allow-host` | Extra allowed `Host` name, e.g. a LAN name (repeatable) | — |
 | `--no-open` | Don't open the browser | opens |
 | `--offline` | Never touch the network | off |
 | `--depth` | Project discovery depth | 3 |
 | `--cooldown` | Skip versions younger than N days as targets | 3 |
-| `--json` | Write the JSON report to stdout | off |
-| `--view` | Serve a saved JSON report | — |
-| `--ci`, `--fail-on` | CI mode and threshold | high |
-| `--push`, `--token` | POST the report to a URL (Bearer token) | — |
+| `--json`, `--view`, `--ci`, `--fail-on`, `--push`, `--token` | One-shot modes above | — |
 
 ## What it checks
 
@@ -63,7 +95,7 @@ depgate --offline            # no network, cache only
 
 Only package names and versions (OSV, deps.dev, npm registry) and CVE IDs (EPSS) leave your machine. Source code, file paths, project names and `.env` files never do. Responses are cached in `~/.cache/depgate/`.
 
-The UI binds to `127.0.0.1` only, uses a random per-run token, checks the `Host` header and sends a strict Content Security Policy.
+The UI binds to `127.0.0.1` (in Docker: published on the host's `127.0.0.1`), needs an access token, checks the `Host` header and sends a strict Content Security Policy. Folder browsing is limited to the allowed roots, and DepGate only ever reads your projects.
 
 ## Development
 

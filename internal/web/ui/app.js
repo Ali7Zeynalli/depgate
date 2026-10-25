@@ -2,7 +2,7 @@
 (() => {
   const $ = (s, r = document) => r.querySelector(s);
   const H = { "X-DepGate": "1" };
-  let report = null, current = 0;
+  let st = null, current = decodeURIComponent(location.hash.slice(1)) || "", pollT = null;
   const state = { q: "", sev: "", dev: true };
 
   // ---------- tiny DOM helper (text only: never innerHTML with data) ----------
@@ -60,46 +60,140 @@
   const fmtTime = (s) => { const d = new Date(s); return isNaN(d) ? s : `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
 
   // ---------- data ----------
-  async function load() {
-    const r = await fetch("api/report", { headers: H });
-    if (!r.ok) throw new Error("HTTP " + r.status);
-    report = await r.json();
-    if (current >= report.projects.length) current = 0;
-    render();
+  async function api(method, path, body) {
+    const r = await fetch(path, { method, headers: body ? { ...H, "Content-Type": "application/json" } : H, body: body ? JSON.stringify(body) : undefined });
+    let data = null; try { data = await r.json(); } catch {}
+    if (!r.ok) throw new Error((data && data.error) || "HTTP " + r.status);
+    return data;
   }
-  $("#rescan").addEventListener("click", async (ev) => {
-    const b = ev.currentTarget; b.disabled = true; b.textContent = "Skan olunur…";
-    try {
-      const r = await fetch("api/rescan", { method: "POST", headers: H });
-      if (r.status === 501) { toast("Saxlanmış hesabatdır — yenidən skan üçün depgate-i layihə qovluğunda işə sal"); return; }
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      report = await r.json(); render(); toast("Skan bitdi");
-    } catch (e) { toast("Xəta: " + e.message); }
-    finally { b.disabled = false; b.textContent = "Yenidən skan et"; }
-  });
+  async function load() {
+    setState(await api("GET", "api/state"));
+  }
+  function setState(s) {
+    st = s;
+    if (!st.projects.some((p) => p.dir === current)) current = st.projects.length ? st.projects[0].dir : "";
+    render();
+    clearTimeout(pollT);
+    if (st.busy) pollT = setTimeout(() => load().catch(() => {}), 1200);
+  }
+  async function scan(dirs) {
+    try { setState(await api("POST", "api/scan", { dirs })); toast(dirs.length ? "Skan başladı" : "Bütün layihələr skan olunur"); }
+    catch (e) { toast("Xəta: " + e.message); }
+  }
+  async function removeProject(p) {
+    if (!confirm(`«${p.name}» siyahıdan silinsin? (layihə fayllarına toxunulmur)`)) return;
+    try { setState(await api("POST", "api/projects/remove", { dir: p.dir })); toast("Silindi"); }
+    catch (e) { toast("Xəta: " + e.message); }
+  }
+  function select(dir) { current = dir; history.replaceState(null, "", "#" + encodeURIComponent(dir)); render(); window.scrollTo(0, 0); }
+
+  $("#scanall").addEventListener("click", () => scan([]));
+  $("#addproj").addEventListener("click", () => openPicker(""));
 
   // ---------- render ----------
+  function counts(r) {
+    const s = (r && r.summary) || {};
+    return { urgent: (s.now_easy || 0) + (s.now_code || 0), plan: s.plan || 0, mal: s.malware || 0 };
+  }
   function render() {
-    const ps = report.projects || [];
-    $("#meta").textContent = `${report.tool} · ${fmtTime(report.scannedAt)}${report.offline ? " · offline (keşdən)" : ""}`;
+    const ps = st.projects || [];
+    $("#meta").textContent = [st.tool, st.lastScan ? "son skan " + fmtTime(st.lastScan) : null, st.offline ? "offline (keşdən)" : null, st.readOnly ? "yalnız baxış" : null].filter(Boolean).join(" · ");
+    $("#scanall").hidden = st.readOnly || ps.length === 0;
+    $("#addproj").hidden = st.readOnly;
+    $("#scanall").disabled = st.busy;
+    $("#scanall").textContent = st.busy ? "Skan olunur…" : "Hamısını skan et";
+
     const nav = $("#projects");
-    nav.hidden = ps.length < 2;
-    nav.replaceChildren(el("h2", null, "Layihələr"), ...ps.map((p, i) => {
-      const s = p.summary || {};
-      const urgent = (s.now_easy || 0) + (s.now_code || 0);
-      return el("button", { class: "proj" + (i === current ? " active" : ""), onclick: () => { current = i; render(); window.scrollTo(0, 0); } },
-        el("span", { class: "nm", title: p.dir }, p.name),
-        el("span", { class: "cnt" }, urgent ? el("b", null, urgent) : "0", " · ", s.plan || 0));
+    nav.hidden = ps.length === 0;
+    nav.replaceChildren(el("h2", null, `Layihələr (${ps.length})`), ...ps.map((p) => {
+      const c = counts(p.report);
+      const busy = p.scanning || p.queued;
+      return el("button", { class: "proj" + (p.dir === current ? " active" : ""), title: p.dir, onclick: () => select(p.dir) },
+        el("span", { class: "nm" }, p.name),
+        busy ? el("span", { class: "spin", "aria-label": "skan olunur" }) :
+          !p.report ? el("span", { class: "cnt" }, "—") :
+          el("span", { class: "cnt" }, c.mal ? el("b", null, "!" + c.mal + " ") : null, c.urgent ? el("b", null, c.urgent) : "0", " · ", c.plan));
     }));
-    const mal = ps.reduce((n, p) => n + ((p.summary || {}).malware || 0), 0);
+
+    const mal = ps.reduce((n, p) => n + counts(p.report).mal, 0);
     const ban = $("#banner");
-    if (mal) { ban.hidden = false; ban.className = "banner"; ban.textContent = `Zərərli paket tapıldı (${mal}) — aşağıdakı qırmızı kartdakı təlimata indi əməl et.`; }
-    else if (report.errors && report.errors.length) { ban.hidden = false; ban.className = "banner warn"; ban.textContent = "Bəzi mənbələr yüklənmədi: " + report.errors.join(" · "); }
+    if (mal) { ban.hidden = false; ban.className = "banner"; ban.textContent = `Zərərli paket tapıldı (${mal}) — qırmızı kartdakı təlimata indi əməl et.`; }
+    else if (st.errors && st.errors.length) { ban.hidden = false; ban.className = "banner warn"; ban.textContent = "Bəzi mənbələr yüklənmədi: " + st.errors.join(" · "); }
     else ban.hidden = true;
 
     const main = $("#main");
-    if (!ps.length) { main.replaceChildren(el("div", { class: "empty" }, "package.json olan layihə tapılmadı.")); return; }
-    main.replaceChildren(project(ps[current]));
+    if (!ps.length) { main.replaceChildren(welcome()); return; }
+    const p = ps.find((x) => x.dir === current) || ps[0];
+    main.replaceChildren(projectView(p));
+  }
+
+  function welcome() {
+    return el("div", { class: "welcome" },
+      el("h1", null, "DepGate-ə xoş gəldin"),
+      el("p", null, "Node.js layihələrini əlavə et: DepGate hər paket üçün iki suala cavab verəcək — yeniləmək lazımdır? koda təsir edir?"),
+      el("p", { class: "quiet" }, "Layihə siyahısı və son hesabatlar yadda saxlanır; növbəti dəfə açanda hamısı yerində olacaq."),
+      st.readOnly ? null : el("button", { class: "primary big", onclick: () => openPicker("") }, "+ Layihə əlavə et"),
+      st.container ? el("p", { class: "quiet" }, "Docker-də işləyir: yalnız konteynerə bağlanmış qovluqlar görünür (" + (st.roots || []).join(", ") + "). Başqa qovluq lazımdırsa, docker-compose.yml-də volume əlavə et.") : null);
+  }
+
+  function projectView(p) {
+    const bar = el("div", { class: "pbar" },
+      el("div", { class: "pdir", title: p.dir }, p.dir),
+      p.scanning ? el("span", { class: "chip busy" }, el("span", { class: "spin" }), " skan olunur…") : p.queued ? el("span", { class: "chip busy" }, "növbədə…") : null,
+      st.readOnly ? null : el("button", { class: "small", disabled: p.scanning || p.queued || undefined, onclick: () => scan([p.dir]) }, "Skan et"),
+      st.readOnly ? null : el("button", { class: "small ghost danger", onclick: () => removeProject(p) }, "Siyahıdan sil"));
+    if (!p.report) {
+      return el("div", null, bar, el("div", { class: "empty" }, el("h1", null, p.name), p.scanning || p.queued ? "İlk skan gedir — bir neçə saniyə…" : "Hələ skan olunmayıb."));
+    }
+    return el("div", null, bar, project(p.report));
+  }
+
+  // ---------- folder picker ----------
+  let picker = null;
+  function closePicker() { if (picker) { picker.remove(); picker = null; document.removeEventListener("keydown", escClose); } }
+  function escClose(e) { if (e.key === "Escape") closePicker(); }
+  async function openPicker(path) {
+    let l;
+    try { l = await api("GET", "api/browse?path=" + encodeURIComponent(path)); }
+    catch (e) { toast("Xəta: " + e.message); return; }
+    const add = async (dir, btn) => {
+      if (btn) { btn.disabled = true; btn.textContent = "Əlavə olunur…"; }
+      try {
+        const r = await api("POST", "api/projects", { path: dir });
+        closePicker();
+        const first = (r.added || [])[0];
+        if (first) current = first;
+        setState(r.state);
+        toast((r.added || []).length > 1 ? `${r.added.length} layihə əlavə olundu, skan gedir` : "Əlavə olundu, skan gedir");
+      } catch (e) { toast("Xəta: " + e.message); if (btn) { btn.disabled = false; btn.textContent = "Əlavə et"; } }
+    };
+    const crumbs = el("div", { class: "crumbs" },
+      (st.roots || []).length > 1 ? el("button", { class: "link", onclick: () => openPicker("") }, "Köklər") : null,
+      (l.crumbs || []).map((c, i) => [i || (st.roots || []).length > 1 ? el("span", { class: "sep" }, "/") : null,
+        el("button", { class: "link", onclick: () => openPicker(c.path) }, c.name)]));
+    const list = el("div", { class: "flist" },
+      l.parent ? el("div", { class: "frow" }, el("button", { class: "fname", onclick: () => openPicker(l.parent) }, "↩ ..")) : null,
+      (l.entries || []).length ? l.entries.map((e) => el("div", { class: "frow" },
+        el("button", { class: "fname", onclick: () => openPicker(e.path), title: e.path }, el("span", { class: "ficon" + (e.isProject ? " proj" : "") }), e.name),
+        e.isProject ? el("span", { class: "chip" }, "layihə") : null,
+        e.isProject && !e.lockfile ? el("span", { class: "chip warn" }, "lockfile yoxdur") : null,
+        e.added ? el("span", { class: "chip ok" }, "əlavə olunub") : null,
+        e.isProject ? el("button", { class: "small", onclick: (ev) => add(e.path, ev.currentTarget) }, e.added ? "Yenidən skan" : "Əlavə et") : null))
+        : el("div", { class: "quiet pad" }, "Bu qovluqda alt qovluq yoxdur."));
+    const foot = el("div", { class: "pfoot" },
+      el("div", { class: "quiet" }, l.path ? "Seçilmiş qovluq: " + l.path : "Kök qovluqlardan birini seç"),
+      el("span", { class: "grow" }),
+      el("button", { onclick: closePicker }, "Bağla"),
+      l.path ? el("button", { class: "primary", onclick: (ev) => add(l.path, ev.currentTarget), title: "Bu qovluğu və altındakı bütün layihələri əlavə et" }, l.project ? "Bu layihəni əlavə et" : "Bu qovluqdakı layihələri əlavə et") : null);
+    const dlg = el("div", { class: "modal", role: "dialog", "aria-modal": "true", "aria-label": "Layihə əlavə et" },
+      el("div", { class: "mhead" }, el("div", { class: "h3" }, "Layihə əlavə et"), el("div", { class: "quiet" }, "Qovluqları gəz; package.json olanlar «layihə» kimi işarələnib. Monorepo seçsən, alt layihələrin hamısı əlavə olunur.")),
+      crumbs, list, foot);
+    const ov = el("div", { class: "overlay", onclick: (e) => { if (e.target === ov) closePicker(); } }, dlg);
+    closePicker();
+    picker = ov;
+    document.body.append(ov);
+    document.addEventListener("keydown", escClose);
+    const firstBtn = ov.querySelector(".fname"); if (firstBtn) firstBtn.focus();
   }
 
   function project(p) {
@@ -107,7 +201,7 @@
     const tile = (n, l, cls, grp) => el("div", { class: "tile " + cls + (n ? "" : " zero"), onclick: () => { const d = document.getElementById("g-" + grp); if (d) { d.open = true; d.scrollIntoView({ behavior: "smooth" }); } } },
       el("div", { class: "n" }, n || 0), el("div", { class: "l" }, l));
     const sub = [p.node && p.node.version ? "Node " + p.node.version : p.node && p.node.line ? "Node " + p.node.line : null,
-      p.manager, (p.packages || 0) + " paket", p.lockfile || "lockfile yoxdur", p.repo || p.dir].filter(Boolean).join(" · ");
+      p.manager, (p.packages || 0) + " paket", p.lockfile || "lockfile yoxdur", p.repo].filter(Boolean).join(" · ");
     const head = el("div", { class: "phead" },
       el("div", null, el("h1", null, p.name), el("div", { class: "sub" }, sub),
         p.approximate ? el("div", { class: "sub warntext" }, "Təxmini rejim: lockfile yoxdur, versiyalar aralığın minimumudur, dolayı paketlər yoxlanmayıb.") : null),
@@ -263,5 +357,5 @@
           !h.ok && h.fix ? el("div", null, h.file ? el("span", { class: "d" }, h.file + ": ") : null, el("code", null, h.fix)) : null))));
   }
 
-  load().catch((e) => { $("#main").replaceChildren(el("div", { class: "empty" }, "Hesabat yüklənmədi: " + e.message)); });
+  load().catch((e) => { $("#main").replaceChildren(el("div", { class: "empty" }, "Yüklənmədi: " + e.message)); });
 })();

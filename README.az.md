@@ -18,25 +18,49 @@ go install github.com/Ali7Zeynalli/depgate@latest
 
 ## İstifadə
 
+### Veb interfeys (əsas rejim)
+
 ```bash
-cd ~/projects/kraton-web
-depgate                      # skan edir, brauzerdə http://127.0.0.1:7777 açır
-depgate ~/projects           # alt qovluqlardakı bütün layihələr (package.json olan hər qovluq)
-depgate --json > report.json # interfeyssiz, maşın üçün (schema depgate/report@1)
+depgate
+```
+
+`http://127.0.0.1:7777` açılır. **+ Layihə əlavə et** düyməsini bas, qovluqları gəz (`package.json` olanlar «layihə» kimi işarələnib) və layihəni seç. Bütöv qovluq da seçmək olar: altındakı bütün layihələr, monorepo üzvləri daxil, əlavə olunur və arxa planda skan edilir.
+
+Layihə siyahısı və son hesabatlar yadda qalır (`~/.config/depgate`), növbəti dəfə hamısı yerindədir. Hər layihə üçün **Skan et** və **Siyahıdan sil**, hamısı üçün **Hamısını skan et**. Layihə qovluğunda `depgate` (və ya `depgate ~/projects`) yazsan, dərhal əlavə olunur.
+
+Qovluq seçici yalnız icazə verilən kökləri göstərir (standart: ev qovluğu; `--root` ilə dəyişir).
+
+![Layihə əlavə etmək](docs/add-project.png)
+
+### Docker
+
+```bash
+PROJECTS_DIR=$HOME/projects docker compose up -d
+docker compose logs depgate     # token-li link burada
+```
+
+Layihələr `/projects`-ə **yalnız oxuma** rejimində bağlanır; siyahı, hesabatlar və token `/data` volume-unda saxlanır. Port yalnız `127.0.0.1`-də açılır. Sabit link üçün `DEPGATE_TOKEN` təyin et. Başqa qovluq lazımdırsa, `docker-compose.yml`-də `- ${HOME}/work:/projects/work:ro` kimi sətir əlavə et.
+
+### Bir dəfəlik rejimlər
+
+```bash
+depgate --json > report.json # skan et, JSON yaz (schema depgate/report@1)
+depgate --view report.json   # saxlanmış hesabatı interfeysdə aç
 depgate --ci --fail-on high  # CI: high/critical və ya zərərli paket varsa çıxış kodu 1
+depgate --push URL --token T # skan et və hesabatı göndər
 depgate --offline            # şəbəkəsiz, yalnız keşdən
 ```
 
 | Bayraq | Nə edir | Standart |
 |---|---|---|
 | `--port` | Veb interfeysin portu (məşğuldursa növbəti) | 7777 |
+| `--addr` | Dinlənilən ünvan | 127.0.0.1 (Docker-də 0.0.0.0) |
+| `--root` | Gəzilə bilən qovluq (təkrarlana bilər; `DEPGATE_ROOTS`) | ev qovluğu |
+| `--data` | Siyahı, hesabatlar, token (`DEPGATE_DATA`) | `~/.config/depgate` |
+| `--allow-host` | Əlavə icazəli `Host` adı (təkrarlana bilər) | — |
 | `--no-open` | Brauzeri avtomatik açmır | açır |
-| `--offline` | Şəbəkəyə çıxmır | yox |
 | `--depth` | Layihə axtarışının dərinliyi | 3 |
 | `--cooldown` | Bundan cavan versiyaları (gün) hədəf seçmir | 3 |
-| `--json` | JSON hesabat stdout-a | yox |
-| `--ci`, `--fail-on` | CI rejimi və hədd | high |
-| `--push`, `--token` | Hesabatı URL-ə POST edir (Bearer token) | — |
 
 ## Nə yoxlayır
 
@@ -54,7 +78,7 @@ depgate --offline            # şəbəkəsiz, yalnız keşdən
 
 Yalnız paket adları və versiyalar (OSV, deps.dev, npm registry), CVE nömrələri (EPSS). Kod, fayl yolları, layihə adları, `.env` heç vaxt getmir. Cavablar `~/.cache/depgate/` qovluğunda keşlənir.
 
-Veb interfeys yalnız `127.0.0.1`-də işləyir; hər işə salmada təsadüfi token yaranır, `Host` başlığı yoxlanır, CSP aktivdir.
+Veb interfeys `127.0.0.1`-də işləyir (Docker-də host-un `127.0.0.1`-inə açılır), token tələb edir, `Host` başlığını yoxlayır, CSP aktivdir. Qovluq gəzmə icazəli köklərlə məhdudlaşır və DepGate layihələri yalnız oxuyur.
 
 ## İnkişaf
 
