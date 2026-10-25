@@ -1,19 +1,67 @@
-# DepGate
+<p align="center">
+  <img src="docs/social-preview.png" alt="DepGate — do I need to update, and will it break my code?" width="820">
+</p>
 
-[![ci](https://github.com/Ali7Zeynalli/depgate/actions/workflows/ci.yml/badge.svg)](https://github.com/Ali7Zeynalli/depgate/actions/workflows/ci.yml)
-[![Go Reference](https://pkg.go.dev/badge/github.com/Ali7Zeynalli/depgate.svg)](https://pkg.go.dev/github.com/Ali7Zeynalli/depgate)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+<h1 align="center">DepGate</h1>
 
-**Local npm dependency security and update advisor for Node.js projects.** For every package DepGate answers two questions:
+<p align="center">
+  <b>Your npm dependencies, triaged in one screen: what to update now, what can wait, and whether the update breaks your code.</b><br>
+  Local web UI · runs in Docker · zero dependencies · English &amp; Azerbaijani
+</p>
 
-1. **Do I need to update?** Vulnerability, malicious package, end-of-life Node.js, deprecated package, or just a newer version.
-2. **Will the update affect my code?** Is bumping the version enough, or does code have to change?
+<p align="center">
+  <a href="https://github.com/Ali7Zeynalli/depgate/actions/workflows/ci.yml"><img src="https://github.com/Ali7Zeynalli/depgate/actions/workflows/ci.yml/badge.svg" alt="ci"></a>
+  <a href="https://github.com/Ali7Zeynalli/depgate/releases"><img src="https://img.shields.io/github/v/release/Ali7Zeynalli/depgate?include_prereleases&amp;sort=semver" alt="release"></a>
+  <a href="https://goreportcard.com/report/github.com/Ali7Zeynalli/depgate"><img src="https://goreportcard.com/badge/github.com/Ali7Zeynalli/depgate" alt="Go Report Card"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT"></a>
+  <img src="https://img.shields.io/badge/third--party%20deps-0-brightgreen" alt="zero dependencies">
+</p>
 
-One static Go binary, zero third-party dependencies. It never uploads your code and never changes anything: it shows what to do and gives you the exact command.
+<p align="center"><a href="#quick-start">Quick start</a> · <a href="#why-now">Why now</a> · <a href="#what-it-checks">What it checks</a> · <a href="#docker">Docker</a> · <a href="README.az.md">Azərbaycan dilində</a></p>
 
-![DepGate report](docs/screenshot.png)
+---
 
-[Azərbaycan dilində](README.az.md)
+`npm audit` tells you *something* is vulnerable. DepGate tells you **what to do about it**:
+
+| For every package | DepGate answers |
+|---|---|
+| ① **Do I need to update?** | **NOW** for malware and critical/high CVEs (weighted by CISA KEV + EPSS) · *soon* · *plan* · *optional* · *not needed* |
+| ② **Will it affect my code?** | **No** — patch/minor, one command · **Maybe** — peer/engines conflicts · **Yes** — major bump, with the migration guide |
+| 🎯 **Which version?** | The *safest minimum*: the lowest clean version in your current major — not "latest", which may break you |
+| 🔗 **It's transitive — now what?** | Relock if the parent's range already allows the fix, otherwise upgrade the direct parent, otherwise a ready `overrides` block |
+| 🕵️ **Is the new version itself safe?** | Skips versions younger than 3 days and flags new install scripts, lost npm provenance, a changed publisher or repository |
+
+Everything runs on your machine. Only package names, versions and CVE IDs ever leave it — never your code.
+
+![DepGate dashboard](docs/screenshot.png)
+
+## Why now
+
+2026 has been the worst year yet for the npm supply chain:
+
+- **March** — the [Axios package](https://unit42.paloaltonetworks.com/axios-supply-chain-attack/), with over 100 million weekly downloads, was compromised by a North Korea-linked actor and shipped a backdoor.
+- **May** — the [Mini Shai-Hulud worm](https://braindetox.kr/en/posts/npm_supply_chain_attack_2026.html) replaced 314 legitimate packages with 637 malicious versions in 22 minutes.
+- **June** — [57 packages](https://threatcluster.io/cluster/large-scale-supply-chain-attack-targets-npm-packages-via-bin-4588b024) were hijacked through `binding.gyp`, running code on `npm install`.
+- **October** — Node.js shipped [10 security fixes](https://securityonline.info/nodejs-security-release-october-2026/) including CVE-2026-111497, a Brotli remote code execution bug in the runtime itself.
+
+Dependabot opens a PR per package; `npm audit fix --force` may jump majors and break your build. DepGate gives you the full picture across all your projects — runtime included — and the exact, smallest safe step for each one.
+
+## Quick start
+
+```bash
+go install github.com/Ali7Zeynalli/depgate@latest
+depgate            # opens http://127.0.0.1:7777 — click "+ Add project"
+```
+
+or with Docker:
+
+```bash
+docker run -d --name depgate -p 127.0.0.1:7777:7777 \
+  -v $HOME/projects:/projects:ro -v depgate-data:/data ghcr.io/ali7zeynalli/depgate:latest
+docker logs depgate   # the link with your access token
+```
+
+If DepGate saves you a bad afternoon, a ⭐ helps other developers find it.
 
 ## Install
 
@@ -39,6 +87,7 @@ The browser can only see folders under the allowed roots (your home directory by
 
 ![Adding a project](docs/add-project.png)
 
+<a id="docker"></a>
 ### Docker
 
 ```bash
@@ -81,6 +130,7 @@ depgate --offline            # no network, cache only
 
 Terminal messages are in English; set `DEPGATE_LANG=az` for Azerbaijani.
 
+<a id="what-it-checks"></a>
 ## What it checks
 
 - **Lockfiles:** `package-lock.json` (v1–v3), `pnpm-lock.yaml` (v5–v9), `yarn.lock` (v1 and Berry), `bun.lock`, workspaces included. Transitive packages are checked. Without a lockfile it reads `node_modules`, and otherwise falls back to a clearly marked approximate mode.

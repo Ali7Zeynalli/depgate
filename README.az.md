@@ -1,13 +1,33 @@
-# DepGate
+<p align="center"><img src="docs/social-preview.png" alt="DepGate" width="820"></p>
 
-[English](README.md)
+<h1 align="center">DepGate</h1>
 
-Node.js layihələri üçün lokal paket təhlükəsizliyi və yeniləmə aləti. Hər paket üçün iki suala cavab verir:
+<p align="center"><b>npm asılılıqların bir ekranda: nəyi indi yeniləmək lazımdır, nə gözləyə bilər və yeniləmə kodunu sındırırmı.</b><br>
+Lokal veb interfeys · Docker · sıfır asılılıq · Azərbaycan və ingilis dili</p>
 
-1. **Yeniləmək lazımdır?** Boşluq, zərərli paket, köhnəlmiş Node xətti, deprecated paket və ya sadəcə yeni versiya.
-2. **Koda təsir edir?** Versiyanı qaldırmaq kifayətdir, yoxsa kodda nəyisə dəyişmək lazımdır.
+<p align="center"><a href="README.md">English</a></p>
 
-Bir binary-dir, Go ilə yazılıb və xarici asılılığı yoxdur. Layihənin kodunu heç yerə göndərmir və heç nəyi dəyişmir: yalnız göstərir və hazır əmr verir.
+---
+
+`npm audit` nəyinsə boşluqlu olduğunu deyir. DepGate isə **nə etməli olduğunu** deyir:
+
+| Hər paket üçün | DepGate-in cavabı |
+|---|---|
+| ① **Yeniləmək lazımdır?** | Zərərli paket və critical/high CVE üçün **DƏRHAL** (CISA KEV + EPSS ilə çəkilir) · növbəti baxımda · planla · istəyə görə · lazım deyil |
+| ② **Koda təsir edir?** | **Xeyr** — patch/minor, bir əmr · **Ola bilər** — peer/engines münaqişəsi · **Bəli** — major, miqrasiya bələdçisi ilə |
+| 🎯 **Hansı versiya?** | «Ən təhlükəsiz minimum»: cari major-da boşluğu düzəldən ən kiçik versiya, «latest» yox |
+| 🔗 **Dolayı paketdirsə?** | Lockfile yeniləməsi → birbaşa valideynin yenilənməsi → hazır `overrides` bloku |
+| 🕵️ **Yeni versiyanın özü təhlükəsizdirmi?** | 3 gündən cavan versiyaları keçir; yeni install skriptini, itən provenance-ı, dəyişən dərc edəni və ya repo-nu işarələyir |
+
+Hər şey sənin kompüterində işləyir. Kənara yalnız paket adları, versiyalar və CVE nömrələri gedir, kod heç vaxt getmir.
+
+![DepGate dashboard](docs/screenshot-az.png)
+
+## Niyə indi
+
+2026-cı il npm təchizat zənciri üçün ən ağır il oldu: martda 100 milyondan çox həftəlik yüklənməsi olan [Axios ələ keçirildi](https://unit42.paloaltonetworks.com/axios-supply-chain-attack/), mayda [Mini Shai-Hulud](https://braindetox.kr/en/posts/npm_supply_chain_attack_2026.html) 22 dəqiqədə 314 paketi zərərli versiyalarla əvəz etdi, iyunda `binding.gyp` vasitəsilə [57 paket](https://threatcluster.io/cluster/large-scale-supply-chain-attack-targets-npm-packages-via-bin-4588b024) götürüldü, oktyabrda isə Node.js-in özündə Brotli RCE (CVE-2026-111497) daxil olmaqla [10 boşluq düzəldildi](https://securityonline.info/nodejs-security-release-october-2026/).
+
+Faydalı olsa, ⭐ başqa developerlərin onu tapmasına kömək edir.
 
 ## Quraşdırma
 
