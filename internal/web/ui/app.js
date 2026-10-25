@@ -129,6 +129,12 @@
     save: ["Yadda saxla", "Save"],
     pwChanged: ["Parol dəyişdi; digər cihazlardakı sessiyalar bağlandı", "Password changed; sessions on other devices were signed out"],
     please: ["Gözlə…", "Please wait…"],
+    folderRoot: ["qovluğun özü", "folder itself"],
+    nProjects: ["{0} layihə", "{0} projects"],
+    expand: ["Aç / bağla", "Expand / collapse"],
+    scanFolder: ["Qovluğu skan et ({0})", "Scan folder ({0})"],
+    removeFolder: ["Qovluğu sil ({0})", "Remove folder ({0})"],
+    removeFolderConfirm: ["«{0}» qovluğundakı {1} layihə siyahıdan silinsin? (fayllara toxunulmur)", "Remove the {1} projects in “{0}” from the list? (files are not touched)"],
   };
   let lang = "en";
   try { lang = localStorage.getItem("depgate-lang") || ""; } catch {}
@@ -226,6 +232,11 @@
     try { setState(await api("POST", "api/projects/remove", { dir: p.dir })); toast(t("removed")); }
     catch (e) { toast(t("error", e.message)); }
   }
+  async function removeGroup(g) {
+    if (!confirm(t("removeFolderConfirm", baseName(g.dir), g.items.length))) return;
+    try { setState(await api("POST", "api/projects/remove", { dirs: g.items.map((p) => p.dir) })); toast(t("removed")); }
+    catch (e) { toast(t("error", e.message)); }
+  }
   function select(dir) { current = dir; history.replaceState(null, "", "#" + encodeURIComponent(dir)); render(); window.scrollTo(0, 0); }
 
   $("#scanall").addEventListener("click", () => scan([]));
@@ -247,15 +258,7 @@
     const nav = $("#projects");
     nav.hidden = ps.length === 0;
     nav.setAttribute("aria-label", t("projects", ps.length));
-    nav.replaceChildren(el("h2", null, t("projects", ps.length)), ...ps.map((p) => {
-      const c = counts(p.report);
-      const busy = p.scanning || p.queued;
-      return el("button", { class: "proj" + (p.dir === current ? " active" : ""), title: p.dir, onclick: () => select(p.dir) },
-        el("span", { class: "nm" }, p.name),
-        busy ? el("span", { class: "spin", "aria-label": t("scanningAria") }) :
-          !p.report ? el("span", { class: "cnt" }, "—") :
-          el("span", { class: "cnt" }, c.mal ? el("b", null, "!" + c.mal + " ") : null, c.urgent ? el("b", null, c.urgent) : "0", " · ", c.plan));
-    }));
+    nav.replaceChildren(el("h2", null, t("projects", ps.length)), ...groupsOf(ps).map(groupNav));
 
     const mal = ps.reduce((n, p) => n + counts(p.report).mal, 0);
     const ban = $("#banner");
@@ -267,6 +270,48 @@
     if (!ps.length) { main.replaceChildren(welcome()); return; }
     const p = ps.find((x) => x.dir === current) || ps[0];
     main.replaceChildren(projectView(p));
+  }
+
+  // ---------- sidebar: projects nested under the folder they were added from ----------
+  const baseName = (d) => d.replace(/[\\/]+$/, "").split(/[\\/]/).pop() || d;
+  const relTo = (dir, group) => dir === group ? "" : dir.slice(group.length).replace(/^[\\/]+/, "");
+  function groupsOf(ps) {
+    const out = [], by = {};
+    for (const p of ps) {
+      const k = p.group || p.dir;
+      if (!by[k]) { by[k] = { dir: k, items: [] }; out.push(by[k]); }
+      by[k].items.push(p);
+    }
+    return out;
+  }
+  let collapsed = {};
+  try { collapsed = JSON.parse(localStorage.getItem("depgate-collapsed") || "{}") || {}; } catch {}
+  function toggleGroup(dir) {
+    collapsed[dir] = !collapsed[dir];
+    try { localStorage.setItem("depgate-collapsed", JSON.stringify(collapsed)); } catch {}
+    render();
+  }
+  function countsEl(items) {
+    if (items.some((p) => p.scanning || p.queued)) return el("span", { class: "spin", "aria-label": t("scanningAria") });
+    if (!items.some((p) => p.report)) return el("span", { class: "cnt" }, "—");
+    const c = items.reduce((a, p) => { const x = counts(p.report); return { urgent: a.urgent + x.urgent, plan: a.plan + x.plan, mal: a.mal + x.mal }; }, { urgent: 0, plan: 0, mal: 0 });
+    return el("span", { class: "cnt" }, c.mal ? el("b", null, "!" + c.mal + " ") : null, c.urgent ? el("b", null, c.urgent) : "0", " · ", c.plan);
+  }
+  function projButton(p, label, child) {
+    const pkg = p.name && p.name !== baseName(p.dir) ? p.name : "";
+    return el("button", { class: "proj" + (child ? " child" : "") + (p.dir === current ? " active" : ""), title: p.dir + (pkg ? "\n" + pkg : ""), onclick: () => select(p.dir) },
+      el("span", { class: "nm" }, el("span", { class: "lbl" }, label), pkg && pkg !== label ? el("span", { class: "pkg" }, pkg) : null),
+      countsEl([p]));
+  }
+  function groupNav(g) {
+    if (g.items.length === 1 && g.items[0].dir === g.dir) return projButton(g.items[0], baseName(g.dir), false);
+    const open = !collapsed[g.dir];
+    const head = el("button", { class: "grp" + (g.items.some((p) => p.dir === current) ? " has-active" : ""), title: g.dir, "aria-expanded": String(open), onclick: () => toggleGroup(g.dir) },
+      el("span", { class: "caret", "aria-hidden": "true" }, open ? "▾" : "▸"),
+      el("span", { class: "nm" }, el("span", { class: "lbl" }, baseName(g.dir)), el("span", { class: "pkg" }, t("nProjects", g.items.length))),
+      countsEl(g.items));
+    return el("div", { class: "group" }, head,
+      open ? el("div", { class: "kids", role: "group" }, g.items.map((p) => projButton(p, relTo(p.dir, g.dir) || t("folderRoot"), true))) : null);
   }
 
   function welcome() {
@@ -284,6 +329,12 @@
       p.scanning ? el("span", { class: "chip busy" }, el("span", { class: "spin" }), t("scanningChip")) : p.queued ? el("span", { class: "chip busy" }, t("queued")) : null,
       st.readOnly ? null : el("button", { class: "small", disabled: p.scanning || p.queued || undefined, onclick: () => scan([p.dir]) }, t("scan")),
       st.readOnly ? null : el("button", { class: "small ghost danger", onclick: () => removeProject(p) }, t("remove")));
+    const g = groupsOf(st.projects).find((x) => x.items.includes(p));
+    if (g && g.items.length > 1 && !st.readOnly) {
+      bar.append(el("span", { class: "gsep" }),
+        el("button", { class: "small", disabled: st.busy || undefined, onclick: () => scan(g.items.map((x) => x.dir)) }, t("scanFolder", g.items.length)),
+        el("button", { class: "small ghost danger", onclick: () => removeGroup(g) }, t("removeFolder", g.items.length)));
+    }
     if (!p.report) {
       return el("div", null, bar, el("div", { class: "empty" }, el("h1", null, p.name), p.scanning || p.queued ? t("firstScan") : t("notScanned")));
     }

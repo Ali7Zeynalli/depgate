@@ -160,3 +160,49 @@ func TestTokenStable(t *testing.T) {
 		t.Fatal(c)
 	}
 }
+
+func TestAssignGroups(t *testing.T) {
+	ps := []ProjectState{
+		{Dir: "/h/kraton/apps/web", Name: "@kraton/web"},
+		{Dir: "/h/propify-v2", Name: "propify"},
+		{Dir: "/h/kraton", Name: "kraton"},
+		{Dir: "/h/kraton/apps/admin", Name: "@kraton/admin"},
+		{Dir: "/h/work/a", Name: "a"},
+		{Dir: "/h/work/b", Name: "b"},
+		{Dir: "/h/work/b/sub", Name: "old-without-group"},
+	}
+	explicit := map[string]string{
+		"/h/kraton/apps/web":   "/h/kraton",
+		"/h/kraton/apps/admin": "/h/kraton/apps", // picked a narrower folder later
+		"/h/work/a":            "/h/work",
+		"/h/work/b":            "/h/work",
+	}
+	assignGroups(ps, explicit)
+	want := []struct{ dir, group string }{
+		{"/h/kraton", "/h/kraton"},
+		{"/h/kraton/apps/admin", "/h/kraton"},
+		{"/h/kraton/apps/web", "/h/kraton"},
+		{"/h/propify-v2", "/h/propify-v2"},
+		{"/h/work/a", "/h/work"},
+		{"/h/work/b", "/h/work"},
+		{"/h/work/b/sub", "/h/work"},
+	}
+	for i, w := range want {
+		if ps[i].Dir != w.dir || ps[i].Group != w.group {
+			t.Fatalf("%d: got %s in %s, want %s in %s", i, ps[i].Dir, ps[i].Group, w.dir, w.group)
+		}
+	}
+}
+
+func TestReAddSetsGroup(t *testing.T) {
+	s, _ := store.Open(t.TempDir())
+	_, _ = s.Add(store.Entry{Dir: "/h/k/apps/a"})
+	_, _ = s.Add(store.Entry{Dir: "/h/k/apps/a", Group: "/h/k"})
+	if g := s.Projects()[0].Group; g != "/h/k" {
+		t.Fatalf("group %q", g)
+	}
+	_, _ = s.Add(store.Entry{Dir: "/h/k/apps/a", Group: "/h/k/apps"}) // narrower: keep the wider one
+	if g := s.Projects()[0].Group; g != "/h/k" {
+		t.Fatalf("narrowed to %q", g)
+	}
+}
