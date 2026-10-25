@@ -63,21 +63,85 @@ type Source struct {
 }
 
 type Project struct {
-	ID          string    `json:"id"` // sha256 of repo remote + path, or of absolute path
-	Name        string    `json:"name"`
-	Dir         string    `json:"dir"`
-	Repo        string    `json:"repo,omitempty"`
-	Path        string    `json:"path,omitempty"` // path inside the repo
-	Manager     string    `json:"manager"`
-	Lockfile    string    `json:"lockfile,omitempty"`
-	Approximate bool      `json:"approximate"`
-	Packages    int       `json:"packages"`
-	Node        *Node     `json:"node,omitempty"`
-	Hygiene     []Check   `json:"hygiene"`
-	Summary     Summary   `json:"summary"`
-	Findings    []Finding `json:"findings"`
-	Errors      []string  `json:"errors,omitempty"`
-	Sources     []Source  `json:"sources,omitempty"` // data sources used for this scan
+	ID          string        `json:"id"` // sha256 of repo remote + path, or of absolute path
+	Name        string        `json:"name"`
+	Dir         string        `json:"dir"`
+	Repo        string        `json:"repo,omitempty"`
+	Path        string        `json:"path,omitempty"` // path inside the repo
+	Manager     string        `json:"manager"`
+	Lockfile    string        `json:"lockfile,omitempty"`
+	Approximate bool          `json:"approximate"`
+	Packages    int           `json:"packages"`
+	Node        *Node         `json:"node,omitempty"`
+	Hygiene     []Check       `json:"hygiene"`
+	Summary     Summary       `json:"summary"`
+	Findings    []Finding     `json:"findings"`
+	Errors      []string      `json:"errors,omitempty"`
+	Sources     []Source      `json:"sources,omitempty"` // data sources used for this scan
+	Bundles     []Bundle      `json:"bundles,omitempty"` // packages that must move together (react + react-dom, @nestjs/*, ...)
+	Docker      []DockerIssue `json:"docker,omitempty"`  // Dockerfile / compose findings
+	DockerFiles []string      `json:"dockerFiles,omitempty"`
+	AIRules     *AIRules      `json:"aiRules,omitempty"` // version-aware instructions for AI coding agents
+}
+
+// Bundle is a family of packages released in lockstep; updating one without
+// the others breaks the build (react/react-dom, all @angular/* core packages, ...).
+type Bundle struct {
+	ID      string       `json:"id"`   // react | next | nestjs | angular | ...
+	Name    string       `json:"name"` // display name
+	Target  string       `json:"target,omitempty"`
+	Items   []BundleItem `json:"items"`
+	Command string       `json:"command,omitempty"`
+	Why     []i18n.T     `json:"why"`
+	Impact  Impact       `json:"impact"`
+	Docs    string       `json:"docs,omitempty"`
+}
+
+type BundleItem struct {
+	Pkg     string `json:"pkg"`
+	Current string `json:"current"`
+	Target  string `json:"target,omitempty"` // "" when it can stay
+	Dev     bool   `json:"dev,omitempty"`
+	Note    i18n.T `json:"note"`
+}
+
+// DockerIssue is one finding in a Dockerfile or a compose file.
+type DockerIssue struct {
+	File     string `json:"file"`              // path relative to the project dir (may start with ../ for the repo root)
+	Line     int    `json:"line,omitempty"`    // 1-based
+	Service  string `json:"service,omitempty"` // compose service
+	Rule     string `json:"rule"`              // stable id, e.g. dockerfile-root-user
+	Severity string `json:"severity"`          // high | medium | low
+	Title    i18n.T `json:"title"`
+	Detail   i18n.T `json:"detail"`
+	Fix      string `json:"fix,omitempty"` // suggested line (code only)
+}
+
+// AIRules are instructions for AI coding agents, generated from the versions the
+// project actually uses. English only: they go into AGENTS.md / CLAUDE.md.
+type AIRules struct {
+	Stack   []StackItem   `json:"stack"`
+	Rules   []AIRule      `json:"rules"`
+	Replace []Replacement `json:"replace,omitempty"`
+}
+
+type StackItem struct {
+	Pkg     string `json:"pkg"`
+	Version string `json:"version"`
+	Docs    string `json:"docs,omitempty"`
+}
+
+type AIRule struct {
+	Topic string `json:"topic"` // e.g. "next 16"
+	Text  string `json:"text"`
+	Docs  string `json:"docs,omitempty"`
+}
+
+type Replacement struct {
+	Pkg  string `json:"pkg"`
+	Use  string `json:"use"`
+	Why  string `json:"why"`
+	Docs string `json:"docs,omitempty"`
 }
 
 type Summary struct {
