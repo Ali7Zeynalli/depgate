@@ -45,14 +45,14 @@ code, pre { font-family: var(--mono); font-size: 12.5px; }
 .projects h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--quiet); margin: 0 8px 8px; }
 .proj { display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%; text-align: left; border: 1px solid transparent; background: none; padding: 7px 8px; margin-bottom: 2px; }
 .proj.active { background: var(--accent-bg); border-color: var(--accent); }
-.proj .nm, .grp .nm { display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+.proj .nm, .fgrp .nm { display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
 .nm .lbl, .nm .pkg { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nm .pkg { font-size: 11px; color: var(--quiet); }
-.grp { display: flex; align-items: center; gap: 6px; width: 100%; text-align: left; border: 1px solid transparent; background: none; padding: 7px 8px; margin-bottom: 2px; font-weight: 600; }
-.grp .nm { flex: 1; }
-.grp .caret { width: 12px; flex: none; color: var(--quiet); }
-.grp.has-active .caret { color: var(--accent); }
-.group .kids { margin: 0 0 6px 13px; padding-left: 6px; border-left: 1px solid var(--line); }
+.fgrp { display: flex; align-items: center; gap: 6px; width: 100%; text-align: left; border: 1px solid transparent; background: none; padding: 7px 8px; margin-bottom: 2px; font-weight: 600; }
+.fgrp .nm { flex: 1; }
+.fgrp .caret { width: 12px; flex: none; color: var(--quiet); }
+.fgrp.has-active .caret { color: var(--accent); }
+.fgroup .kids { margin: 0 0 6px 13px; padding-left: 6px; border-left: 1px solid var(--line); }
 .proj.child { padding: 5px 8px; }
 .pbar .gsep { width: 1px; align-self: stretch; background: var(--line); margin: 0 2px; }
 .proj .cnt { font-size: 12px; color: var(--quiet); white-space: nowrap; }
@@ -195,3 +195,14 @@ button.lang { font-size: 12.5px; font-weight: 700; letter-spacing: .04em; border
 .pwmodal { max-width: 420px; }
 .pwmodal .frm { margin-bottom: 10px; }
 body.locked .layout .projects { display: none; }
+
+/* data sources */
+.srclist { overflow: auto; padding: 4px 20px 12px; }
+.srcsec { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--quiet); margin: 14px 0 6px; }
+.srcrow { display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.srcrow:last-child { border-bottom: 0; }
+.srcmain { min-width: 0; }
+.srcmain a, .srcmain b { font-weight: 600; }
+.srcmain .quiet { font-size: 13px; margin-top: 2px; }
+.srcfoot { margin: 18px 0 8px; font-size: 13px; }
+.srcfoot .link { color: var(--quiet); }

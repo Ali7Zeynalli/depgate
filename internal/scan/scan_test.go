@@ -190,3 +190,23 @@ func TestBilingual(t *testing.T) {
 		t.Fatalf("only %d bilingual sentences found", n)
 	}
 }
+
+func TestSourcesRecorded(t *testing.T) {
+	now := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	rep := Run(context.Background(), Demo(), []string{copyFixture(t, "npm-v3")}, Options{Version: "test", Now: now})
+	if len(rep.Sources) != 6 || len(rep.Projects[0].Sources) != 6 {
+		t.Fatalf("sources %+v", rep.Sources)
+	}
+	used := map[string]int{}
+	for _, s := range rep.Sources {
+		used[s.ID] = s.Requests
+		if s.Name == "" || s.URL == "" || s.Use.Az == "" || s.Use.En == "" {
+			t.Fatalf("incomplete source %+v", s)
+		}
+	}
+	for _, id := range []string{"osv", "node", "kev", "depsdev"} {
+		if used[id] == 0 {
+			t.Errorf("%s not recorded: %v", id, used)
+		}
+	}
+}

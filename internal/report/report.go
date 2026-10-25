@@ -49,6 +49,17 @@ type Report struct {
 	Offline   bool      `json:"offline,omitempty"`
 	Projects  []Project `json:"projects"`
 	Errors    []string  `json:"errors,omitempty"`
+	Sources   []Source  `json:"sources,omitempty"`
+}
+
+// Source is one public data source and how it answered during the scan.
+type Source struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	URL      string `json:"url"`
+	Use      i18n.T `json:"use"`
+	Requests int    `json:"requests"` // 0: not needed for this scan
+	Failed   int    `json:"failed,omitempty"`
 }
 
 type Project struct {
@@ -66,6 +77,7 @@ type Project struct {
 	Summary     Summary   `json:"summary"`
 	Findings    []Finding `json:"findings"`
 	Errors      []string  `json:"errors,omitempty"`
+	Sources     []Source  `json:"sources,omitempty"` // data sources used for this scan
 }
 
 type Summary struct {

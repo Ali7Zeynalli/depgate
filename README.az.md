@@ -103,6 +103,23 @@ Terminal mesajları standart olaraq ingiliscədir; `DEPGATE_LANG=az` ilə Azərb
 - **Node.js runtime:** Dockerfile, `.nvmrc`, `.node-version`, `.tool-versions`, `engines`, GitHub Actions; təhlükəsizlik relizləri və EOL tarixləri.
 - **Layihə gigiyenası:** lockfile, install skriptləri, cooldown ayarı, Node versiyasının uyğunluğu.
 
+## Mənbələr
+
+Hər qərar açıq və pulsuz mənbələrə əsaslanır. İnterfeysdəki **Mənbələr** düyməsi onları göstərir: hər mənbə nə üçün istifadə olunur və son skanda neçə sorğuya cavab verib (və ya alınmayıb). Eyni siyahının linki hər layihənin altında da var.
+
+| Mənbə | Nə üçün |
+|---|---|
+| [OSV.dev](https://osv.dev) | zəifliklər (CVE/GHSA) və zərərli paketlər — GitHub Advisory Database və OpenSSF Malicious Packages daxil |
+| [CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog) | real hücumlarda istifadə olunan zəifliklər (prioriteti qaldırır) |
+| [FIRST EPSS](https://www.first.org/epss/) | yaxın 30 gündə istismar ehtimalı (prioritetə təsir edir) |
+| [deps.dev](https://deps.dev) | paketin bütün versiyaları və buraxılış tarixləri (hədəf versiya, gözləmə müddəti) |
+| [npm registry](https://www.npmjs.com) | hədəf versiyanın `engines`, peer asılılıqları, install skriptləri, provenance, deprecated qeydi |
+| [Node.js releases](https://nodejs.org/en/about/previous-releases) | Node.js versiyaları, təhlükəsizlik relizləri, EOL tarixləri |
+
+Kompüterində oxunanlar: `package.json`, lockfile, Dockerfile / `.nvmrc` / `.node-version` / `engines` / CI faylları, `.npmrc`.
+
+![Mənbələr](docs/sources.png)
+
 ## Kənara nə gedir
 
 Yalnız paket adları və versiyalar (OSV, deps.dev, npm registry), CVE nömrələri (EPSS). Kod, fayl yolları, layihə adları, `.env` heç vaxt getmir. Cavablar `~/.cache/depgate/` qovluğunda keşlənir.

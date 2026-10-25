@@ -134,6 +134,19 @@
     expand: ["Aç / bağla", "Expand / collapse"],
     scanFolder: ["Qovluğu skan et ({0})", "Scan folder ({0})"],
     removeFolder: ["Qovluğu sil ({0})", "Remove folder ({0})"],
+    sources: ["Mənbələr", "Sources"],
+    sourcesTitle: ["Skan hansı mənbələrə əsaslanır", "What the scan is based on"],
+    sourcesIntro: ["DepGate qərarı bu açıq mənbələrə görə verir. Kodun və faylların heç yerə göndərilmir — mənbələrdən yalnız paket adı və versiyası soruşulur.", "DepGate decides with these public sources. Your code and files are never sent anywhere — only package names and versions are looked up."],
+    sourcesLocal: ["Kompüterində oxunanlar", "Read on your computer"],
+    sourcesLocalText: ["package.json və lockfile (npm, pnpm, yarn, bun) — quraşdırılmış versiyalar və asılılıq zənciri; Dockerfile, .nvmrc, .node-version, engines və CI faylları — Node.js versiyası; .npmrc — gigiyena yoxlamaları.", "package.json and the lockfile (npm, pnpm, yarn, bun) — installed versions and the dependency chain; Dockerfile, .nvmrc, .node-version, engines and CI files — the Node.js version; .npmrc — hygiene checks."],
+    sourcesOnline: ["İnternetdən soruşulanlar", "Looked up online"],
+    srcReq: ["{0} sorğu", "{0} requests"],
+    srcReq1: ["1 sorğu", "1 request"],
+    srcFailed: ["{0} sorğu alınmadı", "{0} requests failed"],
+    srcUnused: ["bu skanda lazım olmadı", "not needed in this scan"],
+    srcNotYet: ["hələ skan yoxdur", "no scan yet"],
+    srcCache: ["keşdən (offline)", "from cache (offline)"],
+    srcFoot: ["Mənbələr: {0}", "Sources: {0}"],
     removeFolderConfirm: ["«{0}» qovluğundakı {1} layihə siyahıdan silinsin? (fayllara toxunulmur)", "Remove the {1} projects in “{0}” from the list? (files are not touched)"],
   };
   let lang = "en";
@@ -149,6 +162,7 @@
     $("#lang").textContent = lang === "az" ? "EN" : "AZ";
     $("#lang").title = t("langTitle");
     $("#addproj").textContent = t("addProject");
+    $("#srcbtn").textContent = t("sources");
     $("#logout").textContent = t("logout");
     $("#pwbtn").title = t("changePw"); $("#pwbtn").setAttribute("aria-label", t("changePw"));
   }
@@ -252,6 +266,7 @@
     $("#meta").textContent = [st.tool, st.lastScan ? t("lastScan", fmtTime(st.lastScan)) : null, st.offline ? t("offline") : null, st.readOnly ? t("readOnly") : null].filter(Boolean).join(" · ");
     $("#scanall").hidden = st.readOnly || ps.length === 0;
     $("#addproj").hidden = st.readOnly;
+    $("#srcbtn").hidden = false;
     $("#scanall").disabled = st.busy;
     $("#scanall").textContent = st.busy ? t("scanning") : t("scanAll");
 
@@ -306,11 +321,11 @@
   function groupNav(g) {
     if (g.items.length === 1 && g.items[0].dir === g.dir) return projButton(g.items[0], baseName(g.dir), false);
     const open = !collapsed[g.dir];
-    const head = el("button", { class: "grp" + (g.items.some((p) => p.dir === current) ? " has-active" : ""), title: g.dir, "aria-expanded": String(open), onclick: () => toggleGroup(g.dir) },
+    const head = el("button", { class: "fgrp" + (g.items.some((p) => p.dir === current) ? " has-active" : ""), title: g.dir, "aria-expanded": String(open), onclick: () => toggleGroup(g.dir) },
       el("span", { class: "caret", "aria-hidden": "true" }, open ? "▾" : "▸"),
       el("span", { class: "nm" }, el("span", { class: "lbl" }, baseName(g.dir)), el("span", { class: "pkg" }, t("nProjects", g.items.length))),
       countsEl(g.items));
-    return el("div", { class: "group" }, head,
+    return el("div", { class: "fgroup" }, head,
       open ? el("div", { class: "kids", role: "group" }, g.items.map((p) => projButton(p, relTo(p.dir, g.dir) || t("folderRoot"), true))) : null);
   }
 
@@ -338,8 +353,42 @@
     if (!p.report) {
       return el("div", null, bar, el("div", { class: "empty" }, el("h1", null, p.name), p.scanning || p.queued ? t("firstScan") : t("notScanned")));
     }
-    return el("div", null, bar, project(p.report));
+    const srcs = (p.report.sources || []).filter((x) => x.requests > 0);
+    return el("div", null, bar, project(p.report),
+      el("div", { class: "srcfoot" }, el("button", { class: "link", onclick: () => openSources(p.report) },
+        t("srcFoot", (srcs.length ? srcs : st.sources || []).map((x) => x.name).join(" · ")))));
   }
+
+  // ---------- data sources ----------
+  function openSources(rep) {
+    const list = (rep && rep.sources && rep.sources.length ? rep.sources : st && st.sources) || [];
+    const scanned = !!(rep ? rep.sources : st && st.lastScan);
+    const close = () => { ov.remove(); document.removeEventListener("keydown", esc); };
+    const esc = (e) => { if (e.key === "Escape") close(); };
+    const status = (x) => !scanned ? el("span", { class: "chip" }, t("srcNotYet")) :
+      x.failed ? el("span", { class: "chip warn" }, t("srcFailed", x.failed)) :
+      x.requests ? el("span", { class: "chip ok" }, st && st.offline ? t("srcCache") : (x.requests === 1 ? t("srcReq1") : t("srcReq", x.requests))) :
+      el("span", { class: "chip" }, t("srcUnused"));
+    const dlg = el("div", { class: "modal", role: "dialog", "aria-modal": "true", "aria-label": t("sourcesTitle") },
+      el("div", { class: "mhead" }, el("div", { class: "h3" }, t("sourcesTitle")), el("div", { class: "quiet" }, t("sourcesIntro"))),
+      el("div", { class: "srclist" },
+        el("div", { class: "srcsec" }, t("sourcesOnline")),
+        list.map((x) => el("div", { class: "srcrow" },
+          el("div", { class: "srcmain" },
+            safeURL(x.url) ? el("a", { href: x.url, target: "_blank", rel: "noopener noreferrer" }, x.name) : el("b", null, x.name),
+            el("div", { class: "quiet" }, tr(x.use))),
+          status(x))),
+        el("div", { class: "srcsec" }, t("sourcesLocal")),
+        el("div", { class: "srcrow" }, el("div", { class: "srcmain quiet" }, t("sourcesLocalText")))),
+      el("div", { class: "pfoot" }, el("span", { class: "grow" }), el("button", { onclick: () => close() }, t("close"))));
+    const ov = el("div", { class: "overlay", onclick: (e) => { if (e.target === ov) close(); } }, dlg);
+    document.body.append(ov); document.addEventListener("keydown", esc);
+    dlg.querySelector("button, a").focus();
+  }
+  $("#srcbtn").addEventListener("click", () => {
+    const p = st && (st.projects || []).find((x) => x.dir === current);
+    openSources(p && p.report && p.report.sources ? p.report : null);
+  });
 
   // ---------- folder picker ----------
   let picker = null;
@@ -563,7 +612,7 @@
     const canPw = on && authState && !authState.noAuth && !authState.fromEnv;
     $("#logout").hidden = !on || !authState || authState.noAuth;
     $("#pwbtn").hidden = !canPw;
-    if (!on) { $("#scanall").hidden = true; $("#addproj").hidden = true; $("#projects").hidden = true; $("#banner").hidden = true; $("#meta").textContent = ""; }
+    if (!on) { $("#srcbtn").hidden = true; $("#scanall").hidden = true; $("#addproj").hidden = true; $("#projects").hidden = true; $("#banner").hidden = true; $("#meta").textContent = ""; }
   }
   function field(type, label, ac, hint) {
     const id = "f" + Math.random().toString(36).slice(2);

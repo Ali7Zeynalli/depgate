@@ -52,6 +52,8 @@ func Run(ctx context.Context, f sources.Fetcher, dirs []string, opt Options) *re
 		}
 	}
 	rep := &report.Report{Schema: report.Schema, Tool: "depgate " + opt.Version, ScannedAt: opt.Now.UTC(), Offline: opt.Offline}
+	rec := sources.NewRecorder(f)
+	f = rec
 	d := decide.NewData(f)
 	say("Node.js releases, CISA KEV…")
 	if nd, err := sources.Node(ctx, f); err == nil {
@@ -68,7 +70,22 @@ func Run(ctx context.Context, f sources.Fetcher, dirs []string, opt Options) *re
 		say(progressLine(i, len(dirs), dir))
 		rep.Projects = append(rep.Projects, One(ctx, d, dir, opt))
 	}
+	rep.Sources = Sources(rec.Usage())
+	for i := range rep.Projects {
+		rep.Projects[i].Sources = rep.Sources
+	}
 	return rep
+}
+
+// Sources turns request counters into the report's source list (whole catalog,
+// so the UI can also show sources that were not needed).
+func Sources(u map[string]sources.Usage) []report.Source {
+	out := make([]report.Source, 0, len(sources.Catalog))
+	for _, s := range sources.Catalog {
+		x := u[s.ID]
+		out = append(out, report.Source{ID: s.ID, Name: s.Name, URL: s.Home, Use: s.Use, Requests: x.Requests, Failed: x.Failed})
+	}
+	return out
 }
 
 func progressLine(i, n int, dir string) string {
