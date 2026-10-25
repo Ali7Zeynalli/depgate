@@ -206,6 +206,50 @@ func (o *OSV) Batch(ctx context.Context, qs []Query) ([][]string, error) {
 	return out, nil
 }
 
+// Query returns the IDs of the vulnerabilities affecting one package version
+// of any OSV ecosystem (e.g. "Go", "github.com/caddyserver/caddy/v2", "2.7.6").
+func (o *OSV) Query(ctx context.Context, ecosystem, name, version string) ([]string, error) {
+	var q osvQuery
+	q.Package.Name, q.Package.Ecosystem, q.Version = name, ecosystem, version
+	body, _ := json.Marshal(q)
+	b, err := o.F.Do(ctx, "POST", osvBase+"/query", body, nil, 6*time.Hour)
+	if err != nil {
+		return nil, fmt.Errorf("OSV: %w", err)
+	}
+	var resp struct {
+		Vulns []struct {
+			ID string `json:"id"`
+		} `json:"vulns"`
+	}
+	if err := json.Unmarshal(b, &resp); err != nil {
+		return nil, fmt.Errorf("OSV: bad response: %w", err)
+	}
+	var ids []string
+	for _, v := range resp.Vulns {
+		ids = append(ids, v.ID)
+	}
+	return ids, nil
+}
+
+// FixedFor returns the lowest "fixed" event above version for the package, from
+// the record's ranges ("" when none). Versions compare as dotted numbers.
+func (v *Vuln) FixedFor(name, version string) string {
+	best := ""
+	for _, a := range v.Affected {
+		if a.Package.Name != name {
+			continue
+		}
+		for _, r := range a.Ranges {
+			for _, e := range r.Events {
+				if f := strings.TrimPrefix(e.Fixed, "v"); f != "" && CompareDotted(f, version) > 0 && (best == "" || CompareDotted(f, best) < 0) {
+					best = f
+				}
+			}
+		}
+	}
+	return best
+}
+
 // Get returns the full record (cached in memory and on disk).
 func (o *OSV) Get(ctx context.Context, id string) (*Vuln, error) {
 	o.mu.Lock()

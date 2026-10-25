@@ -165,6 +165,18 @@ DepGate does not pull images, so it cannot list the CVEs of the system packages 
 
 ![Docker](docs/docker.png)
 
+### 🌐 Web server: nginx and Caddy
+
+When a project has an nginx config (`nginx.conf`, files under `nginx/`, `conf.d/`, `sites-*/`, `*.conf.template`) or a `Caddyfile`, a **Web server** section appears. It reads the configs (a few folders deep, skipping `node_modules`, build output and other workspaces) and the nginx / Caddy images in your Dockerfiles and compose files:
+
+- **Known vulnerabilities of your version.** nginx: the image tag (`nginx:1.25.3-alpine`, `nginx:1.27`, `nginxinc/nginx-unprivileged`) is matched against [nginx's own security advisories](https://nginx.org/en/security_advisories.html), "Not vulnerable" lines included, and DepGate suggests the lowest version that fixes all of them. Caddy: the version is looked up in OSV.dev (Go vulndb, `github.com/caddyserver/caddy/v2`), and a Caddy line behind the latest release is flagged. Floating tags (`stable`, `latest`, `2`) are not checked.
+- **nginx config:** SSLv3 / TLS 1.0 / 1.1, weak ciphers (RC4, 3DES, MD5, NULL, EXPORT), `autoindex on`, `alias` path traversal (off-by-slash), `add_header` in a location that silently drops the server's headers, `$uri` in headers and redirects (CRLF injection), `proxy_set_header Host $http_host`, `proxy_pass` to a user-controlled target (SSRF), HTTPS without HSTS, missing `X-Content-Type-Options` / frame protection / `Referrer-Policy`, `server_tokens` not off. Includes of snippet files are followed, so headers kept in a snippet count.
+- **Caddyfile:** the admin API listening beyond localhost, `file_server browse`, `protocols tls1.0/1.1`, `tls_insecure_skip_verify` to upstreams, `tls internal` on a public domain, `debug`, and public sites without HSTS, `nosniff`, `Referrer-Policy` or `-Server`. Snippets (`import`) are expanded; an import DepGate cannot see silences the header checks instead of guessing.
+
+The rules follow [gixy](https://github.com/yandex/gixy) (nginx misconfiguration checks), the [Mozilla SSL Configuration](https://ssl-config.mozilla.org/) guidance, [OWASP Secure Headers](https://owasp.org/www-project-secure-headers/), and the nginx and Caddy documentation. They are text checks on your files: a header your application sends itself is not visible to them.
+
+![Web server](docs/webserver.png)
+
 <a id="what-it-checks"></a>
 ## What it checks
 
@@ -178,6 +190,7 @@ DepGate does not pull images, so it cannot list the CVEs of the system packages 
 - **Supply-chain signals on the target version:** new install scripts, lost npm provenance, a different publisher, a changed repository URL.
 - **Node.js runtime:** Dockerfile, `.nvmrc`, `.node-version`, `.tool-versions`, `engines`, GitHub Actions; security releases, end-of-life dates and the CVEs that affect your exact version.
 - **Docker:** Dockerfile and compose security (see above).
+- **Web server:** nginx and Caddy configs, and the known vulnerabilities of the nginx / Caddy version you run (see above).
 - **Project hygiene:** lockfile committed, install scripts disabled, release cooldown configured, consistent Node.js version.
 
 <a id="data-sources"></a>
@@ -187,17 +200,18 @@ Every decision is based on public, free sources. The **Sources** button lists th
 
 | Source | Used for |
 |---|---|
-| [OSV.dev](https://osv.dev) | vulnerabilities (CVE/GHSA) and malicious packages — includes the GitHub Advisory Database and OpenSSF Malicious Packages |
+| [OSV.dev](https://osv.dev) | vulnerabilities (CVE/GHSA) and malicious packages — includes the GitHub Advisory Database and OpenSSF Malicious Packages; also the vulnerabilities of your Caddy version (Go vulndb) |
 | [npm advisories](https://docs.npmjs.com/cli/commands/npm-audit) | the source of `npm audit`: the GitHub Advisory Database directly, malware advisories included — catches records OSV has not imported yet |
 | [CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog) | vulnerabilities exploited in real attacks (raises priority) |
 | [FIRST EPSS](https://www.first.org/epss/) | probability of exploitation in the next 30 days (feeds priority) |
 | [deps.dev](https://deps.dev) | every version of a package and its publish date (safest target, cooldown) |
 | [npm registry](https://www.npmjs.com) | the target version's `engines`, peer dependencies, install scripts, provenance, deprecation; whether a locked version still exists |
-| [GitHub releases](https://docs.github.com/en/rest/releases/releases) | breaking-change sections of the releases between your version and the target (major updates) |
+| [GitHub releases](https://docs.github.com/en/rest/releases/releases) | breaking-change sections of the releases between your version and the target (major updates); the latest Caddy release |
+| [nginx security advisories](https://nginx.org/en/security_advisories.html) | which nginx versions are vulnerable and which fix them |
 | [endoflife.date](https://endoflife.date) | support dates and latest patch releases of the Docker images you use |
 | [Node.js releases](https://nodejs.org/en/about/previous-releases) + [Node.js Security WG](https://github.com/nodejs/security-wg) | Node.js versions, security releases, end-of-life dates, and the CVEs that affect your exact version |
 
-Read locally, never sent: `package.json`, the lockfile, your source files (for *What changes in your code*), Dockerfiles and compose files, `.nvmrc` / `.node-version` / `engines` / CI files, `.npmrc`, `.dockerignore`.
+Read locally, never sent: `package.json`, the lockfile, your source files (for *What changes in your code*), Dockerfiles and compose files, nginx configs and Caddyfiles, `.nvmrc` / `.node-version` / `engines` / CI files, `.npmrc`, `.dockerignore`.
 
 **Accuracy.** `TestCompareNpmAudit` scans a project with known-vulnerable dependencies and checks that every advisory `npm audit` reports is also in DepGate's report (71 of 71 at the time of writing). It runs weekly in GitHub Actions (`accuracy` workflow), or locally: `DEPGATE_LIVE=1 go test -run TestCompareNpmAudit -v ./internal/scan`.
 

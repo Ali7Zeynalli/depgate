@@ -17,6 +17,7 @@ import (
 	"github.com/Ali7Zeynalli/depgate/internal/report"
 	"github.com/Ali7Zeynalli/depgate/internal/semver"
 	"github.com/Ali7Zeynalli/depgate/internal/sources"
+	"github.com/Ali7Zeynalli/depgate/internal/webserver"
 )
 
 func init() {
@@ -145,8 +146,12 @@ func One(ctx context.Context, d *decide.Data, dir string, opt Options) report.Pr
 	p.Errors = append(p.Errors, errs...)
 	p.Hygiene = project.Hygiene(abs, root, lr.Manager, lr.Kind, mismatch, opt.CooldownDays)
 	p.Docker, p.DockerFiles = docker.Scan(abs, root)
-	p.Docker = append(p.Docker, images.Check(ctx, d.F, docker.ImageRefs(abs, root), opt.Now)...)
+	refs := docker.ImageRefs(abs, root)
+	p.Docker = append(p.Docker, images.Check(ctx, d.F, refs, opt.Now)...)
 	docker.SortIssues(p.Docker)
+	p.Server, p.ServerFiles = webserver.Scan(abs, root)
+	p.Server = append(p.Server, webserver.Versions(ctx, d.F, refs, opt.Now)...)
+	docker.SortIssues(p.Server)
 	p.Summary = Summarize(p.Findings)
 	sort.SliceStable(p.Errors, func(i, j int) bool { return p.Errors[i] < p.Errors[j] })
 	return p

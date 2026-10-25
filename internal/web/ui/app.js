@@ -2,8 +2,8 @@
 (() => {
   const $ = (s, r = document) => r.querySelector(s);
   const H = { "X-DepGate": "1" };
-  const TABS = ["overview", "packages", "code", "docker", "env", "ai"];
-  const TABL = { overview: "tabOverview", packages: "tabPackages", code: "tabCode", docker: "tabDocker", env: "tabEnv", ai: "tabAI" };
+  const TABS = ["overview", "packages", "code", "docker", "server", "env", "ai"];
+  const TABL = { overview: "tabOverview", packages: "tabPackages", code: "tabCode", docker: "tabDocker", server: "tabServer", env: "tabEnv", ai: "tabAI" };
   // location.hash = encodeURIComponent(project or folder) + "@" + tab ("@" never appears encoded)
   const parseHash = () => {
     const h = location.hash.slice(1), i = h.lastIndexOf("@");
@@ -234,6 +234,7 @@
     rulesNothing: ["Bu layihə üçün xüsusi qayda yoxdur.", "No specific rules for this project."],
     pBundles: ["### Birlikdə yenilə", "### Update together"],
     pDocker: ["### Docker", "### Docker"],
+    pServer: ["### Veb server (nginx / Caddy)", "### Web server (nginx / Caddy)"],
     sections: ["Bölmələr", "Sections"],
     tabOverview: ["Ümumi", "Overview"],
     tabPackages: ["Paketlər", "Packages"],
@@ -267,6 +268,9 @@
     aiOpen: ["Promptu aç", "Open the prompt"],
     rulesOpen: ["Qaydalara bax", "View the rules"],
     mcpOpen: ["Qoşulma əmri", "Connection command"],
+    tabServer: ["Veb server", "Web server"],
+    serverHelp: ["nginx və Caddy: konfiqurasiya qaydaları (TLS, başlıqlar, alias, admin API…) və istifadə etdiyin image versiyasının məlum zəiflikləri.", "nginx and Caddy: config rules (TLS, headers, alias, admin API…) and the known vulnerabilities of the image version you run."],
+    serverImagesOnly: ["Konfiqurasiya faylı tapılmadı — yalnız image versiyası yoxlanıb", "No config file found — only the image version was checked"],
     removeFolderConfirm: ["«{0}» qovluğundakı {1} layihə siyahıdan silinsin? (fayllara toxunulmur)", "Remove the {1} projects in “{0}” from the list? (files are not touched)"],
   };
   let lang = "en";
@@ -518,6 +522,7 @@
       bulk: (es) => { const c = bulkCommand(es.map((e) => e.f), r.manager); return c ? el("div", { class: "bulk" }, el("code", null, c), copyBtn(c)) : null; },
       bundles: (r.bundles || []).map((b) => bundleCard(b)),
       docker: { issues: r.docker || [], files: r.dockerFiles || [], label: null },
+      server: { issues: r.server || [], files: r.serverFiles || [], label: null },
       nodes: r.node ? [{ label: "", n: r.node }] : [],
       hygBad: (r.hygiene || []).filter((h) => !h.ok).length,
       env: () => el("div", { class: "side" }, nodeCard(r), hygieneCard(r)),
@@ -540,21 +545,25 @@
       packages: [es.filter((e) => e.f.group !== "ok").length, urgent > 0],
       code: [hits, false],
       docker: [di.length, di.some((d) => d.severity === "high")],
+      server: [ctx.server.issues.length, ctx.server.issues.some((d) => d.severity === "high")],
       env: [envN, nodeNow],
       ai: ["", false],
     };
-    const tab = TABS.includes(state.tab) ? state.tab : "overview";
-    const bar = el("div", { class: "tabs", role: "tablist", "aria-label": t("sections") }, TABS.map((k) => el("button", {
+    const hasServer = ctx.server.files.length > 0 || ctx.server.issues.length > 0;
+    const tabs = TABS.filter((k) => k !== "server" || hasServer);
+    const tab = tabs.includes(state.tab) ? state.tab : "overview";
+    const bar = el("div", { class: "tabs", role: "tablist", "aria-label": t("sections") }, tabs.map((k) => el("button", {
       role: "tab", "aria-selected": String(k === tab), tabindex: k === tab ? "0" : "-1", onclick: () => goTab(k),
       onkeydown: (ev) => {
         const d = ev.key === "ArrowRight" ? 1 : ev.key === "ArrowLeft" ? -1 : 0;
         if (!d) return;
         ev.preventDefault();
-        goTab(TABS[(TABS.indexOf(k) + d + TABS.length) % TABS.length]);
+        goTab(tabs[(tabs.indexOf(k) + d + tabs.length) % tabs.length]);
         const b = $(".tabs [aria-selected=true]"); if (b) b.focus();
       },
     }, info[k][1] ? el("span", { class: "alert", "aria-hidden": "true" }) : null, t(TABL[k]), info[k][0] ? el("span", { class: "n" }, info[k][0]) : null)));
     const body = tab === "packages" ? packagesTab(ctx) : tab === "code" ? codeTab(migs) : tab === "docker" ? dockerTab(ctx.docker)
+      : tab === "server" ? dockerTab(ctx.server, "server")
       : tab === "env" ? ctx.env() : tab === "ai" ? aiTab(ctx) : overviewTab(ctx, { n, urgent, hits, migs, nodeNow });
     return el("div", null, bar, el("div", { class: "tabbody", role: "tabpanel", "aria-label": t(TABL[tab]) }, body));
   }
@@ -576,6 +585,7 @@
     }
     for (const x of ctx.nodes) if (x.n.need === "now") S.push({ score: 250, bad: true, title: (x.label ? x.label + ": " : "") + nodeLine(x.n), sub: tr((x.n.why || [])[0]), tab: "env" });
     for (const d of ctx.docker.issues) if (d.severity === "high") S.push({ score: 220, bad: false, title: tr(d.title), sub: (ctx.docker.label ? ctx.docker.label(d) : d.file) + (d.line ? ":" + d.line : "") + (d.service ? " · " + d.service : ""), tab: "docker" });
+    for (const d of ctx.server.issues) if (d.severity === "high") S.push({ score: 230, bad: false, title: tr(d.title), sub: (ctx.server.label ? ctx.server.label(d) : d.file) + (d.line ? ":" + d.line : "") + (d.service ? " · " + d.service : ""), tab: "server" });
     return S.sort((a, b) => b.score - a.score).slice(0, 6);
   }
   function overviewTab(ctx, x) {
@@ -600,6 +610,8 @@
         x.migs.length ? x.migs.slice(0, 3).map((m) => m.e.f.pkg + " → " + m.ms[0].m.to).join(" · ") : t("codeNone"), ""),
       area("docker", "Docker", di.length ? t("dockerN", di.length) : files.length ? "✓" : "", di.some((d) => d.severity === "high"),
         files.length ? files.slice(0, 3).join(" · ") + (files.length > 3 ? " …" : "") : t("dockerNone"), ""),
+      ctx.server.files.length || ctx.server.issues.length ? area("server", t("tabServer"), ctx.server.issues.length ? t("dockerN", ctx.server.issues.length) : "✓", ctx.server.issues.some((d) => d.severity === "high"),
+        ctx.server.files.length ? ctx.server.files.slice(0, 3).join(" · ") + (ctx.server.files.length > 3 ? " …" : "") : t("serverImagesOnly"), "") : null,
       area("env", t("tabEnv"), x.nodeNow ? t("needNow") : "✓", x.nodeNow,
         ctx.nodes.length === 1 ? (ctx.nodes[0].label ? ctx.nodes[0].label + ": " : "") + nodeLine(ctx.nodes[0].n) : ctx.nodes.length ? t("nodeAll") : t("noNode"),
         t("hygiene") + ": " + (ctx.hygBad ? t("hygBad", ctx.hygBad) : t("hygOk"))));
@@ -670,13 +682,14 @@
         ms.map((x) => migBlock(x.m, x.label, true))))];
   }
   const SEVC = { high: "sev-high", medium: "sev-moderate", low: "" };
-  function dockerTab(dk) {
-    if (!dk.files.length) return el("div", { class: "empty" }, t("dockerNone"));
-    const checked = el("div", { class: "quiet small" }, t("dockerFiles", dk.files.join(", ")));
+  function dockerTab(dk, kind) {
+    const srv = kind === "server";
+    if (!dk.files.length && !dk.issues.length) return el("div", { class: "empty" }, t("dockerNone"));
+    const checked = dk.files.length ? el("div", { class: "quiet small" }, t("dockerFiles", dk.files.join(", "))) : null;
     if (!dk.issues.length) return el("div", { class: "card" }, el("div", null, t("dockerOk", dk.files.join(", "))));
     const by = new Map();
     for (const d of dk.issues) { const f = dk.label ? dk.label(d) : d.file; if (!by.has(f)) by.set(f, []); by.get(f).push(d); }
-    return [el("div", { class: "ghelp" }, t("dockerHelp"), " ", t("readOnlyNote")),
+    return [el("div", { class: "ghelp" }, t(srv ? "serverHelp" : "dockerHelp"), " ", t("readOnlyNote")),
       [...by].map(([file, ds]) => el("div", { class: "card dfile" },
         el("div", { class: "dfh" }, el("code", null, file), el("span", { class: "quiet small" }, t("dockerN", ds.length))),
         ds.map((d) => el("div", { class: "ditem" },
@@ -775,6 +788,19 @@
         if (!dk.has(k)) dk.set(k, { ...d, abs });
       }
     }
+    const merge = (issuesOf, filesOf) => {
+      const m = new Map(), fs = new Set();
+      for (const p of scanned) {
+        for (const f of filesOf(p.report) || []) fs.add(relTo(joinPath(p.dir, f), g.dir) || f);
+        for (const d of issuesOf(p.report) || []) {
+          const abs = joinPath(p.dir, d.file);
+          const k = abs + "|" + d.line + "|" + d.rule + "|" + (d.service || "");
+          if (!m.has(k)) m.set(k, { ...d, abs });
+        }
+      }
+      const sev = { high: 0, medium: 1, low: 2 };
+      return { issues: [...m.values()].sort((a, b) => sev[a.severity] - sev[b.severity] || a.abs.localeCompare(b.abs) || a.line - b.line), files: [...fs], label: (d) => relTo(d.abs, g.dir) || d.abs };
+    };
     const dIssues = [...dk.values()].sort((a, b) => ({ high: 0, medium: 1, low: 2 }[a.severity] - { high: 0, medium: 1, low: 2 }[b.severity]) || a.abs.localeCompare(b.abs) || a.line - b.line);
     const ctx = {
       reps: scanned, dir: g.dir, g,
@@ -791,6 +817,7 @@
       },
       bundles: scanned.flatMap((p) => (p.report.bundles || []).map((b) => bundleCard({ ...b, command: b.command ? cdPrefix(p, g) + b.command : "" }, relName(p, g)))),
       docker: { issues: dIssues, files: [...dfiles], label: (d) => relTo(d.abs, g.dir) || d.abs },
+      server: merge((r) => r.server, (r) => r.serverFiles),
       nodes: scanned.filter((p) => p.report.node).map((p) => ({ label: relName(p, g), n: p.report.node })),
       hygBad: scanned.reduce((a, p) => a + (p.report.hygiene || []).filter((h) => !h.ok).length, 0),
       env: () => el("div", { class: "side" }, folderNodeCard(g, scanned), folderHygieneCard(g, scanned)),
@@ -850,12 +877,13 @@
       const nd = r.node && r.node.need && r.node.need !== "none" ? r.node : null;
       const bundles = r.bundles || [];
       const dock = (r.docker || []).filter((d) => d.severity !== "low");
+      const srvI = (r.server || []).filter((d) => d.severity !== "low");
       for (const h of (r.hygiene || []).filter((h) => !h.ok)) {
         const k = h.id + "|" + (h.file || "") + "|" + (h.fix || "");
         if (!hygAll.has(k)) hygAll.set(k, { h, where: [] });
         hygAll.get(k).where.push(label(p));
       }
-      if (!fs.length && !opt.length && !nd && !bundles.length && !dock.length) continue;
+      if (!fs.length && !opt.length && !nd && !bundles.length && !dock.length && !srvI.length) continue;
       nproj++;
       L.push(t("pProject", label(p)), "");
       L.push(`- ${t("pPath")}: ${p.dir}`);
@@ -904,6 +932,14 @@
       if (dock.length) {
         L.push(t("pDocker"));
         for (const d of dock) {
+          tasks++;
+          L.push(`- [${d.severity}] ${d.file}${d.line ? ":" + d.line : ""}${d.service ? " (" + d.service + ")" : ""} — ${tr(d.title)}${tr(d.detail) ? ": " + tr(d.detail) : ""}${d.fix ? " — `" + d.fix + "`" : ""}`);
+        }
+        L.push("");
+      }
+      if (srvI.length) {
+        L.push(t("pServer"));
+        for (const d of srvI) {
           tasks++;
           L.push(`- [${d.severity}] ${d.file}${d.line ? ":" + d.line : ""}${d.service ? " (" + d.service + ")" : ""} — ${tr(d.title)}${tr(d.detail) ? ": " + tr(d.detail) : ""}${d.fix ? " — `" + d.fix + "`" : ""}`);
         }
