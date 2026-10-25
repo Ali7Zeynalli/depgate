@@ -271,6 +271,22 @@
     tabServer: ["Veb server", "Web server"],
     serverHelp: ["nginx və Caddy: konfiqurasiya qaydaları (TLS, başlıqlar, alias, admin API…) və istifadə etdiyin image versiyasının məlum zəiflikləri.", "nginx and Caddy: config rules (TLS, headers, alias, admin API…) and the known vulnerabilities of the image version you run."],
     serverImagesOnly: ["Konfiqurasiya faylı tapılmadı — yalnız image versiyası yoxlanıb", "No config file found — only the image version was checked"],
+    aboutWhat: ["Bu paket nədir:", "What this package is:"],
+    aboutNone: ["npm-də təsviri yoxdur", "no description on npm"],
+    aboutHome: ["sayt", "homepage"],
+    aboutHow: ["Layihəyə necə düşüb:", "How it got into the project:"],
+    aboutDirect: ["birbaşa — package.json, {0}", "directly — package.json, {0}"],
+    aboutVia: ["dolayı — {0}", "through other packages — {0}"],
+    advFound: ["Nə tapılıb ({0})", "What was found ({0})"],
+    advMore: ["Daha {0} advisory", "{0} more advisories"],
+    advType: ["Zəiflik növü:", "Weakness type:"],
+    advText: ["Advisory mətni (ingiliscə)", "Advisory text"],
+    advKev: ["real hücumlarda istifadə olunur (CISA KEV)", "exploited in the wild (CISA KEV)"],
+    advMeans: ["Bu zəiflik nə deməkdir", "What this weakness means"],
+    advWhat: ["Nədir:", "What it is:"],
+    advRisk: ["Nə açıq yaradır:", "What it opens up:"],
+    issueWhy: ["Niyə risklidir:", "Why it matters:"],
+    issueFix: ["Təklif:", "Suggested:"],
     removeFolderConfirm: ["«{0}» qovluğundakı {1} layihə siyahıdan silinsin? (fayllara toxunulmur)", "Remove the {1} projects in “{0}” from the list? (files are not touched)"],
   };
   let lang = "en";
@@ -695,8 +711,8 @@
         ds.map((d) => el("div", { class: "ditem" },
           el("div", { class: "drow" }, el("span", { class: "chip " + (SEVC[d.severity] || "") }, d.severity), el("b", null, tr(d.title)),
             el("span", { class: "quiet small" }, (d.line ? file.split("/").pop() + ":" + d.line : "") + (d.service ? " · " + d.service : ""))),
-          tr(d.detail) ? el("div", { class: "d" }, tr(d.detail)) : null,
-          d.fix ? el("code", { class: "dfix" }, d.fix) : null)))),
+          tr(d.detail) ? el("div", { class: "d" }, el("span", { class: "lbl" }, t("issueWhy")), " ", tr(d.detail)) : null,
+          d.fix ? el("div", { class: "d" }, el("span", { class: "lbl" }, t("issueFix")), " ", el("code", { class: "dfix" }, d.fix)) : null)))),
       checked];
   }
   function aiTab(ctx) {
@@ -896,7 +912,8 @@
         L.push(`### ${i + 1}. ${f.pkg} ${f.current}${f.target ? " → " + f.target : ""}  [${tags.join(" · ")}]`);
         if (f.title) L.push(`- ${t("pProblem")}: ${f.title}`);
         if (!f.direct && f.chain && f.chain.length > 1) L.push(`- ${t("pChain")}: ${f.chain.join(" → ")}`);
-        if (f.advisories && f.advisories.length) L.push(`- ${t("pAdv")}: ` + f.advisories.map((a) => [a.id, (a.aliases || []).filter((x) => x.startsWith("CVE-")).join(", "), a.severity, a.cvss ? "CVSS " + a.cvss : "", a.epss ? "EPSS " + Math.round(a.epss * 100) + "%" : "", a.kev ? "CISA KEV" : "", a.fixed ? t("fixedIn", a.fixed).replace(/^ · /, "") : "", a.url].filter(Boolean).join(" · ")).join("; "));
+        if (f.advisories && f.advisories.length) L.push(`- ${t("pAdv")}: ` + f.advisories.map((a) => [a.id, (a.aliases || []).filter((x) => x.startsWith("CVE-")).join(", "), a.severity, a.cvss ? "CVSS " + a.cvss : "", a.epss ? "EPSS " + Math.round(a.epss * 100) + "%" : "", a.kev ? "CISA KEV" : "", a.fixed ? t("fixedIn", a.fixed).replace(/^ · /, "") : "", (a.weakness || []).map((w) => w.id + (tr(w.name) ? " " + tr(w.name) : "")).join(", "), a.url].filter(Boolean).join(" · ")).join("; "));
+        if (f.about) L.push(`- ${t("aboutWhat").replace(/:$/, "")}: ${f.about}`);
         L.push(`- ${t("pWhy")}: ${join(f.why)}`);
         L.push(`- ${t("pImpact")}: ${impText(f.codeImpact)}${(f.impactWhy || []).length ? " — " + join(f.impactWhy) : ""}`);
         if (f.fix) {
@@ -1185,7 +1202,8 @@
 
     const kids = bare ? [el("div", { class: "rchips" }, [...title.querySelectorAll(".chip[title]")])] : [title];
     if (f.title && !bare) kids.push(el("div", { class: "ctext" }, f.title));
-    if (f.chain && f.chain.length > 1) kids.push(el("div", { class: "chain" }, f.chain.join(" → ")));
+    kids.push(aboutBlock(f));
+    if (f.advisories && f.advisories.length) kids.push(advBlock(f));
     kids.push(el("div", { class: "q" }, el("span", { class: "dot " + needClass(f.needUpdate) }), el("span", { class: "lbl" }, t("qNeed")), el("span", { class: "ans" }, needText(f.kind, f.needUpdate))));
     if (f.why && f.why.length) kids.push(el("ul", { class: "why" }, list(f.why)));
     kids.push(el("div", { class: "q" }, el("span", { class: "dot " + impClass(f.codeImpact) }), el("span", { class: "lbl" }, t("qImpact")), el("span", { class: "ans" }, impText(f.codeImpact))));
@@ -1214,16 +1232,48 @@
         note ? el("div", { class: "note" }, note) : null));
     }
     const foot = el("div", { class: "cfoot" });
-    if (f.advisories && f.advisories.length) {
-      foot.append(el("div", { class: "advs" }, f.advisories.slice(0, 6).map((a) => {
-        const u = safeURL(a.url);
-        const label = a.id + (a.kev ? " · KEV" : "") + (a.fixed ? t("fixedIn", a.fixed) : "");
-        return u ? el("a", { href: u, target: "_blank", rel: "noopener noreferrer" }, label) : el("span", null, label);
-      }), f.advisories.length > 6 ? `+${f.advisories.length - 6}` : null));
-    }
     foot.append(el("span", { class: "grow" }), copyBtn(where ? where.map((w) => agentTask(w.f, w.p.report)).join("\n\n---\n\n") : agentTask(f, p), t("agentBtn")));
     kids.push(foot);
     return el("div", { class: cls }, kids);
+  }
+
+  // what the package is and how it got into the project
+  function aboutBlock(f) {
+    const how = f.direct ? t("aboutDirect", f.dev ? "devDependencies" : "dependencies")
+      : f.chain && f.chain.length > 1 ? t("aboutVia", f.chain.join(" → ")) : t("transitive");
+    return el("div", { class: "about" },
+      el("div", null, el("span", { class: "lbl" }, t("aboutWhat")), " ",
+        f.about ? el("span", null, f.about) : el("span", { class: "quiet" }, t("aboutNone")),
+        safeURL(f.homepage) ? [" ", el("a", { href: f.homepage, target: "_blank", rel: "noopener noreferrer" }, t("aboutHome"))] : null),
+      el("div", null, el("span", { class: "lbl" }, t("aboutHow")), " ", el("span", { class: f.direct ? "" : "mono" }, how)));
+  }
+  // what was found: every advisory, its weakness type, and what that weakness lets an attacker do
+  function advBlock(f) {
+    const advs = f.advisories, byCWE = new Map();
+    for (const a of advs) for (const w of a.weakness || []) if (!byCWE.has(w.id)) byCWE.set(w.id, w);
+    const item = (a) => {
+      const u = safeURL(a.url);
+      const cves = (a.aliases || []).filter((x) => x.startsWith("CVE-"));
+      const meta = [a.severity, a.cvss ? "CVSS " + a.cvss : "", a.epss ? "EPSS " + Math.round(a.epss * 100) + "%" : "", a.kev ? t("advKev") : "", a.fixed ? t("fixedIn", a.fixed).replace(/^ · /, "") : ""].filter(Boolean).join(" · ");
+      return el("div", { class: "adv" },
+        el("div", { class: "advh" }, u ? el("a", { href: u, target: "_blank", rel: "noopener noreferrer" }, a.id) : el("b", null, a.id),
+          cves.length ? el("span", { class: "quiet small" }, cves.join(", ")) : null, el("span", { class: "quiet small" }, meta)),
+        a.summary ? el("div", { class: "advs1" }, a.summary) : null,
+        (a.weakness || []).length ? el("div", { class: "small" }, el("span", { class: "lbl" }, t("advType")), " ",
+          a.weakness.map((w, i) => [i ? ", " : "", tr(w.name) || w.id, tr(w.name) ? el("span", { class: "quiet" }, " (" + w.id + ")") : null])) : null,
+        a.details ? el("details", { class: "advd" }, el("summary", null, t("advText")), el("div", { class: "quiet small" }, a.details)) : null);
+    };
+    const shown = advs.slice(0, 4), rest = advs.slice(4);
+    const known = [...byCWE.values()].filter((w) => tr(w.what));
+    return el("div", { class: "found" },
+      el("div", { class: "h4" }, t("advFound", advs.length)),
+      shown.map(item),
+      rest.length ? el("details", { class: "advd" }, el("summary", null, t("advMore", rest.length)), rest.map(item)) : null,
+      known.length ? el("div", { class: "weak" }, el("div", { class: "h4" }, t("advMeans")),
+        known.map((w) => el("div", { class: "wk" },
+          el("div", null, el("b", null, tr(w.name)), " ", safeURL(w.url) ? el("a", { class: "small", href: w.url, target: "_blank", rel: "noopener noreferrer" }, w.id) : null),
+          el("div", { class: "small" }, el("span", { class: "lbl" }, t("advWhat")), " ", tr(w.what)),
+          el("div", { class: "small" }, el("span", { class: "lbl" }, t("advRisk")), " ", tr(w.risk))))) : null);
   }
 
   function agentTask(f, p) {

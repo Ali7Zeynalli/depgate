@@ -443,7 +443,7 @@ func TestNpmAdvisoryNotYetInOSV(t *testing.T) {
 	f := newFake()
 	f.vuln("GHSA-aaaa", "lib", "HIGH", "0", "1.2.0")
 	f.npm["lib"] = []sources.NpmAdvisory{
-		npmAdv("GHSA-aaaa", "already in OSV", "high", "<1.2.0"),
+		npmAdv("GHSA-aaaa", "already in OSV", "high", "<1.2.0", "CWE-1321"),
 		npmAdv("GHSA-bbbb", "only in npm", "critical", ">=1.0.0 <1.3.0"),
 		npmAdv("GHSA-cccc", "other versions", "high", "<0.5.0"),
 	}
@@ -457,6 +457,10 @@ func TestNpmAdvisoryNotYetInOSV(t *testing.T) {
 	if strings.Join(ids, ",") != "GHSA-bbbb,GHSA-aaaa" || x.Severity != "critical" || x.Target != "1.3.0" {
 		t.Fatalf("advisories %v severity %s target %s", ids, x.Severity, x.Target)
 	}
+	// the CWE npm knows is added to the OSV copy, with its explanation
+	if w := x.Advisories[1].Weakness; len(w) != 1 || w[0].ID != "CWE-1321" || w[0].Risk.En == "" {
+		t.Fatalf("weakness of the OSV record: %+v", w)
+	}
 }
 
 // GitHub malware advisories (CWE-506) arrive through npm before OSV.
@@ -467,6 +471,9 @@ func TestNpmMalware(t *testing.T) {
 	x := run(t, f, Input{Lock: lock("npm", lockfile.Package{Name: "evil", Version: "2.0.1", Direct: true})})["evil@2.0.1"]
 	if x.Kind != "malware" || x.Target != "2.0.0" || !contains(x.Why, "GitHub Advisory / npm") {
 		t.Fatalf("got %+v", x)
+	}
+	if w := x.Advisories[0].Weakness; len(w) != 1 || w[0].ID != "CWE-506" || w[0].Name.En != "Embedded malicious code" {
+		t.Fatalf("malware weakness: %+v", w)
 	}
 }
 

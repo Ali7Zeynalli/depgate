@@ -321,6 +321,9 @@ func en(ts []i18n.T) string {
 
 func finding(b *strings.Builder, f report.Finding) {
 	fmt.Fprintf(b, "### %s\n", oneLine(f))
+	if f.About != "" {
+		fmt.Fprintf(b, "- Package: %s\n", untrusted(f.About, 200))
+	}
 	if !f.Direct && len(f.Chain) > 1 {
 		fmt.Fprintf(b, "- Chain: %s\n", strings.Join(f.Chain, " → "))
 	}
@@ -329,6 +332,13 @@ func finding(b *strings.Builder, f report.Finding) {
 	}
 	for _, a := range f.Advisories {
 		fmt.Fprintf(b, "- Advisory %s (%s)%s%s%s %s\n", a.ID, a.Severity, flag(a.KEV, " · exploited in the wild (CISA KEV)"), flagf(a.EPSS > 0, " · EPSS %.0f%%", a.EPSS*100), flagf(a.Fixed != "", " · fixed in %s", a.Fixed), a.URL)
+		for _, w := range a.Weakness {
+			if w.Name.En != "" {
+				fmt.Fprintf(b, "  - %s %s: %s %s\n", w.ID, w.Name.En, w.What.En, w.Risk.En)
+			} else {
+				fmt.Fprintf(b, "  - %s\n", w.ID)
+			}
+		}
 	}
 	if w := en(f.Why); w != "" {
 		fmt.Fprintf(b, "- Why: %s\n", w)

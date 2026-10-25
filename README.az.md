@@ -173,6 +173,7 @@ Qaydalar [gixy](https://github.com/yandex/gixy) (nginx konfiqurasiya xətaları)
 - **Lockfile-lar:** `package-lock.json` (v1–v3), `pnpm-lock.yaml` (v5–v9), `yarn.lock` (v1 və Berry), `bun.lock`, workspace-lər daxil. Dolayı paketlər də yoxlanır. Lockfile yoxdursa `node_modules`-dan oxuyur, o da yoxdursa açıq işarələnmiş «təxmini» rejimə keçir.
 - **Zəifliklər və zərərli paketlər:** OSV.dev və npm advisory endpoint-i (`npm audit`-in məlumatı) təkrarsız birləşdirilir. `npm audit`-in buraxdığı prerelease versiyalar da yoxlanır.
 - **Silinmiş versiyalar:** npm-in artıq vermədiyi versiya. Bu halda təmiz quraşdırma alınmayacaq; npm zərərli versiyaları silir. `0.0.1-security` ilə əvəzlənmiş paket zərərli kimi göstərilir.
+- **Sadə dildə izah:** hər tapıntıda paketin nə olduğu (npm təsviri) və layihəyə necə düşdüyü yazılır. Hər advisory-də zəifliyin növü (CWE) göstərilir: bu nədir və hücumçuya nə imkan verir — prototype pollution, ReDoS, path traversal, SSRF, XSS, inyeksiya, imza yoxlamasından yan keçmə — cəmi 70-ə yaxın növ, Azərbaycan və ingilis dilində. Advisory-nin öz mətni də var.
 - **Prioritet (0–100):** severity + [CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog) + [EPSS](https://www.first.org/epss/).
 - **Ən təhlükəsiz minimum hədəf:** eyni major xəttində zəifliyi olmayan ən kiçik versiya; gözləmə müddətindən yeni versiyalar keçilir.
 - **Dolayı paket düzəlişi:** relock → birbaşa valideynin yenilənməsi → `overrides` / `resolutions` bloku.

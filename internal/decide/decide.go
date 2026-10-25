@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -204,8 +205,18 @@ func Packages(ctx context.Context, d *Data, in Input, opt Options) ([]report.Fin
 		for _, it := range insts {
 			for _, a := range adv[it.pkg.Name] {
 				v := sources.FromNpm(it.pkg.Name, a)
-				if Affects(v, it.pkg.Name, it.ver) && !knownVuln(it.vulns, v) {
+				if !Affects(v, it.pkg.Name, it.ver) {
+					continue
+				}
+				if !knownVuln(it.vulns, v) {
 					it.vulns = append(it.vulns, v)
+					continue
+				}
+				// the OSV copy may lack the CWE ids npm has
+				for _, x := range it.vulns {
+					if len(x.DatabaseSpecific.CWEIDs) == 0 && len(a.CWE) > 0 && (x.ID == v.ID || slices.Contains(x.Aliases, v.ID)) {
+						x.DatabaseSpecific.CWEIDs = a.CWE
+					}
 				}
 			}
 		}
@@ -298,6 +309,21 @@ func Packages(ctx context.Context, d *Data, in Input, opt Options) ([]report.Fin
 			return
 		}
 		out = append(out, f)
+	})
+
+	// what each package is: the npm description of the installed version
+	// (the registry document is already cached by the removed-version check)
+	idx := make([]int, len(out))
+	for i := range idx {
+		idx[i] = i
+	}
+	parallel(idx, 16, func(i int) {
+		if m, err := d.Manifest(ctx, out[i].Pkg, out[i].Current); err == nil && m != nil {
+			out[i].About = clipText(strings.TrimSpace(m.Description), 300)
+			if strings.HasPrefix(m.Homepage, "https://") {
+				out[i].Homepage = m.Homepage
+			}
+		}
 	})
 
 	sort.SliceStable(out, func(i, j int) bool {

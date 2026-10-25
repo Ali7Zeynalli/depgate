@@ -206,6 +206,8 @@ type Finding struct {
 	Key        string   `json:"key"`  // stable: kind:pkg:advisory
 	Kind       string   `json:"kind"` // vuln | malware | update | deprecated | suspicious
 	Pkg        string   `json:"pkg"`
+	About      string   `json:"about,omitempty"`    // the package's own description (npm)
+	Homepage   string   `json:"homepage,omitempty"` // the package's homepage (npm)
 	Direct     bool     `json:"direct"`
 	Dev        bool     `json:"dev"`
 	Chain      []string `json:"chain,omitempty"` // direct parent -> ... -> pkg for transitive packages
@@ -285,4 +287,17 @@ type Adv struct {
 	KEV      bool     `json:"kev,omitempty"`
 	Fixed    string   `json:"fixed,omitempty"` // lowest fixed version above current
 	URL      string   `json:"url,omitempty"`
+	// what the weakness is and what it lets an attacker do (from the CWE ids)
+	Weakness []Weakness `json:"weakness,omitempty"`
+	// Details is the advisory's own description, shortened (English, as published)
+	Details string `json:"details,omitempty"`
+}
+
+// Weakness explains one CWE in plain words.
+type Weakness struct {
+	ID   string `json:"id"` // CWE-1321
+	URL  string `json:"url"`
+	Name i18n.T `json:"name"` // empty when DepGate has no text for this CWE
+	What i18n.T `json:"what"` // what the weakness is
+	Risk i18n.T `json:"risk"` // what an attacker can do with it
 }
