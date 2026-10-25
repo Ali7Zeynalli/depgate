@@ -98,7 +98,7 @@ jobs:
             org.opencontainers.image.description=Local npm dependency security and update advisor for Node.js projects
             org.opencontainers.image.licenses=MIT
       - id: build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           platforms: linux/amd64,linux/arm64
