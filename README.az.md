@@ -24,6 +24,8 @@ Lokal veb interfeys · Docker · sıfır asılılıq · Azərbaycan və ingilis 
 
 Node.js runtime-ı, Dockerfile və compose faylları da yoxlanır. Hər şey sənin kompüterində işləyir və DepGate **heç bir faylı dəyişmir** — yalnız göstərir və təklif edir.
 
+Hər layihə (və hər qovluq) **Ümumi** bölməsində açılır: əvvəlcə nə etmək lazım olduğu prioritetə görə sıralanır, hər bölmə üçün bir kart var. Qalanı bölmələrə ayrılıb, ona görə hər dəfə bir şey görürsən: **Paketlər** (hər paket bir kompakt sətir, tam cavab üçün sətirə klikləyirsən), **Kod dəyişiklikləri**, **Docker**, **Node.js və mühit**, **AI və MCP**.
+
 ![DepGate](docs/screenshot-az.png)
 
 ## Niyə indi
@@ -54,7 +56,7 @@ DEPGATE_UID=$(id -u) DEPGATE_GID=$(id -g) docker compose up -d
 
 `http://127.0.0.1:7777` aç, parol seç və ev qovluğunun istənilən yerindən layihə əlavə et.
 
-AI agentini layihəyə qoş ([MCP](#mcp)-yə bax). Ən asan yol interfeysdəki **AI agent (MCP)** düyməsidir, orada əmr layihə yolu və token ilə hazır olur. Əl ilə belədir:
+AI agentini layihəyə qoş ([MCP](#mcp)-yə bax). Ən asan yol interfeysin **AI və MCP** bölməsindəki **Qoşulma əmri** düyməsidir, orada əmr layihə yolu və token ilə hazır olur. Əl ilə belədir:
 
 ```bash
 cd ~/projects/shop && claude mcp add --transport http depgate -s local \
@@ -119,7 +121,7 @@ cd ~/projects/shop && claude mcp add depgate -s local -- depgate mcp --project "
 
 stdio lokal layihə tapmasa və eyni vaxtda DepGate server işləyirsə, bunu deyir və HTTP qoşulmasını tövsiyə edir. `/mcp` yalnız `Authorization: Bearer` token-i qəbul edir (brauzer sessiyası işləmir). Yad `Origin` başlığını rədd edir və yalnız DepGate-in icazə verilən qovluqlarını oxuyur.
 
-Hər layihə və qovluqdakı **AI agent (MCP)** düyməsi bu əmrləri yolu doldurulmuş halda göstərir. Cursor və digər kliyentlər üçün JSON da orada var.
+Hər layihə və qovluğun **AI və MCP** bölməsindəki **Qoşulma əmri** düyməsi bu əmrləri yolu doldurulmuş halda göstərir. Cursor və digər kliyentlər üçün JSON da orada var.
 
 | Alət | Agent nə alır |
 |---|---|
@@ -201,7 +203,7 @@ depgate
 
 `http://127.0.0.1:7777` açılır. İnterfeys iki dillidir (Azərbaycan / ingilis): brauzerin dilinə uyğun açılır, **AZ / EN** düyməsi isə yenidən skan etmədən dərhal dəyişir. **+ Layihə əlavə et** düyməsini bas, qovluqları gəz (`package.json` olanlar «layihə» kimi işarələnib) və layihəni seç. Bütöv qovluq da seçmək olar: altındakı bütün layihələr, monorepo üzvləri daxil, əlavə olunur və arxa planda skan edilir.
 
-Layihə siyahısı və son hesabatlar yadda qalır (`~/.config/depgate`), növbəti dəfə hamısı yerindədir. Hər layihə üçün **Skan et**, **Siyahıdan sil**, **AI qaydaları**, **AI üçün prompt** düymələri var. Qovluqda eyniləri bütün layihələrinə təsir edir. Yuxarıda **Hamısını skan et** var. Layihə qovluğunda `depgate` (və ya `depgate ~/projects`) yazsan, dərhal əlavə olunur.
+Layihə siyahısı və son hesabatlar yadda qalır (`~/.config/depgate`), növbəti dəfə hamısı yerindədir. Hər layihə üçün **Skan et**, **Siyahıdan sil**, **AI üçün prompt** düymələri və bölmələr var: Ümumi · Paketlər · Kod dəyişiklikləri · Docker · Node.js və mühit · AI və MCP. Açıq bölmə ünvanda saxlanır, ona görə səhifəni yeniləyəndə və ya linki paylaşanda eyni bölmə açılır. Qovluqda eyniləri bütün layihələrinə təsir edir. Yuxarıda **Hamısını skan et** var. Layihə qovluğunda `depgate` (və ya `depgate ~/projects`) yazsan, dərhal əlavə olunur.
 
 Qovluq seçici yalnız icazə verilən kökləri göstərir (standart: ev qovluğu; `--root` ilə dəyişir).
 

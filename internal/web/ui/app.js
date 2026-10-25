@@ -2,8 +2,19 @@
 (() => {
   const $ = (s, r = document) => r.querySelector(s);
   const H = { "X-DepGate": "1" };
-  let st = null, current = decodeURIComponent(location.hash.slice(1)) || "", pollT = null;
-  const state = { q: "", sev: "", dev: true };
+  const TABS = ["overview", "packages", "code", "docker", "env", "ai"];
+  const TABL = { overview: "tabOverview", packages: "tabPackages", code: "tabCode", docker: "tabDocker", env: "tabEnv", ai: "tabAI" };
+  // location.hash = encodeURIComponent(project or folder) + "@" + tab ("@" never appears encoded)
+  const parseHash = () => {
+    const h = location.hash.slice(1), i = h.lastIndexOf("@");
+    let dir = i >= 0 ? h.slice(0, i) : h;
+    try { dir = decodeURIComponent(dir); } catch { dir = ""; }
+    const tab = i >= 0 ? h.slice(i + 1) : "";
+    return { dir, tab: TABS.includes(tab) ? tab : "overview" };
+  };
+  const h0 = parseHash();
+  let st = null, current = h0.dir, pollT = null;
+  const state = { q: "", sev: "", dev: true, tab: h0.tab, grp: "", open: new Set(), shut: new Set() };
 
   // ---------- language ----------
   const D = {
@@ -20,7 +31,7 @@
     readOnly: ["yalnız baxış", "read-only"],
     projects: ["Layihələr ({0})", "Projects ({0})"],
     scanningAria: ["skan olunur", "scanning"],
-    malwareBanner: ["Zərərli paket tapıldı ({0}) — qırmızı kartdakı təlimata indi əməl et.", "Malicious package found ({0}) — follow the steps on the red card now."],
+    malwareBanner: ["Zərərli paket tapıldı ({0}) — layihəni aç və qırmızı sətirdəki təlimata indi əməl et.", "Malicious package found ({0}) — open the project and follow the steps on the red row now."],
     sourcesFailed: ["Bəzi mənbələr yüklənmədi: {0}", "Some sources failed: {0}"],
     welcomeTitle: ["DepGate-ə xoş gəldin", "Welcome to DepGate"],
     welcomeText: ["Node.js layihələrini əlavə et: DepGate hər paket üçün iki suala cavab verəcək — yeniləmək lazımdır? koda təsir edir?", "Add your Node.js projects: for every package DepGate answers two questions — do I need to update? will it affect my code?"],
@@ -223,6 +234,39 @@
     rulesNothing: ["Bu layihə üçün xüsusi qayda yoxdur.", "No specific rules for this project."],
     pBundles: ["### Birlikdə yenilə", "### Update together"],
     pDocker: ["### Docker", "### Docker"],
+    sections: ["Bölmələr", "Sections"],
+    tabOverview: ["Ümumi", "Overview"],
+    tabPackages: ["Paketlər", "Packages"],
+    tabCode: ["Kod dəyişiklikləri", "Code changes"],
+    tabDocker: ["Docker", "Docker"],
+    tabEnv: ["Node.js və mühit", "Node.js & setup"],
+    tabAI: ["AI və MCP", "AI & MCP"],
+    firstTitle: ["Əvvəlcə bunları et", "Do these first"],
+    firstHelp: ["Prioritetə görə sıralanıb; hər addım öz bölməsinə aparır.", "Sorted by priority; each step opens its section."],
+    firstNone: ["Təcili iş yoxdur.", "Nothing urgent."],
+    go: ["Bax →", "Open →"],
+    badgeUrgent: ["{0} təcili", "{0} urgent"],
+    areaPlaces: ["{0} yer", "{0} places"],
+    colPkg: ["Paket", "Package"],
+    colVer: ["Versiya", "Version"],
+    colWhy: ["Niyə", "Why"],
+    colImpact: ["Koda təsir", "Code impact"],
+    help_now_easy: ["Təhlükəsizlik üçün indi yenilə. Kod dəyişmir: eyni major daxilində ən təhlükəsiz versiya.", "Update now for security. No code change: the safest version within the same major."],
+    help_now_code: ["Təhlükəsizlik üçün indi yenilə, amma düzəliş yeni major-dadır: kodda dəyişiklik lazımdır.", "Update now for security, but the fix is in a new major: your code needs changes."],
+    help_plan: ["Təcili deyil, amma dəstəyi bitir və ya köhnəlir — planla.", "Not urgent, but support ends or the package is getting old — plan it."],
+    help_optional: ["Problem yoxdur, sadəcə daha yeni versiya var.", "No problem, a newer version is simply available."],
+    help_ok: ["Bu paketlərdə görüləcək iş yoxdur.", "Nothing to do for these packages."],
+    help_bundles: ["Bu paketlər birlikdə buraxılır: birini yeniləsən, qalanlarını da eyni versiyaya keçir.", "These packages are released together: update one and move the others to the same version."],
+    codeHelp: ["Yeniləmədən sonra kodunda dəyişməli olan yerlər.", "The places in your code that change with these updates."],
+    codeNone: ["Kod dəyişikliyi tələb edən yeniləmə yoxdur.", "No update needs code changes."],
+    toPackage: ["Paketə bax", "View package"],
+    seeCode: ["Kodda {0} yer dəyişməlidir → Kod dəyişiklikləri", "{0} places in your code change → Code changes"],
+    seeCode0: ["Yeniləmə qeydləri → Kod dəyişiklikləri", "Upgrade notes → Code changes"],
+    dockerHelp: ["Dockerfile və compose faylları: təhlükəsizlik, Compose standartı və image-lərin köhnəlməsi.", "Dockerfiles and compose files: security, the Compose Specification and outdated images."],
+    dockerFiles: ["Yoxlanan fayllar: {0}", "Checked files: {0}"],
+    aiOpen: ["Promptu aç", "Open the prompt"],
+    rulesOpen: ["Qaydalara bax", "View the rules"],
+    mcpOpen: ["Qoşulma əmri", "Connection command"],
     removeFolderConfirm: ["«{0}» qovluğundakı {1} layihə siyahıdan silinsin? (fayllara toxunulmur)", "Remove the {1} projects in “{0}” from the list? (files are not touched)"],
   };
   let lang = "en";
@@ -329,7 +373,18 @@
     try { setState(await api("POST", "api/projects/remove", { dirs: g.items.map((p) => p.dir) })); toast(t("removed")); }
     catch (e) { toast(t("error", e.message)); }
   }
-  function select(dir) { current = dir; history.replaceState(null, "", "#" + encodeURIComponent(dir)); render(); window.scrollTo(0, 0); }
+  function setHash() { history.replaceState(null, "", "#" + encodeURIComponent(current) + (state.tab !== "overview" ? "@" + state.tab : "")); }
+  function select(dir) { current = dir; setHash(); render(); window.scrollTo(0, 0); }
+  // goTab switches the section; o.grp picks a package group, o.open opens (and shows) one package row
+  function goTab(tab, o) {
+    state.tab = tab;
+    if (o && o.grp) state.grp = o.grp;
+    if (o && o.open) { state.open.add(o.open); state.shut.delete(o.open); }
+    setHash(); render();
+    const row = o && o.open && [...document.querySelectorAll("details.prow")].find((d) => d.dataset.key === o.open);
+    if (row) row.scrollIntoView({ block: "start" });
+    else { const tb = $(".tabs"); if (tb && tb.getBoundingClientRect().top < 60) window.scrollTo(0, 0); }
+  }
 
   $("#scanall").addEventListener("click", () => scan([]));
   $("#addproj").addEventListener("click", () => openPicker(""));
@@ -425,8 +480,6 @@
       p.scanning ? el("span", { class: "chip busy" }, el("span", { class: "spin" }), t("scanningChip")) : p.queued ? el("span", { class: "chip busy" }, t("queued")) : null,
       st.readOnly ? null : el("button", { class: "small", disabled: p.scanning || p.queued || undefined, onclick: () => scan([p.dir]) }, t("scan")),
       st.readOnly ? null : el("button", { class: "small ghost danger", onclick: () => removeProject(p) }, t("remove")),
-      st.readOnly ? null : el("button", { class: "small", onclick: () => openMCP(p.dir) }, t("mcpBtn")),
-      p.report ? el("button", { class: "small", onclick: () => openRules([p], p.dir) }, t("rulesBtn")) : null,
       p.report ? el("button", { class: "small primary", onclick: () => openPrompt([p], p.dir) }, t("aiBtn")) : null);
     const g = groupsOf(st.projects).find((x) => x.items.includes(p));
     if (g && g.items.length > 1 && !st.readOnly) {
@@ -437,10 +490,209 @@
     if (!p.report) {
       return el("div", null, bar, el("div", { class: "empty" }, el("h1", null, p.name), p.scanning || p.queued ? t("firstScan") : t("notScanned")));
     }
-    const srcs = (p.report.sources || []).filter((x) => x.requests > 0);
-    return el("div", null, bar, project(p.report),
-      el("div", { class: "srcfoot" }, el("button", { class: "link", onclick: () => openSources(p.report) },
+    const r = p.report;
+    const srcs = (r.sources || []).filter((x) => x.requests > 0);
+    const sub = [r.node && r.node.version ? "Node " + r.node.version : r.node && r.node.line ? "Node " + r.node.line : null,
+      r.manager, t("packages", r.packages || 0), r.lockfile || t("noLockfile"), r.repo].filter(Boolean).join(" · ");
+    const head = el("div", { class: "phead" },
+      el("div", null, el("h1", null, r.name), el("div", { class: "sub" }, sub),
+        r.approximate ? el("div", { class: "sub warntext" }, t("approx")) : null));
+    return el("div", null, bar, head, tabbed(projectCtx(p)),
+      el("div", { class: "srcfoot" }, el("button", { class: "link", onclick: () => openSources(r) },
         t("srcFoot", (srcs.length ? srcs : st.sources || []).map((x) => x.name).join(" · ")))));
+  }
+
+  // ---------- sections (tabs) shared by the project and the folder page ----------
+  const keyOf = (f) => f.group + "|" + (f.key || f.pkg) + "|" + f.current;
+  const grpTitle = (grp) => t((GROUPS.find((x) => x[0] === grp) || [0, "gOk"])[1]);
+  function nodeLine(n) {
+    const target = n.securityFix || n.latestInLine;
+    return "Node " + (n.version || n.line || "?") + (target && n.version && target !== n.version ? " → " + target : "") + " · " + needText("node", n.need);
+  }
+  function projectCtx(p) {
+    const r = p.report;
+    return {
+      reps: [p], dir: p.dir, g: null,
+      entries: (r.findings || []).map((f) => ({ f, where: null, rep: r })),
+      card: (e) => card(e.f, r, null, null, true),
+      bulk: (es) => { const c = bulkCommand(es.map((e) => e.f), r.manager); return c ? el("div", { class: "bulk" }, el("code", null, c), copyBtn(c)) : null; },
+      bundles: (r.bundles || []).map((b) => bundleCard(b)),
+      docker: { issues: r.docker || [], files: r.dockerFiles || [], label: null },
+      nodes: r.node ? [{ label: "", n: r.node }] : [],
+      hygBad: (r.hygiene || []).filter((h) => !h.ok).length,
+      env: () => el("div", { class: "side" }, nodeCard(r), hygieneCard(r)),
+      migs: (e) => (e.f.migrate || []).map((m) => ({ m, label: "" })),
+      errors: r.errors || [],
+      extra: null,
+    };
+  }
+  function tabbed(ctx) {
+    const es = ctx.entries;
+    const n = (grp) => es.filter((e) => e.f.group === grp).length;
+    const urgent = n("now_easy") + n("now_code");
+    const migs = es.map((e) => ({ e, ms: ctx.migs(e) })).filter((x) => x.ms.length);
+    const hits = migs.reduce((a, x) => a + x.ms.reduce((b, y) => b + (y.m.hits || 0), 0), 0);
+    const di = ctx.docker.issues;
+    const nodeNow = ctx.nodes.some((x) => x.n.need === "now");
+    const envN = (nodeNow ? 1 : 0) + ctx.hygBad;
+    const info = {
+      overview: ["", false],
+      packages: [es.filter((e) => e.f.group !== "ok").length, urgent > 0],
+      code: [hits, false],
+      docker: [di.length, di.some((d) => d.severity === "high")],
+      env: [envN, nodeNow],
+      ai: ["", false],
+    };
+    const tab = TABS.includes(state.tab) ? state.tab : "overview";
+    const bar = el("div", { class: "tabs", role: "tablist", "aria-label": t("sections") }, TABS.map((k) => el("button", {
+      role: "tab", "aria-selected": String(k === tab), tabindex: k === tab ? "0" : "-1", onclick: () => goTab(k),
+      onkeydown: (ev) => {
+        const d = ev.key === "ArrowRight" ? 1 : ev.key === "ArrowLeft" ? -1 : 0;
+        if (!d) return;
+        ev.preventDefault();
+        goTab(TABS[(TABS.indexOf(k) + d + TABS.length) % TABS.length]);
+        const b = $(".tabs [aria-selected=true]"); if (b) b.focus();
+      },
+    }, info[k][1] ? el("span", { class: "alert", "aria-hidden": "true" }) : null, t(TABL[k]), info[k][0] ? el("span", { class: "n" }, info[k][0]) : null)));
+    const body = tab === "packages" ? packagesTab(ctx) : tab === "code" ? codeTab(migs) : tab === "docker" ? dockerTab(ctx.docker)
+      : tab === "env" ? ctx.env() : tab === "ai" ? aiTab(ctx) : overviewTab(ctx, { n, urgent, hits, migs, nodeNow });
+    return el("div", null, bar, el("div", { class: "tabbody", role: "tabpanel", "aria-label": t(TABL[tab]) }, body));
+  }
+
+  // the few things to do first, across all sections
+  function stepsOf(ctx) {
+    const S = [];
+    for (const e of ctx.entries) {
+      const f = e.f;
+      if (f.group === "ok" || f.group === "optional") continue;
+      const bad = f.kind === "malware" || f.kind === "removed";
+      const score = f.kind === "malware" ? 1000 : f.kind === "removed" ? 900 : (f.priority || 0) + (f.group === "plan" ? 0 : 200);
+      S.push({
+        score, bad: bad || f.severity === "critical",
+        title: (f.kind === "malware" ? t("malicious") + ": " : f.kind === "removed" ? t("removedChip") + ": " : "") + f.pkg + " " + f.current + (f.target && f.target !== f.current ? " → " + f.target : ""),
+        sub: [f.title, t("qImpact").replace(/^②\s*/, "") + " " + impText(f.codeImpact), e.where && e.where.length > 1 ? t("nProjects", e.where.length) : ""].filter(Boolean).join(" · "),
+        tab: "packages", o: { grp: f.group, open: keyOf(f) },
+      });
+    }
+    for (const x of ctx.nodes) if (x.n.need === "now") S.push({ score: 250, bad: true, title: (x.label ? x.label + ": " : "") + nodeLine(x.n), sub: tr((x.n.why || [])[0]), tab: "env" });
+    for (const d of ctx.docker.issues) if (d.severity === "high") S.push({ score: 220, bad: false, title: tr(d.title), sub: (ctx.docker.label ? ctx.docker.label(d) : d.file) + (d.line ? ":" + d.line : "") + (d.service ? " · " + d.service : ""), tab: "docker" });
+    return S.sort((a, b) => b.score - a.score).slice(0, 6);
+  }
+  function overviewTab(ctx, x) {
+    const steps = stepsOf(ctx);
+    const first = el("div", { class: "card steps" },
+      el("div", { class: "h3" }, t("firstTitle")),
+      el("div", { class: "quiet small" }, steps.length ? t("firstHelp") : t("firstNone")),
+      steps.map((s, i) => el("div", { class: "step" + (s.bad ? " bad" : "") },
+        el("span", { class: "num" }, i + 1),
+        el("div", { class: "st" }, el("div", { class: "stt" }, s.title), s.sub ? el("div", { class: "sub" }, s.sub) : null),
+        el("span", { class: "tabname" }, t(TABL[s.tab])),
+        el("button", { class: "small", onclick: () => goTab(s.tab, s.o) }, t("go")))));
+    const area = (tab, title, badge, bad, l1, l2) => el("button", { class: "card area", onclick: () => goTab(tab) },
+      el("span", { class: "ah" }, el("span", null, title), badge ? el("span", { class: "chip" + (bad ? " sev-high" : badge === "✓" ? " ok" : "") }, badge) : null),
+      l1 ? el("span", { class: "quiet small" }, l1) : null, l2 ? el("span", { class: "quiet small" }, l2) : null);
+    const n = x.n, di = ctx.docker.issues, files = ctx.docker.files;
+    const areas = el("div", { class: "areas" },
+      area("packages", t("tabPackages"), x.urgent ? t("badgeUrgent", x.urgent) : "✓", x.urgent > 0,
+        `${t("tEasy")}: ${n("now_easy")} · ${t("tCode")}: ${n("now_code")}`,
+        `${t("tPlan")}: ${n("plan")} · ${t("tOptional")}: ${n("optional")} · ${t("tOk")}: ${n("ok")}`),
+      area("code", t("tabCode"), x.hits ? t("areaPlaces", x.hits) : x.migs.length ? "" : "✓", false,
+        x.migs.length ? x.migs.slice(0, 3).map((m) => m.e.f.pkg + " → " + m.ms[0].m.to).join(" · ") : t("codeNone"), ""),
+      area("docker", "Docker", di.length ? t("dockerN", di.length) : files.length ? "✓" : "", di.some((d) => d.severity === "high"),
+        files.length ? files.slice(0, 3).join(" · ") + (files.length > 3 ? " …" : "") : t("dockerNone"), ""),
+      area("env", t("tabEnv"), x.nodeNow ? t("needNow") : "✓", x.nodeNow,
+        ctx.nodes.length === 1 ? (ctx.nodes[0].label ? ctx.nodes[0].label + ": " : "") + nodeLine(ctx.nodes[0].n) : ctx.nodes.length ? t("nodeAll") : t("noNode"),
+        t("hygiene") + ": " + (ctx.hygBad ? t("hygBad", ctx.hygBad) : t("hygOk"))));
+    return [first, areas, ctx.extra,
+      ctx.errors.length ? el("details", { class: "errs" }, el("summary", null, t("warningsN", ctx.errors.length)), el("ul", null, ctx.errors.map((e) => el("li", null, e)))) : null];
+  }
+  function packagesTab(ctx) {
+    const chips = el("div", { class: "fchips", role: "group", "aria-label": t("tabPackages") }), help = el("div", { class: "ghelp" }), list = el("div");
+    const toolbar = el("div", { class: "toolbar" },
+      el("input", { type: "search", placeholder: t("search"), "aria-label": t("search"), value: state.q, oninput: (e) => { state.q = e.target.value; rerender(); } }),
+      el("select", { "aria-label": t("allSev"), onchange: (e) => { state.sev = e.target.value; rerender(); } },
+        ...[["", t("allSev")], ["critical", "critical"], ["high", "high+"], ["moderate", "moderate+"]].map(([v, l]) => el("option", { value: v, selected: state.sev === v }, l))),
+      el("label", null, el("input", { type: "checkbox", checked: state.dev, onchange: (e) => { state.dev = e.target.checked; rerender(); } }), "devDependencies"));
+    function rerender() {
+      const vis = ctx.entries.filter((e) => visible(e.f));
+      const opts = GROUPS.filter(([g]) => ctx.entries.some((e) => e.f.group === g)).map(([g, l]) => [g, t(l), vis.filter((e) => e.f.group === g).length]);
+      if (ctx.bundles.length) opts.push(["bundles", t("bundlesTitle"), ctx.bundles.length]);
+      let grp = state.grp;
+      if (!opts.some((o) => o[0] === grp)) grp = (opts.find((o) => o[2]) || opts[0] || [""])[0];
+      chips.replaceChildren(...opts.map(([g, l, c]) => el("button", { class: "fchip" + (g === grp ? " on" : ""), "aria-pressed": String(g === grp), onclick: () => { state.grp = g; rerender(); } }, l, el("b", null, c))));
+      help.textContent = grp ? t("help_" + grp) : "";
+      if (!grp) { list.replaceChildren(el("div", { class: "empty" }, t("noMatch"))); return; }
+      if (grp === "bundles") { list.replaceChildren(...ctx.bundles); return; }
+      const es = vis.filter((e) => e.f.group === grp);
+      const out = [];
+      if (!es.length) out.push(el("div", { class: "empty" }, t("noMatch")));
+      else if (grp === "ok") out.push(el("div", { class: "card" }, el("div", { class: "oklist" }, es.map((e) => el("div", null, `${e.f.pkg}@${e.f.current}`, e.where && e.where.length > 1 ? el("span", { class: "quiet" }, " ×" + e.where.length) : null)))));
+      else {
+        if (grp === "now_easy") out.push(ctx.bulk(es));
+        out.push(el("div", { class: "rlist" },
+          el("div", { class: "rhead", "aria-hidden": "true" }, el("span", null, t("colPkg")), el("span", null, t("colVer")), el("span", null, t("colWhy")), el("span", null, t("colImpact")), el("span")),
+          es.map((e) => prow(e, ctx))));
+      }
+      list.replaceChildren(...out.filter(Boolean));
+    }
+    rerender();
+    return [chips, toolbar, help, list];
+  }
+  // one compact row per package; the full answer opens below it
+  function prow(e, ctx) {
+    const f = e.f, k = keyOf(f), bad = f.kind === "malware" || f.kind === "removed";
+    const open = state.open.has(k) || bad && !state.shut.has(k);
+    const sev = f.kind === "malware" ? t("malicious") : f.kind === "removed" ? t("removedChip") : f.severity || "";
+    const d = el("details", { class: "prow" + (bad ? " mal" : ""), open: open || undefined },
+      el("summary", null,
+        el("span", { class: "c1" }, el("code", { class: "pk" }, f.pkg),
+          el("span", { class: "quiet small" }, [f.direct ? t("direct") : t("transitive"), f.dev ? "dev" : "", e.where && e.where.length > 1 ? t("nProjects", e.where.length) : ""].filter(Boolean).join(" · "))),
+        el("span", { class: "c2" }, f.current, f.target && f.target !== f.current ? [el("span", { class: "arr" }, " → "), el("b", null, f.target)] : null),
+        el("span", { class: "c3" }, sev ? el("span", { class: "chip sev-" + (bad ? "critical" : f.severity) }, sev) : null,
+          el("span", { class: "t" }, f.title || tr((f.why || [])[0]) || "")),
+        el("span", { class: "c4 " + impClass(f.codeImpact) }, impText(f.codeImpact))),
+      ctx.card(e));
+    d.dataset.key = k;
+    d.addEventListener("toggle", () => { if (d.open) { state.open.add(k); state.shut.delete(k); } else { state.open.delete(k); state.shut.add(k); } });
+    return d;
+  }
+  function codeTab(migs) {
+    if (!migs.length) return el("div", { class: "empty" }, t("codeNone"));
+    const order = { now_code: 0, now_easy: 1, plan: 2, optional: 3, ok: 4 };
+    const xs = [...migs].sort((a, b) => ((order[a.e.f.group] ?? 5) - (order[b.e.f.group] ?? 5)) || (b.e.f.priority || 0) - (a.e.f.priority || 0));
+    return [el("div", { class: "ghelp" }, t("codeHelp"), " ", t("readOnlyNote")),
+      xs.map(({ e, ms }) => el("div", { class: "card" },
+        el("div", { class: "ctitle" }, el("span", { class: "pkg" }, e.f.pkg),
+          el("span", { class: "ver" }, e.f.current, e.f.target ? [el("span", { class: "arr" }, "→"), e.f.target] : null),
+          el("span", { class: "chip" }, grpTitle(e.f.group)),
+          el("span", { class: "grow" }),
+          el("button", { class: "link small", onclick: () => goTab("packages", { grp: e.f.group, open: keyOf(e.f) }) }, t("toPackage"))),
+        ms.map((x) => migBlock(x.m, x.label, true))))];
+  }
+  const SEVC = { high: "sev-high", medium: "sev-moderate", low: "" };
+  function dockerTab(dk) {
+    if (!dk.files.length) return el("div", { class: "empty" }, t("dockerNone"));
+    const checked = el("div", { class: "quiet small" }, t("dockerFiles", dk.files.join(", ")));
+    if (!dk.issues.length) return el("div", { class: "card" }, el("div", null, t("dockerOk", dk.files.join(", "))));
+    const by = new Map();
+    for (const d of dk.issues) { const f = dk.label ? dk.label(d) : d.file; if (!by.has(f)) by.set(f, []); by.get(f).push(d); }
+    return [el("div", { class: "ghelp" }, t("dockerHelp"), " ", t("readOnlyNote")),
+      [...by].map(([file, ds]) => el("div", { class: "card dfile" },
+        el("div", { class: "dfh" }, el("code", null, file), el("span", { class: "quiet small" }, t("dockerN", ds.length))),
+        ds.map((d) => el("div", { class: "ditem" },
+          el("div", { class: "drow" }, el("span", { class: "chip " + (SEVC[d.severity] || "") }, d.severity), el("b", null, tr(d.title)),
+            el("span", { class: "quiet small" }, (d.line ? file.split("/").pop() + ":" + d.line : "") + (d.service ? " · " + d.service : ""))),
+          tr(d.detail) ? el("div", { class: "d" }, tr(d.detail)) : null,
+          d.fix ? el("code", { class: "dfix" }, d.fix) : null)))),
+      checked];
+  }
+  function aiTab(ctx) {
+    const scanned = ctx.reps.filter((p) => p.report);
+    const c = (title, text, btn) => el("div", { class: "card aicard" }, el("div", { class: "h3" }, title), el("div", { class: "quiet small" }, text), btn);
+    return el("div", { class: "areas" },
+      c(t("aiBtn"), t("aiHelp"), el("button", { class: "primary", onclick: () => openPrompt(scanned, ctx.dir, ctx.g) }, t("aiOpen"))),
+      c(t("rulesBtn"), t("rulesHelp"), el("button", { onclick: () => openRules(scanned, ctx.dir, ctx.g) }, t("rulesOpen"))),
+      st.readOnly ? null : c(t("mcpBtn"), t("mcpHelp"), el("button", { onclick: () => openMCP(ctx.dir) }, t("mcpOpen"))));
   }
 
   // ---------- data sources ----------
@@ -494,21 +746,12 @@
       busy ? el("span", { class: "chip busy" }, el("span", { class: "spin" }), t("scanningChip")) : null,
       st.readOnly ? null : el("button", { class: "small", disabled: st.busy || undefined, onclick: () => scan(ps.map((x) => x.dir)) }, t("scanFolder", ps.length)),
       st.readOnly ? null : el("button", { class: "small ghost danger", onclick: () => removeGroup(g) }, t("removeFolder", ps.length)),
-      st.readOnly ? null : el("button", { class: "small", onclick: () => openMCP(g.dir) }, t("mcpBtn")),
-      scanned.length ? el("button", { class: "small", onclick: () => openRules(scanned, g.dir, g) }, t("rulesBtn")) : null,
       scanned.length ? el("button", { class: "small primary", onclick: () => openPrompt(scanned, g.dir, g) }, t("aiBtn")) : null);
     if (!scanned.length) return el("div", null, bar, el("div", { class: "empty" }, el("h1", null, baseName(g.dir)), busy ? t("firstScan") : t("folderNotScanned")));
 
-    const merged = mergeFindings(scanned);
-    const n = (grp) => merged.filter((e) => e.f.group === grp).length;
     const pkgs = scanned.reduce((a, p) => a + (p.report.packages || 0), 0);
-    const tile = (cnt, l, cls, grp) => el("div", { class: "tile " + cls + (cnt ? "" : " zero"), onclick: () => { const d = document.getElementById("g-" + grp); if (d) { d.open = true; d.scrollIntoView({ behavior: "smooth" }); } } },
-      el("div", { class: "n" }, cnt || 0), el("div", { class: "l" }, l));
     const head = el("div", { class: "phead" },
-      el("div", null, el("h1", null, baseName(g.dir)), el("div", { class: "sub" }, t("folderSub", ps.length, pkgs))),
-      el("div", { class: "tiles" },
-        tile(n("now_easy"), t("tEasy"), "easy", "now_easy"), tile(n("now_code"), t("tCode"), "code", "now_code"),
-        tile(n("plan"), t("tPlan"), "", "plan"), tile(n("optional"), t("tOptional"), "", "optional"), tile(n("ok"), t("tOk"), "", "ok")));
+      el("div", null, el("h1", null, baseName(g.dir)), el("div", { class: "sub" }, t("folderSub", ps.length, pkgs))));
 
     const rows = el("div", { class: "card ptable" }, el("div", { class: "h3" }, t("folderProjects")),
       el("table", null,
@@ -523,14 +766,6 @@
             el("td", { class: nd && nd.need === "now" ? "bad" : "" }, nd ? (nd.version || nd.line || "?") + (nd.securityFix && nd.securityFix !== nd.version ? " → " + nd.securityFix : "") : "—"));
         }))));
 
-    const toolbar = el("div", { class: "toolbar" },
-      el("input", { type: "search", placeholder: t("search"), value: state.q, oninput: (e) => { state.q = e.target.value; rerender(); } }),
-      el("select", { onchange: (e) => { state.sev = e.target.value; rerender(); } },
-        ...[["", t("allSev")], ["critical", "critical"], ["high", "high+"], ["moderate", "moderate+"]].map(([v, l]) => el("option", { value: v, selected: state.sev === v }, l))),
-      el("label", null, el("input", { type: "checkbox", checked: state.dev, onchange: (e) => { state.dev = e.target.checked; rerender(); } }), "devDependencies"));
-    const groups = el("div");
-    function rerender() { groups.replaceChildren(...renderFolderGroups(g, merged)); }
-    rerender();
     const dk = new Map(), dfiles = new Set();
     for (const p of scanned) {
       for (const f of p.report.dockerFiles || []) dfiles.add(relTo(joinPath(p.dir, f), g.dir) || f);
@@ -541,35 +776,29 @@
       }
     }
     const dIssues = [...dk.values()].sort((a, b) => ({ high: 0, medium: 1, low: 2 }[a.severity] - { high: 0, medium: 1, low: 2 }[b.severity]) || a.abs.localeCompare(b.abs) || a.line - b.line);
-    const bundles = scanned.flatMap((p) => (p.report.bundles || []).map((b) => bundleCard({ ...b, command: b.command ? cdPrefix(p, g) + b.command : "" }, relName(p, g))));
-    return el("div", null, bar, head, rows,
-      el("div", { class: "side" }, folderNodeCard(g, scanned), folderHygieneCard(g, scanned)),
-      dockerCard(dIssues, [...dfiles], (d) => relTo(d.abs, g.dir) || d.abs),
-      bundlesSection(bundles),
-      toolbar, groups);
-  }
-  function renderFolderGroups(g, merged) {
-    const out = [];
-    for (const [grp, title, open] of GROUPS) {
-      const es = merged.filter((e) => e.f.group === grp && visible(e.f));
-      if (!es.length) continue;
-      const body = [];
-      if (grp === "now_easy") {
+    const ctx = {
+      reps: scanned, dir: g.dir, g,
+      entries: mergeFindings(scanned).map((e) => ({ f: e.f, where: e.where, rep: e.where[0].p.report })),
+      card: (e) => card(e.f, e.rep, e.where, g, true),
+      bulk: (es) => {
         const lines = [];
         for (const p of g.items) {
           const fs = es.flatMap((e) => e.where.filter((w) => w.p === p).map((w) => w.f));
           const cmd = fs.length ? bulkCommand(fs, p.report.manager) : "";
           if (cmd) lines.push(cdPrefix(p, g) + cmd);
         }
-        if (lines.length) body.push(el("div", { class: "bulk multi" }, el("pre", null, lines.join("\n")), copyBtn(lines.join("\n"))));
-      }
-      if (grp === "ok") body.push(el("div", { class: "oklist" }, es.map((e) => el("div", null, `${e.f.pkg}@${e.f.current}`, e.where.length > 1 ? el("span", { class: "quiet" }, " ×" + e.where.length) : null))));
-      else body.push(es.map((e) => card(e.f, e.where[0].p.report, e.where, g)));
-      out.push(el("details", { class: "grp", id: "g-" + grp, open: open || undefined },
-        el("summary", null, t(title), el("span", { class: "c" }, `(${es.length})`)), body));
-    }
-    if (!out.length) out.push(el("div", { class: "empty" }, t("noMatch")));
-    return out;
+        return lines.length ? el("div", { class: "bulk multi" }, el("pre", null, lines.join("\n")), copyBtn(lines.join("\n"))) : null;
+      },
+      bundles: scanned.flatMap((p) => (p.report.bundles || []).map((b) => bundleCard({ ...b, command: b.command ? cdPrefix(p, g) + b.command : "" }, relName(p, g)))),
+      docker: { issues: dIssues, files: [...dfiles], label: (d) => relTo(d.abs, g.dir) || d.abs },
+      nodes: scanned.filter((p) => p.report.node).map((p) => ({ label: relName(p, g), n: p.report.node })),
+      hygBad: scanned.reduce((a, p) => a + (p.report.hygiene || []).filter((h) => !h.ok).length, 0),
+      env: () => el("div", { class: "side" }, folderNodeCard(g, scanned), folderHygieneCard(g, scanned)),
+      migs: (e) => e.where.flatMap((w) => (w.f.migrate || []).map((m) => ({ m, label: e.where.length > 1 ? relName(w.p, g) : "" }))),
+      errors: scanned.flatMap((p) => (p.report.errors || []).map((x) => relName(p, g) + ": " + x)),
+      extra: rows,
+    };
+    return el("div", null, bar, head, tabbed(ctx));
   }
   function folderNodeCard(g, ps) {
     const withNode = ps.filter((p) => p.report.node);
@@ -789,24 +1018,6 @@
       b.command ? el("div", { class: "fix" }, el("div", { class: "row" }, el("code", null, b.command), copyBtn(b.command))) : null,
       safeURL(b.docs) ? el("div", { class: "cfoot" }, el("a", { href: b.docs, target: "_blank", rel: "noopener noreferrer" }, t("docs") + ": " + b.docs)) : null);
   }
-  function bundlesSection(items) {
-    if (!items.length) return null;
-    return el("details", { class: "grp", id: "g-bundles", open: true },
-      el("summary", null, t("bundlesTitle"), el("span", { class: "c" }, `(${items.length})`)), items);
-  }
-  const SEVC = { high: "sev-high", medium: "sev-moderate", low: "" };
-  function dockerCard(issues, files, label) {
-    if (!files.length) return null;
-    const head = el("div", { class: "h3" }, t("dockerTitle"), el("span", { class: "chip" }, issues.length ? t("dockerN", issues.length) : t("hygOk")));
-    if (!issues.length) return el("div", { class: "card docker" }, head, el("div", { class: "quiet small" }, t("dockerOk", files.join(", "))));
-    return el("div", { class: "card docker" }, head,
-      el("div", { class: "quiet small" }, t("readOnlyNote")),
-      issues.map((d) => el("div", { class: "ditem" },
-        el("div", { class: "drow" }, el("span", { class: "chip " + (SEVC[d.severity] || "") }, d.severity), el("b", null, tr(d.title))),
-        el("div", { class: "quiet small" }, (label ? label(d) : d.file) + (d.line ? ":" + d.line : "") + (d.service ? " · " + d.service : "")),
-        tr(d.detail) ? el("div", { class: "d" }, tr(d.detail)) : null,
-        d.fix ? el("code", { class: "dfix" }, d.fix) : null)));
-  }
   // normalise "a/b/../c" so the same compose file seen from two projects is one entry
   function joinPath(dir, rel) {
     const out = [];
@@ -873,62 +1084,12 @@
     textModal(t("rulesTitle"), t("rulesHelp"), r.text, t("rulesStats", r.rules, r.repl), "AGENTS-depgate-" + baseName(rootDir) + ".md");
   }
 
-  function project(p) {
-    const s = p.summary || {};
-    const tile = (n, l, cls, grp) => el("div", { class: "tile " + cls + (n ? "" : " zero"), onclick: () => { const d = document.getElementById("g-" + grp); if (d) { d.open = true; d.scrollIntoView({ behavior: "smooth" }); } } },
-      el("div", { class: "n" }, n || 0), el("div", { class: "l" }, l));
-    const sub = [p.node && p.node.version ? "Node " + p.node.version : p.node && p.node.line ? "Node " + p.node.line : null,
-      p.manager, t("packages", p.packages || 0), p.lockfile || t("noLockfile"), p.repo].filter(Boolean).join(" · ");
-    const head = el("div", { class: "phead" },
-      el("div", null, el("h1", null, p.name), el("div", { class: "sub" }, sub),
-        p.approximate ? el("div", { class: "sub warntext" }, t("approx")) : null),
-      el("div", { class: "tiles" },
-        tile(s.now_easy, t("tEasy"), "easy", "now_easy"), tile(s.now_code, t("tCode"), "code", "now_code"),
-        tile(s.plan, t("tPlan"), "", "plan"), tile(s.optional, t("tOptional"), "", "optional"), tile(s.ok, t("tOk"), "", "ok")));
-
-    const toolbar = el("div", { class: "toolbar" },
-      el("input", { type: "search", placeholder: t("search"), value: state.q, oninput: (e) => { state.q = e.target.value; rerenderGroups(); } }),
-      el("select", { onchange: (e) => { state.sev = e.target.value; rerenderGroups(); } },
-        ...[["", t("allSev")], ["critical", "critical"], ["high", "high+"], ["moderate", "moderate+"]].map(([v, l]) => el("option", { value: v, selected: state.sev === v }, l))),
-      el("label", null, el("input", { type: "checkbox", checked: state.dev, onchange: (e) => { state.dev = e.target.checked; rerenderGroups(); } }), "devDependencies"));
-
-    const groups = el("div");
-    function rerenderGroups() { groups.replaceChildren(...renderGroups(p)); }
-    rerenderGroups();
-
-    return el("div", null, head,
-      el("div", { class: "side" }, nodeCard(p), hygieneCard(p)),
-      dockerCard(p.docker || [], p.dockerFiles || []),
-      bundlesSection((p.bundles || []).map((b) => bundleCard(b))),
-      toolbar, groups,
-      p.errors && p.errors.length ? el("details", { class: "errs" }, el("summary", null, t("warningsN", p.errors.length)), el("ul", null, p.errors.map((e) => el("li", null, e)))) : null);
-  }
-
   const SEVR = { critical: 4, high: 3, moderate: 2, low: 1 };
   function visible(f) {
     if (!state.dev && f.dev) return false;
     if (state.q && !f.pkg.toLowerCase().includes(state.q.toLowerCase())) return false;
     if (state.sev && (f.kind !== "vuln" && f.kind !== "malware" || (SEVR[f.severity] || 0) < SEVR[state.sev])) return false;
     return true;
-  }
-
-  function renderGroups(p) {
-    const out = [];
-    for (const [g, title, open] of GROUPS) {
-      const fs = (p.findings || []).filter((f) => f.group === g && visible(f));
-      if (!fs.length) continue;
-      const body = [];
-      if (g === "now_easy") {
-        const cmd = bulkCommand(fs, p.manager);
-        if (cmd) body.push(el("div", { class: "bulk" }, el("code", null, cmd), copyBtn(cmd)));
-      }
-      if (g === "ok") body.push(el("div", { class: "oklist" }, fs.map((f) => el("div", null, `${f.pkg}@${f.current}`))));
-      else body.push(fs.map((f) => card(f, p)));
-      out.push(el("details", { class: "grp", id: "g-" + g, open: open || undefined },
-        el("summary", null, t(title), el("span", { class: "c" }, `(${fs.length})`)), body));
-    }
-    if (!out.length) out.push(el("div", { class: "empty" }, t("noMatch")));
-    return out;
   }
 
   // one command for all simple upgrades of the group
@@ -952,10 +1113,10 @@
   const impClass = (i) => (IMPACT[i] || IMPACT.unknown)[1];
   const list = (xs) => (xs || []).filter((x) => tr(x)).map((w) => el("li", null, tr(w)));
 
-  function migBlock(m, label) {
+  function migBlock(m, label, openAll) {
     const steps = m.steps || [];
     const head = m.plan ? t("migPlan", m.to, m.hits) : t("migNow", m.to, m.hits || t("migNone"));
-    return el("details", { class: "mig" + (m.plan ? " plan" : ""), open: !m.plan && m.hits > 0 || undefined },
+    return el("details", { class: "mig" + (m.plan ? " plan" : ""), open: (openAll ? m.hits > 0 : !m.plan && m.hits > 0) || undefined },
       el("summary", null, label ? el("span", { class: "chip" }, label) : null, head),
       el("div", { class: "quiet small" }, t("migHint"), " ", t("readOnlyNote")),
       steps.map((st) => el("div", { class: "mstep" },
@@ -973,9 +1134,10 @@
       m.notesErr ? el("div", { class: "quiet small" }, t("migNotesErr", m.notesErr)) : null);
   }
 
-  function card(f, p, where, g) {
+  // bare: the card's body inside a package row (the row already shows name, version and chips)
+  function card(f, p, where, g, bare) {
     const vuln = f.kind === "vuln" || f.kind === "malware";
-    const cls = "card" + (f.kind === "malware" ? " mal bad" : f.kind === "removed" ? " bad" : "");
+    const cls = bare ? "rbody" : "card" + (f.kind === "malware" ? " mal bad" : f.kind === "removed" ? " bad" : "");
     const title = el("div", { class: "ctitle" },
       el("span", { class: "pkg" }, f.pkg),
       el("span", { class: "ver" }, f.current, f.target ? [el("span", { class: "arr" }, "→"), f.target] : null),
@@ -985,15 +1147,18 @@
       vuln ? el("span", { class: "chip prio", title: t("prioTitle") }, "P" + f.priority) : null,
       f.latest && f.latest !== f.target && f.latest !== f.current ? el("span", { class: "chip", title: t("latestTitle") }, t("latest", f.latest)) : null);
 
-    const kids = [title];
-    if (f.title) kids.push(el("div", { class: "ctext" }, f.title));
+    const kids = bare ? [el("div", { class: "rchips" }, [...title.querySelectorAll(".chip[title]")])] : [title];
+    if (f.title && !bare) kids.push(el("div", { class: "ctext" }, f.title));
     if (f.chain && f.chain.length > 1) kids.push(el("div", { class: "chain" }, f.chain.join(" → ")));
     kids.push(el("div", { class: "q" }, el("span", { class: "dot " + needClass(f.needUpdate) }), el("span", { class: "lbl" }, t("qNeed")), el("span", { class: "ans" }, needText(f.kind, f.needUpdate))));
     if (f.why && f.why.length) kids.push(el("ul", { class: "why" }, list(f.why)));
     kids.push(el("div", { class: "q" }, el("span", { class: "dot " + impClass(f.codeImpact) }), el("span", { class: "lbl" }, t("qImpact")), el("span", { class: "ans" }, impText(f.codeImpact))));
     if (f.impactWhy && f.impactWhy.length) kids.push(el("ul", { class: "why" }, list(f.impactWhy)));
-    if (where) { for (const w of where) for (const m of w.f.migrate || []) kids.push(migBlock(m, where.length > 1 ? relName(w.p, g) : "")); }
-    else for (const m of f.migrate || []) kids.push(migBlock(m));
+    const migs = where ? where.flatMap((w) => (w.f.migrate || []).map((m) => [m, where.length > 1 ? relName(w.p, g) : ""])) : (f.migrate || []).map((m) => [m, ""]);
+    if (bare && migs.length) {
+      const hits = migs.reduce((a, [m]) => a + (m.hits || 0), 0);
+      kids.push(el("button", { class: "tocode" + (migs.some(([m]) => !m.plan) ? " now" : ""), onclick: () => goTab("code") }, hits ? t("seeCode", hits) : t("seeCode0")));
+    } else for (const [m, l] of migs) kids.push(migBlock(m, l));
     if (f.warnings && f.warnings.length) kids.push(el("div", { class: "warnbox" }, f.warnings.map((w) => el("div", null, "⚠ " + tr(w)))));
     if (where) {
       const lines = where.map((w) => w.f.fix && w.f.fix.command ? cdPrefix(w.p, g) + w.f.fix.command.split("   #")[0] : "").filter(Boolean);
