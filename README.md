@@ -50,16 +50,17 @@ Dependabot opens a PR per package; `npm audit fix --force` may jump majors and b
 
 ```bash
 go install github.com/Ali7Zeynalli/depgate@latest
-depgate            # opens http://127.0.0.1:7777 — click "+ Add project"
+depgate            # opens http://127.0.0.1:7777 — set a password, then "+ Add project"
 ```
 
-or with Docker:
+or with Docker (clone the repo first):
 
 ```bash
-docker run -d --name depgate -p 127.0.0.1:7777:7777 \
-  -v $HOME/projects:/projects:ro -v depgate-data:/data ghcr.io/ali7zeynalli/depgate:latest
-docker logs depgate   # the link with your access token
+mkdir -p ~/.config/depgate
+DEPGATE_UID=$(id -u) DEPGATE_GID=$(id -g) docker compose up -d
 ```
+
+Open `http://127.0.0.1:7777`, choose a password, add projects from anywhere in your home folder.
 
 If DepGate saves you a bad afternoon, a ⭐ helps other developers find it.
 
@@ -91,19 +92,24 @@ The browser can only see folders under the allowed roots (your home directory by
 ### Docker
 
 ```bash
-PROJECTS_DIR=$HOME/projects docker compose up -d
-docker compose logs depgate     # the URL with the access token
+mkdir -p ~/.config/depgate
+DEPGATE_UID=$(id -u) DEPGATE_GID=$(id -g) docker compose up -d
 ```
 
 or without compose:
 
 ```bash
-docker run -d --name depgate -p 127.0.0.1:7777:7777 \
-  -v $HOME/projects:/projects:ro -v depgate-data:/data \
-  --read-only --cap-drop ALL ghcr.io/ali7zeynalli/depgate:latest
+mkdir -p ~/.config/depgate
+docker run -d --name depgate -p 127.0.0.1:7777:7777 --user "$(id -u):$(id -g)" \
+  -e HOME=$HOME -e DEPGATE_ROOTS=$HOME \
+  -v $HOME:$HOME:ro -v $HOME/.config/depgate:/data \
+  --read-only --tmpfs /tmp --cap-drop ALL ghcr.io/ali7zeynalli/depgate:latest
 ```
 
-Projects are mounted **read-only** at `/projects`; the project list, reports and token live in the `/data` volume. The port is published on `127.0.0.1` only. Set `DEPGATE_TOKEN` for a fixed, bookmarkable link.
+- Your **home folder is mounted read-only at the same path**, so the UI shows your real paths and you can add projects from anywhere in it — nothing to move. DepGate never writes there.
+- The container runs **as your user** (`DEPGATE_UID`/`DEPGATE_GID`, default 1000) so it can read your files.
+- The project list, reports and password hash live in `~/.config/depgate` — **the same folder a native `depgate` uses**, so both see the same projects.
+- The port is published on `127.0.0.1` only. `DEPGATE_PASSWORD=…` sets the password up front instead of in the browser.
 
 ### One-shot modes
 
@@ -122,6 +128,8 @@ depgate --offline            # no network, cache only
 | `--root` | Folder the UI may browse (repeatable; `DEPGATE_ROOTS`) | home directory |
 | `--data` | Project list, reports, token (`DEPGATE_DATA`) | `~/.config/depgate` |
 | `--allow-host` | Extra allowed `Host` name, e.g. a LAN name (repeatable) | — |
+| `--reset-password` | Forget the UI password; the next visit asks for a new one | — |
+| `--no-auth` | Disable the password (127.0.0.1 only; not recommended) | off |
 | `--no-open` | Don't open the browser | opens |
 | `--offline` | Never touch the network | off |
 | `--depth` | Project discovery depth | 3 |
@@ -147,26 +155,24 @@ Terminal messages are in English; set `DEPGATE_LANG=az` for Azerbaijani.
 
 Only package names and versions (OSV, deps.dev, npm registry) and CVE IDs (EPSS) leave your machine. Source code, file paths, project names and `.env` files never do. Responses are cached in `~/.cache/depgate/`.
 
-The UI binds to `127.0.0.1` (in Docker: published on the host's `127.0.0.1`), needs an access token, checks the `Host` header and sends a strict Content Security Policy. Folder browsing is limited to the allowed roots, and DepGate only ever reads your projects.
+The UI binds to `127.0.0.1` (in Docker: published on the host's `127.0.0.1`), is protected by your password, checks the `Host` header and sends a strict Content Security Policy. Folder browsing is limited to the allowed roots, and DepGate only ever reads your projects.
 
-## Why is there an access token?
+## Why a password?
 
-DepGate runs a small web server on `127.0.0.1:7777`. Without a token, anything that can reach that address could use it:
+DepGate runs a small web server on `127.0.0.1:7777`. Without protection, anything that can reach that address could use it:
 
-- **other websites you visit** — a malicious page or ad can send requests to `127.0.0.1` from your browser (CSRF, DNS rebinding) and try to read your folder list, project names and reports, or start scans;
+- **other websites you visit** — a malicious page or ad can send requests to `127.0.0.1` from your browser (CSRF, DNS rebinding) and try to read your folders, project names and reports;
 - **other programs and users on the same machine** — a localhost port is open to all of them;
-- **your network** — if the Docker port is ever published on `0.0.0.0` instead of `127.0.0.1`, everyone on your Wi-Fi could open the UI.
+- **your network** — if the Docker port were ever published on `0.0.0.0`, everyone on your Wi-Fi could open the UI.
 
-DepGate can browse your folders and shows where your projects are weak — exactly what an attacker wants — so the UI is locked like a password-protected page.
+DepGate can browse your folders and shows where your projects are weak — exactly what an attacker wants — so the UI is behind a password:
 
-In practice you hardly notice it:
+- **first visit:** you choose a password (min. 8 characters) — no tokens, no links to copy;
+- **after that:** a normal sign-in page with *remember me* (30 days); **Sign out** and **Change password** are in the header (changing it signs out every other browser);
+- **forgot it?** `depgate --reset-password` (Docker: `docker exec depgate depgate --reset-password`), then set a new one;
+- **Docker / automation:** `DEPGATE_PASSWORD=…` sets it up front; scripts can call the API with `Authorization: Bearer <token>` (the token is in `~/.config/depgate/token` or set with `DEPGATE_TOKEN`).
 
-- you open the link with `?t=…` **once**; the browser keeps the session in an HttpOnly cookie for 30 days, after that `http://127.0.0.1:7777` is enough;
-- the token is created once and **does not change** (stored in the data folder), so you can bookmark the link;
-- set your own with `DEPGATE_TOKEN=some-long-secret` (useful in Docker);
-- `docker compose logs depgate` (or the terminal) always prints the current link.
-
-On top of the token, DepGate checks the `Host` header, requires a custom header on every API call and sends a strict Content Security Policy.
+The password is stored only as a PBKDF2-SHA256 hash (600 000 iterations, random salt); repeated wrong attempts are slowed down. On top of that DepGate checks the `Host` header, requires a custom header on every API call and sends a strict Content Security Policy.
 
 ## Development
 

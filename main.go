@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/Ali7Zeynalli/depgate/internal/app"
+	"github.com/Ali7Zeynalli/depgate/internal/auth"
 	"github.com/Ali7Zeynalli/depgate/internal/i18n"
 	"github.com/Ali7Zeynalli/depgate/internal/project"
 	"github.com/Ali7Zeynalli/depgate/internal/report"
@@ -48,6 +49,8 @@ type config struct {
 	token     string
 	version   bool
 	health    bool
+	resetPw   bool
+	noAuth    bool
 	view      string
 	data      string
 	roots     multi
@@ -95,6 +98,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 	fs.StringVar(&c.token, "token", os.Getenv("DEPGATE_PUSH_TOKEN"), "bearer token for --push (or DEPGATE_PUSH_TOKEN)")
 	fs.BoolVar(&c.version, "version", false, "print the version")
 	fs.BoolVar(&c.health, "health", false, "check a running server (Docker HEALTHCHECK); exit 0 = healthy")
+	fs.BoolVar(&c.resetPw, "reset-password", false, "forget the UI password; the next visit asks for a new one")
+	fs.BoolVar(&c.noAuth, "no-auth", false, "disable the UI password (only allowed on 127.0.0.1; not recommended)")
 	fs.StringVar(&c.view, "view", "", "open a saved JSON report in the UI (read-only)")
 	fs.StringVar(&c.data, "data", os.Getenv("DEPGATE_DATA"), "folder for the project list and reports (default ~/.config/depgate; DEPGATE_DATA)")
 	fs.Var(&c.roots, "root", "folder the UI may browse (repeatable; default: home; DEPGATE_ROOTS)")
@@ -131,6 +136,15 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 	dataDir, cacheDir := dirsFor(c.data)
 
+	if c.resetPw {
+		if err := auth.Reset(dataDir); err != nil {
+			fmt.Fprintln(stderr, "depgate:", err)
+			return 1
+		}
+		fmt.Fprintln(stderr, L("Parol silindi. DepGate-i açanda yeni parol təyin etməyin istəniləcək.", "Password removed. Next time you open DepGate you will be asked to set a new one."))
+		return 0
+	}
+
 	if c.view != "" {
 		b, err := os.ReadFile(c.view)
 		if err != nil {
@@ -142,7 +156,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintln(stderr, L("depgate: depgate/report@1 hesabatı deyil:", "depgate: not a depgate/report@1 report:"), c.view)
 			return 2
 		}
-		return serve(ctx, c, app.ReadOnly(&rep), web.NewToken(), stderr)
+		return serve(ctx, c, app.ReadOnly(&rep), web.NewToken(), nil, stderr)
 	}
 
 	opt := scan.Options{Version: version, CooldownDays: c.cooldown, Offline: c.offline}
@@ -199,6 +213,17 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, L("depgate: yaddaş açılmadı:", "depgate: cannot open data folder:"), err)
 		return 1
 	}
+	if c.noAuth && !loopback(c.addr) {
+		fmt.Fprintln(stderr, L("depgate: --no-auth yalnız 127.0.0.1 ünvanında icazəlidir", "depgate: --no-auth is only allowed on 127.0.0.1"))
+		return 2
+	}
+	var au *auth.Auth
+	if !c.noAuth {
+		if au, err = auth.Open(dataDir, os.Getenv("DEPGATE_PASSWORD")); err != nil {
+			fmt.Fprintln(stderr, "depgate:", err)
+			return 1
+		}
+	}
 	token, err := st.Token()
 	if err != nil {
 		fmt.Fprintln(stderr, "depgate:", err)
@@ -228,7 +253,11 @@ func run(args []string, stdout, stderr io.Writer) int {
 		}
 	}
 	fmt.Fprintf(stderr, L("Yadda saxlanan layihələr: %d · Kök qovluqlar: %s\n", "Remembered projects: %d · Browsable roots: %s\n"), len(st.Projects()), strings.Join(roots, ", "))
-	return serve(ctx, c, m, token, stderr)
+	return serve(ctx, c, m, token, au, stderr)
+}
+
+func loopback(addr string) bool {
+	return addr == "" || addr == "127.0.0.1" || addr == "localhost" || addr == "::1"
 }
 
 func envOr(k, d string) string {
@@ -286,15 +315,28 @@ func within(p string, roots []string) bool {
 	return false
 }
 
-func serve(ctx context.Context, c config, b web.Backend, token string, stderr io.Writer) int {
+func serve(ctx context.Context, c config, b web.Backend, token string, au *auth.Auth, stderr io.Writer) int {
 	ln, port, err := web.Listen(c.addr, c.port)
 	if err != nil {
 		fmt.Fprintln(stderr, L("depgate: port açılmadı:", "depgate: cannot open port:"), err)
 		return 1
 	}
-	srv := &web.Server{Token: token, B: b, AllowHosts: c.allowHost}
-	url := fmt.Sprintf("http://127.0.0.1:%d/?t=%s", port, token)
-	fmt.Fprintf(stderr, L("\nDepGate: %s\nDayandırmaq üçün Ctrl+C\n", "\nDepGate: %s\nPress Ctrl+C to stop\n"), url)
+	readOnly := au == nil && !c.noAuth // --view: one-time link, no password
+	srv := &web.Server{Token: token, B: b, Auth: au, NoAuth: c.noAuth || readOnly, AllowHosts: c.allowHost}
+	url := fmt.Sprintf("http://127.0.0.1:%d/", port)
+	fmt.Fprintf(stderr, "\nDepGate: %s\n", url)
+	switch {
+	case c.noAuth:
+		fmt.Fprintln(stderr, L("XƏBƏRDARLIQ: parol söndürülüb (--no-auth).", "WARNING: password disabled (--no-auth)."))
+	case readOnly:
+	case !au.Configured():
+		fmt.Fprintln(stderr, L("İlk açılış: brauzerdə parol təyin et.", "First visit: set a password in the browser."))
+	case au.FromEnv():
+		fmt.Fprintln(stderr, L("Parol DEPGATE_PASSWORD-dan götürülür.", "Password comes from DEPGATE_PASSWORD."))
+	default:
+		fmt.Fprintln(stderr, L("Parolu unutmusan? depgate --reset-password", "Forgot the password? depgate --reset-password"))
+	}
+	fmt.Fprintln(stderr, L("Dayandırmaq üçün Ctrl+C", "Press Ctrl+C to stop"))
 	if !c.noOpen {
 		openBrowser(url)
 	}
