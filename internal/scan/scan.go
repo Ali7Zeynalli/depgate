@@ -75,6 +75,7 @@ func Run(ctx context.Context, f sources.Fetcher, dirs []string, opt Options) *re
 	rep.Sources = Sources(rec.Usage())
 	for i := range rep.Projects {
 		rep.Projects[i].Sources = rep.Sources
+		rep.Projects[i].ScannedAt = rep.ScannedAt
 	}
 	return rep
 }

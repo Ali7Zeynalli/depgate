@@ -3,8 +3,10 @@ package sources
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
+	"sort"
 	"strings"
 	"time"
 )
@@ -29,6 +31,12 @@ func Package(ctx context.Context, f Fetcher, name string) (*PkgInfo, error) {
 	u := "https://api.deps.dev/v3/systems/npm/packages/" + url.PathEscape(name)
 	b, err := f.Do(ctx, "GET", u, nil, nil, time.Hour)
 	if err != nil {
+		if !errors.Is(err, ErrNotFound) && ctx.Err() == nil {
+			// deps.dev down or blocked: fall back to the npm registry (no publish dates)
+			if pi, ferr := packageFromRegistry(ctx, f, name); ferr == nil {
+				return pi, nil
+			}
+		}
 		return nil, fmt.Errorf("deps.dev %s: %w", name, err)
 	}
 	var doc struct {
@@ -121,4 +129,29 @@ func Version(ctx context.Context, f Fetcher, name, version string) (*Manifest, e
 	m.Engines = map[string]string{}
 	_ = json.Unmarshal(m.RawEngines, &m.Engines) // engines is sometimes an array in old packages
 	return &m, nil
+}
+
+// packageFromRegistry reads the abbreviated npm packument (versions, dist-tags,
+// deprecation). It has no publish dates, so cooldown checks are skipped.
+func packageFromRegistry(ctx context.Context, f Fetcher, name string) (*PkgInfo, error) {
+	u := "https://registry.npmjs.org/" + strings.Replace(url.PathEscape(name), "%40", "@", 1)
+	b, err := f.Do(ctx, "GET", u, nil, map[string]string{"Accept": "application/vnd.npm.install-v1+json"}, time.Hour)
+	if err != nil {
+		return nil, err
+	}
+	var doc struct {
+		Tags     map[string]string `json:"dist-tags"`
+		Versions map[string]struct {
+			Deprecated string `json:"deprecated"`
+		} `json:"versions"`
+	}
+	if err := json.Unmarshal(b, &doc); err != nil {
+		return nil, err
+	}
+	pi := &PkgInfo{Name: name, Default: doc.Tags["latest"]}
+	for v, x := range doc.Versions {
+		pi.Versions = append(pi.Versions, PkgVersion{Version: v, Deprecated: x.Deprecated != "", Reason: x.Deprecated})
+	}
+	sort.Slice(pi.Versions, func(i, j int) bool { return pi.Versions[i].Version < pi.Versions[j].Version })
+	return pi, nil
 }
