@@ -290,6 +290,7 @@ func (l *Log) Clear(dir string, projects []string) error {
 		_ = os.Remove(l.scanPath(p))
 		_ = os.Remove(l.versPath(p))
 	}
+	l.clearWork(dir)
 	p := filepath.Join(l.Dir, "activity.jsonl")
 	var keep []Event
 	for _, e := range readLines[Event](p) {

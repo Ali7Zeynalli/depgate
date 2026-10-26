@@ -70,7 +70,7 @@ Then open `http://127.0.0.1:7777`, choose a password and **+ Add project** (a pr
 | **Docker** | Dockerfiles and compose files anywhere in the project or repository (`docker/`, `deploy/`, `infra/`…, and the files a compose file builds from or includes): 37 rules for security mistakes and Compose Specification errors, end-of-life and outdated images |
 | **Web server** | nginx / Caddy: known vulnerabilities of your version, TLS, headers, path traversal, exposed admin API |
 | **Node.js & setup** | runtime security releases and end of life; lockfile, install scripts, release cooldown, the same Node.js version everywhere |
-| **AI & MCP** | a ready prompt, `AGENTS.md` version rules, the setup for your agent, which agents are connected |
+| **AI & MCP** | a ready prompt, `AGENTS.md` version rules, the setup for your agent, which agents are connected, and **AI work**: the tasks an agent took on and what DepGate verified |
 | **History** | while DepGate runs, projects are scanned again automatically (every 12 h by default, changeable in the ⋯ menu); indicators (open important findings, mean time to fix, oldest open finding, new and fixed per week); every scan compared with the one before: what is new, what is gone, whether the lockfile changed or a new advisory appeared, and **which package versions changed** (updated, back to an older version, added, removed — direct ones first); who ran it (UI, command line, automatic scan or an AI agent) and what each agent checked over MCP |
 
 Folders and monorepos get one merged page with a table of their projects (trend, oldest open finding, time to fix); a finding in several projects is shown once. The page updates by itself (every 20 s and when you come back to it; ⟳ refreshes at once). On a phone it stacks into one column.
@@ -93,13 +93,16 @@ claude mcp add --transport http depgate -s user http://127.0.0.1:7777/mcp \
 
 Then ask it, or use the ready commands: `/mcp__depgate__fix` (fix the dependencies), `/mcp__depgate__status`, `/mcp__depgate__check` (a package before installing), `/mcp__depgate__docker`, `/mcp__depgate__changes`.
 
+**Step by step, not everything at once.** To fix dependencies the agent first shows you a checklist by category — malware, npm without code change, Node.js, npm with code change, Docker, web server, setup, plan — and asks which to do. Then it does the chosen tasks one at a time. After each task DepGate scans again and says itself whether it is *verified*, *partly done* or *not done*; the agent can't just claim it. You follow it live under **AI & MCP → AI work** and in **History**.
+
 <details>
 <summary>Tools, Windows, stdio</summary>
 
 | Tool | What the agent gets |
 |---|---|
+| `get_overview` → `start_tasks` → `get_task` → `complete_task` | the checklist to show you · the tasks you chose · the steps of one task · DepGate's own check after it |
 | `check_package` | is `name@version` safe to install, and which version to use instead |
-| `get_fix_plan` | the whole ordered task (also for every project of a monorepo) |
+| `get_fix_plan` | everything at once, to read (also for every project of a monorepo) |
 | `get_findings` · `get_code_changes` | findings with target and command · `file:line` places for one package |
 | `get_docker_issues` | Docker, compose, image, nginx and Caddy findings |
 | `get_ai_rules` · `project_status` · `scan_project` · `list_projects` | version rules · summary · rescan · all projects |

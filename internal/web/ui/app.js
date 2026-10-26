@@ -261,7 +261,11 @@
     mcpAsk: ["Agentə yaz, məsələn: «DepGate ilə bu layihənin asılılıqlarını düzəlt» və ya «paket əlavə etməzdən əvvəl DepGate ilə yoxla».", "Then ask the agent e.g. “fix this project's dependencies with DepGate” or “check with DepGate before adding a package”."],
     mcpTools: ["Agentin alacağı alətlər ({0})", "Tools the agent gets ({0})"],
     toolCheck: ["paketi quraşdırmadan əvvəl yoxlayır: təhlükəsizdirmi, hansı versiya", "checks a package before install: is it safe, which version"],
-    toolPlan: ["bütün düzəlişlər üçün sıralı tam tapşırıq", "the whole ordered fix task"],
+    toolPlan: ["bütün düzəlişlər birdən — oxumaq üçün", "every fix at once — to read"],
+    toolOverview: ["BURADAN BAŞLA: kateqoriyalara görə yoxlama siyahısı, səndən soruşmaq üçün", "START HERE: the checklist by category, to ask you"],
+    toolStart: ["sənin seçdiyin tapşırıqlarla iş sessiyası (UI-də görünür)", "a work session with the tasks you chose (shown in the UI)"],
+    toolTask: ["yalnız bir tapşırığın addımları", "the steps of one task only"],
+    toolComplete: ["tapşırıqdan sonra DepGate özü yenidən skan edib yoxlayır", "after a task DepGate scans again and checks it itself"],
     toolFindings: ["tapıntılar: hədəf versiya, səbəb, əmr", "findings: target version, why, command"],
     toolCode: ["bir paket üçün dəyişməli kod yerləri (fayl:sətir)", "code places to change for one package (file:line)"],
     toolDocker: ["Docker, compose, nginx və Caddy tapıntıları", "Docker, compose, nginx and Caddy findings"],
@@ -442,6 +446,31 @@
     hByMCP: ["AI agent", "AI agent"],
     hCounts: ["təcili {0} · planla {1} · zərərli {2} · Docker/server {3}", "urgent {0} · plan {1} · malware {2} · Docker/server {3}"],
     hNewL: ["Yeni", "New"],
+    wTitle: ["AI işləri", "AI work"],
+    wHelp: ["Agent əvvəl yoxlama siyahısını göstərir, sən seçirsən, o bir-bir edir. «Təsdiqləndi» — DepGate yeni skanla özü yoxlayıb, agentin sözünə görə yox.", "The agent shows the checklist first, you choose, it does them one by one. «Verified» means DepGate checked it with a new scan itself — not the agent's word."],
+    wNone: ["Hələ yoxdur. Agentə de: «DepGate ilə asılılıqları düzəlt» və ya /mcp__depgate__fix — əvvəl yoxlama siyahısını göstərəcək.", "Nothing yet. Tell your agent \"fix the dependencies with DepGate\" or use /mcp__depgate__fix — it shows the checklist first."],
+    wOpen: ["işləyir · {0}/{1} təsdiqləndi", "working · {0}/{1} verified"],
+    wFin: ["bitib · {0}/{1} təsdiqləndi", "finished · {0}/{1} verified"],
+    wItems: ["{0}/{1} düzəlib", "{0}/{1} fixed"],
+    wItemsN: ["{0} element", "{0} items"],
+    wItemsN1: ["1 element", "1 item"],
+    wChecked: ["yoxlandı {0}", "checked {0}"],
+    wNote: ["Agentin qeydi:", "Agent's note:"],
+    wMore: ["… daha {0} sessiya", "… {0} more sessions"],
+    wTodo: ["gözləyir", "to do"],
+    wDoing: ["icrada", "in progress"],
+    wDone: ["✓ təsdiqləndi", "✓ verified"],
+    wPartial: ["qismən", "partly done"],
+    wNotDone: ["edilməyib", "not done"],
+    wSkipped: ["ötürüldü", "skipped"],
+    w_malware: ["Zərərli paketlər", "Malicious packages"],
+    w_now: ["npm — indi et, kod dəyişmir", "npm — update now, no code change"],
+    w_node: ["Node.js", "Node.js"],
+    w_code: ["npm — indi et, kod dəyişir", "npm — update now, code changes"],
+    w_docker: ["Docker və Compose", "Docker and Compose"],
+    w_server: ["Veb server (nginx/Caddy)", "Web server (nginx/Caddy)"],
+    w_setup: ["Layihə qurulumu", "Project setup"],
+    w_plan: ["Planla — yeni major", "Plan — new majors"],
     pkTitle: ["Paket versiyaları dəyişib ({0})", "Package versions changed ({0})"],
     pkTrans: ["dolayı paketlər: {0}", "transitive packages: {0}"],
     pkMore: ["… və daha {0} (saxlanmayıb)", "… and {0} more (not stored)"],
@@ -1187,9 +1216,10 @@
       c(t("aiBtn"), t("aiHelp"), el("button", { class: "primary", onclick: () => openPrompt(scanned, ctx.dir, ctx.g) }, t("aiOpen"))),
       c(t("rulesBtn"), t("rulesHelp"), el("button", { onclick: () => openRules(scanned, ctx.dir, ctx.g) }, t("rulesOpen"))),
       st.readOnly ? null : c(t("mcpBtn"), t("mcpHelp"), el("button", { onclick: () => openMCP(ctx.dir) }, t("mcpOpen"))),
-      st.readOnly ? null : slot(ctx.hkey, (h) => el("div", { class: "card aicard" }, el("div", { class: "h3" }, t("agTitle")),
+      st.readOnly ? null : slot(ctx.hkey, (h) => [el("div", { class: "card aicard" }, el("div", { class: "h3" }, t("agTitle")),
         agentList(h.agents.slice(0, 3)),
-        el("button", { onclick: () => goTab("history") }, t("hOpen")))));
+        el("button", { onclick: () => goTab("history") }, t("hOpen"))),
+        workPanel(h.work, ctx.dir, 2) || el("div", { class: "card aicard workcard" }, el("div", { class: "h3" }, t("wTitle")), el("div", { class: "quiet small" }, t("wNone")))]));
   }
 
   // ---------- accepted risk ----------
@@ -1297,7 +1327,7 @@
   // ---------- history: scans compared, and what AI agents did ----------
   const hcache = new Map();
   function getHistory(dir) {
-    const key = (st.lastScan || "") + "|" + st.busy;
+    const key = (st.lastScan || "") + "|" + st.busy + "|" + (st.workAt || "");
     const c = hcache.get(dir);
     if (c && c.key === key && Date.now() - c.at < 10000) return c.p;
     const only = dir.startsWith("only:");
@@ -1447,6 +1477,38 @@
     return el("div", { class: "card" }, el("div", { class: "oh wh" }, el("span", { class: "h3" }, t("kWeeks")),
       el("span", { class: "lg" }, el("span", null, el("i", { class: "hi" }), t("kNew")), el("span", null, el("i", { class: "good" }), t("kFixed")))), svg);
   }
+  // ---------- AI work: the tasks an agent took on over MCP and what DepGate verified ----------
+  const WST = { todo: ["wTodo", ""], doing: ["wDoing", "ai"], done: ["wDone", "ok"], partial: ["wPartial", "warn"], not_done: ["wNotDone", "sev-high"], skipped: ["wSkipped", ""] };
+  function workPanel(ws, dir, max) {
+    if (!ws || !ws.length) return null;
+    const shown = ws.slice(0, max || 5);
+    const sess = (w, i) => {
+      const fin = w.tasks.filter((x) => x.status === "done").length, open = w.tasks.some((x) => x.status === "todo" || x.status === "doing");
+      const proj = relTo(w.project, dir);
+      return el("details", { class: "work", open: i === 0 || undefined },
+        el("summary", null,
+          el("span", { class: "dot" + (open ? " on" : ""), "aria-hidden": "true" }),
+          el("b", null, w.agent),
+          proj ? el("span", { class: "chip" }, proj) : null,
+          el("span", { class: "quiet small" }, fmtTime(w.started)),
+          el("span", { class: "grow" }),
+          el("span", { class: "chip " + (open ? "ai" : fin === w.tasks.length ? "ok" : "warn") }, open ? t("wOpen", fin, w.tasks.length) : t("wFin", fin, w.tasks.length))),
+        el("div", { class: "wtasks" }, w.tasks.map((x) => {
+          const done = (x.items || []).filter((it) => it.done).length;
+          return el("details", { class: "wtask" },
+            el("summary", null,
+              el("span", { class: "chip " + WST[x.status][1] }, t(WST[x.status][0])),
+              el("span", { class: "chip" }, x.cat),
+              el("span", null, t("w_" + x.id)),
+              el("span", { class: "quiet small" }, x.checked ? t("wItems", done, x.items.length) + " · " + t("wChecked", fmtTime(x.checked)) : tn("wItemsN", x.items.length))),
+            el("div", { class: "witems" },
+              (x.items || []).map((it) => el("div", { class: it.done ? "wdone" : "" }, (it.done ? "✓ " : x.checked ? "✗ " : "• ") + it.label)),
+              x.note ? el("div", { class: "quiet small" }, t("wNote"), " ", x.note) : null));
+        })));
+    };
+    return el("div", { class: "card workcard" }, el("div", { class: "h3" }, t("wTitle")), el("div", { class: "quiet small" }, t("wHelp")),
+      shown.map(sess), ws.length > shown.length ? el("div", { class: "quiet small" }, t("wMore", ws.length - shown.length)) : null);
+  }
   function historyTab(ctx) {
     if (st.readOnly) return el("div", { class: "empty" }, t("readOnly"));
     return slot(ctx.hkey, (h) => {
@@ -1459,6 +1521,7 @@
       });
       return [el("div", { class: "ghelp" }, t("hLocal")),
         any ? kpiStrip(h.kpi, ctx.dir) : null,
+        workPanel(h.work, ctx.dir, 8),
         any ? weekChart(h.kpi.weeks) : null,
         el("div", { class: "areas two" },
           el("div", { class: "card" }, el("div", { class: "h3" }, t("agTitle")), agentList(h.agents)),
@@ -1937,7 +2000,7 @@
   }
   // ---------- MCP: one tab per agent, each with only what that agent needs ----------
   const AGENTS = [["claude", "Claude Code"], ["cursor", "Cursor"], ["vscode", "VS Code (Copilot)"], ["windsurf", "Windsurf"], ["codex", "Codex CLI"], ["gemini", "Gemini CLI"], ["stdio", "stdio"]];
-  const MCP_TOOLS = [["check_package", "toolCheck"], ["get_fix_plan", "toolPlan"], ["get_findings", "toolFindings"], ["get_code_changes", "toolCode"], ["get_docker_issues", "toolDocker"],
+  const MCP_TOOLS = [["get_overview", "toolOverview"], ["start_tasks", "toolStart"], ["get_task", "toolTask"], ["complete_task", "toolComplete"], ["check_package", "toolCheck"], ["get_fix_plan", "toolPlan"], ["get_findings", "toolFindings"], ["get_code_changes", "toolCode"], ["get_docker_issues", "toolDocker"],
     ["get_ai_rules", "toolRules"], ["get_history", "toolHistory"], ["project_status", "toolStatus"], ["scan_project", "toolScan"], ["list_projects", "toolList"]];
   let mcpPick = { agent: "claude", shell: "" };
   try { Object.assign(mcpPick, JSON.parse(localStorage.getItem("depgate-mcp") || "{}")); } catch {}

@@ -70,7 +70,7 @@ Sonra `http://127.0.0.1:7777` aç, parol seç və **+ Layihə əlavə et** (layi
 | **Docker** | layihədə və ya repo-da harada olursa olsun Dockerfile və compose faylları (`docker/`, `deploy/`, `infra/`… və compose-un build etdiyi və ya daxil etdiyi fayllar): təhlükəsizlik səhvləri və Compose Specification xətaları üçün 37 qayda, dəstəyi bitmiş və köhnə image-lər |
 | **Veb server** | nginx / Caddy: versiyanın məlum zəiflikləri, TLS, başlıqlar, yol keçidi, açıq admin API |
 | **Node.js və mühit** | runtime təhlükəsizlik relizləri və dəstəyin bitməsi; lockfile, install skriptləri, gözləmə müddəti, hər yerdə eyni Node.js versiyası |
-| **AI və MCP** | hazır prompt, `AGENTS.md` versiya qaydaları, agentinə görə qoşulma, hansı agentlərin qoşulduğu |
+| **AI və MCP** | hazır prompt, `AGENTS.md` versiya qaydaları, agentinə görə qoşulma, hansı agentlərin qoşulduğu və **AI işləri**: agentin götürdüyü tapşırıqlar və DepGate-in nəyi təsdiqlədiyi |
 | **Tarixçə** | DepGate işlədikcə layihələr avtomatik yenidən skan olunur (standart hər 12 saat, «⋯» menyusunda dəyişmək olur); göstəricilər (açıq vacib işlər, orta düzəltmə müddəti, ən köhnə açıq iş, həftəlik yeni və həll olunan); hər skan əvvəlki ilə müqayisə olunur: nə yenidir, nə aradan qalxıb, lockfile dəyişib, yoxsa yeni advisory çıxıb, və **hansı paketlərin versiyası dəyişib** (yenilənib, köhnə versiyaya qayıdıb, əlavə olunub, silinib — əvvəl birbaşa olanlar); skanı kim edib (interfeys, əmr sətri, avtomatik skan və ya AI agent) və hər agent MCP ilə nəyi yoxlayıb |
 
 Qovluqlar və monorepo-lar üçün layihələr cədvəli (trend, ən köhnə açıq iş, düzəltmə müddəti) ilə birləşmiş səhifə var; bir neçə layihədə olan tapıntı bir dəfə göstərilir. Səhifə özü yenilənir (hər 20 saniyədən bir və ona qayıdanda; ⟳ dərhal yeniləyir). Telefonda bir sütuna düzülür.
@@ -93,13 +93,16 @@ claude mcp add --transport http depgate -s user http://127.0.0.1:7777/mcp \
 
 Sonra agentə yaz və ya hazır əmrlərdən istifadə et: `/mcp__depgate__fix` (asılılıqları düzəlt), `/mcp__depgate__status`, `/mcp__depgate__check` (paketi quraşdırmadan əvvəl), `/mcp__depgate__docker`, `/mcp__depgate__changes`.
 
+**Hamısı birdən yox, addım-addım.** Asılılıqları düzəltmək üçün agent əvvəl sənə kateqoriyalara bölünmüş yoxlama siyahısı göstərir — zərərli, kod dəyişməyən npm, Node.js, kod dəyişən npm, Docker, veb server, qurulum, planla — və hansıları etməyi soruşur. Sonra seçdiklərini bir-bir edir. Hər tapşırıqdan sonra DepGate yenidən skan edir və özü deyir: *təsdiqləndi*, *qismən* və ya *edilməyib*; agent sadəcə «etdim» deyə bilməz. Bunu **AI və MCP → AI işləri** və **Tarixçə** bölməsində canlı izləyirsən.
+
 <details>
 <summary>Alətlər, Windows, stdio</summary>
 
 | Alət | Agent nə alır |
 |---|---|
+| `get_overview` → `start_tasks` → `get_task` → `complete_task` | sənə göstəriləcək siyahı · seçdiyin tapşırıqlar · bir tapşırığın addımları · ondan sonra DepGate-in öz yoxlaması |
 | `check_package` | `ad@versiya` quraşdırmaq təhlükəsizdirmi, yoxsa hansı versiya |
-| `get_fix_plan` | sıralı tam tapşırıq (monorepo-nun bütün layihələri üçün də) |
+| `get_fix_plan` | hamısı birdən, oxumaq üçün (monorepo-nun bütün layihələri üçün də) |
 | `get_findings` · `get_code_changes` | hədəf və əmrlə tapıntılar · bir paket üçün `fayl:sətir` yerləri |
 | `get_docker_issues` | Docker, compose, image, nginx və Caddy tapıntıları |
 | `get_ai_rules` · `project_status` · `scan_project` · `list_projects` | versiya qaydaları · xülasə · yenidən skan · bütün layihələr |

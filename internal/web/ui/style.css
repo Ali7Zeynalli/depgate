@@ -604,3 +604,12 @@ svg.tspark polyline { fill: none; stroke: var(--accent); stroke-width: 1.8; stro
 .codenote { font-size: 13px; margin: 0 0 12px; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--warn); background: var(--warn-bg); color: var(--ink); }
 .pktrans { margin-top: 4px; }
 .pktrans > summary { cursor: pointer; padding: 2px 0; }
+.work { border-top: 1px solid var(--line); padding: 8px 0; }
+.work > summary { display: flex; align-items: center; gap: 8px; cursor: pointer; flex-wrap: wrap; }
+.work .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+.work .dot.on { background: var(--good); }
+.wtasks { display: flex; flex-direction: column; gap: 4px; margin: 8px 0 0 16px; }
+.wtask > summary { display: flex; align-items: center; gap: 8px; cursor: pointer; flex-wrap: wrap; padding: 3px 0; }
+.witems { margin: 4px 0 6px 12px; font-size: 13px; display: flex; flex-direction: column; gap: 2px; }
+.witems .wdone { color: var(--good); }
+.workcard { grid-column: 1 / -1; }

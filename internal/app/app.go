@@ -49,6 +49,8 @@ type State struct {
 	RescanHours int     `json:"rescanHours"`
 	Version     string  `json:"version,omitempty"`
 	Update      *Update `json:"update,omitempty"` // a newer release is out
+	// WorkAt changes when an AI agent moves on a task, so the page redraws
+	WorkAt *time.Time `json:"workAt,omitempty"`
 }
 
 // Entry is one folder in a Browse listing.
@@ -266,6 +268,7 @@ func (m *Manager) State() State {
 	st.Update, st.Version = m.update, m.Opt.Version
 	m.mu.Unlock()
 	st.RescanHours = m.RescanHours()
+	st.WorkAt = m.Store.History.WorkStamp()
 	st.Busy = len(running)+len(queued) > 0
 	explicit := map[string]string{}
 	for _, e := range m.Store.Projects() {
