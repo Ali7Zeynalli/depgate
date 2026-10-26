@@ -28,9 +28,16 @@ var skipDirs = map[string]bool{
 // When root itself is a project, it is returned first; workspace members of a
 // monorepo are returned as separate projects.
 func Find(root string, depth int) ([]string, error) {
-	root, err := filepath.Abs(root)
+	dirs, _, err := FindAll(root, depth)
+	return dirs, err
+}
+
+// FindAll is Find that also returns the package.json folders it left out
+// because they declare no dependencies (a workspace root, a config package).
+func FindAll(root string, depth int) (dirs, skipped []string, err error) {
+	root, err = filepath.Abs(root)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var out []string
 	base := strings.Count(root, string(os.PathSeparator))
@@ -54,6 +61,8 @@ func Find(root string, depth int) ([]string, error) {
 			dir := filepath.Dir(p)
 			if isRealProject(dir) {
 				out = append(out, dir)
+			} else if dir != root {
+				skipped = append(skipped, dir)
 			}
 		}
 		return nil
@@ -67,7 +76,7 @@ func Find(root string, depth int) ([]string, error) {
 		}
 		return out[i] < out[j]
 	})
-	return out, err
+	return out, skipped, err
 }
 
 // isRealProject skips package.json files that only describe a monorepo root with no deps.

@@ -203,20 +203,21 @@ func (m *Manager) ScanBy(dirs []string, by string) error {
 }
 
 // Add registers every project found under path and scans the new ones.
-func (m *Manager) Add(path string) ([]string, error) {
+// The second result lists package.json folders left out (no dependencies).
+func (m *Manager) Add(path string) ([]string, []string, error) {
 	if m.ro != nil {
-		return nil, ErrReadOnly
+		return nil, nil, ErrReadOnly
 	}
 	abs, err := m.allowed(path)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	dirs, err := project.Find(abs, m.Depth)
+	dirs, skipped, err := project.FindAll(abs, m.Depth)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if len(dirs) == 0 {
-		return nil, newErr("bu qovluqda asılılığı olan package.json tapılmadı", "no package.json with dependencies in this folder")
+		return nil, skipped, newErr("bu qovluqda asılılığı olan package.json tapılmadı", "no package.json with dependencies in this folder")
 	}
 	var es []store.Entry
 	for _, d := range dirs {
@@ -224,12 +225,12 @@ func (m *Manager) Add(path string) ([]string, error) {
 	}
 	added, err := m.Store.Add(es...)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if len(added) > 0 {
 		_ = m.Scan(added)
 	}
-	return dirs, nil
+	return dirs, skipped, nil
 }
 
 // Remove forgets a project.

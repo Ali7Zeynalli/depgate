@@ -36,6 +36,8 @@ func TestServeDemo(t *testing.T) {
 		return err == nil && decide.Affects(v, name, sv)
 	}
 	f.Vuln("GHSA-demo-next", "next", "HIGH", "14.0.0", "14.2.25", "Authorization bypass in Next.js middleware", "CVE-2025-29927")
+	f.Vuln("GHSA-demo-next-cache", "next", "MODERATE", "14.0.0", "14.2.10", "Cache poisoning in Next.js")
+	f.Vuln("GHSA-demo-next-ssrf", "next", "HIGH", "14.0.0", "14.2.10", "Server-side request forgery in Server Actions")
 	f.Vuln("GHSA-demo-follow", "follow-redirects", "MODERATE", "0", "1.15.9", "follow-redirects leaks Proxy-Authorization header")
 	f.Vuln("GHSA-demo-express", "express", "MODERATE", "0", "5.0.0", "express open redirect (fixed only in 5.x)")
 	f.Malware("MAL-2026-demo", "debug", "4.3.4")

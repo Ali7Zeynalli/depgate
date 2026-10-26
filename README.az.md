@@ -64,16 +64,16 @@ Sonra `http://127.0.0.1:7777` aç, parol seç və **+ Layihə əlavə et** (layi
 
 | Bölmə | Nə göstərir |
 |---|---|
-| **Ümumi** | vəziyyət bir baxışda (zərərli, indi et, kod dəyişikliyi, Docker və server, son dəyişiklik) və ilk addımlar sıra ilə, əmri olanda elə orada |
-| **Paketlər** | hər paket bir sətir, əvvəl risk: nədir, nə tapılıb, zəiflik sadə dildə (CWE), ən təhlükəsiz versiya, əmr və nömrəli addımlar; zərərli paketlər, silinmiş versiyalar, birlikdə yenilənməli paketlər; səbəb və tarixlə **riski qəbul et** (müddət bitəndə özü qayıdır) |
+| **Ümumi** | vəziyyət bir baxışda (zərərli, indi et, kod dəyişikliyi, Docker və server, son dəyişiklik) və ilk addımlar sıra ilə, əmri olanda elə orada; göstəricilər: düzəltmə müddəti, ən köhnə açıq iş, bu həftə |
+| **Paketlər** | hər paket bir sətir, əvvəl risk: nədir, nə tapılıb, zəiflik sadə dildə (CWE), ən təhlükəsiz versiya, **hansı versiya nəyi düzəldir**, əmr və nömrəli addımlar; süzgəclər: real hücumda (KEV), EPSS, düzəlişi yoxdur, birbaşa / dolayı; zərərli paketlər, silinmiş versiyalar, birlikdə yenilənməli paketlər; səbəb və tarixlə **riski qəbul et** (müddət bitəndə özü qayıdır) |
 | **Kod dəyişiklikləri** | Next.js, React, Express, NestJS, Prisma, Zod, Tailwind, ESLint, TanStack Query, React Router üçün `fayl:sətir` yerləri; codemod-lar; reliz qeydlərindən breaking changes |
-| **Docker** | Dockerfile və compose üçün 37 qayda (təhlükəsizlik səhvləri və Compose Specification xətaları), dəstəyi bitmiş və köhnə image-lər |
+| **Docker** | layihədə və ya repo-da harada olursa olsun Dockerfile və compose faylları (`docker/`, `deploy/`, `infra/`… və compose-un build etdiyi və ya daxil etdiyi fayllar): təhlükəsizlik səhvləri və Compose Specification xətaları üçün 37 qayda, dəstəyi bitmiş və köhnə image-lər |
 | **Veb server** | nginx / Caddy: versiyanın məlum zəiflikləri, TLS, başlıqlar, yol keçidi, açıq admin API |
 | **Node.js və mühit** | runtime təhlükəsizlik relizləri və dəstəyin bitməsi; lockfile, install skriptləri, gözləmə müddəti, hər yerdə eyni Node.js versiyası |
 | **AI və MCP** | hazır prompt, `AGENTS.md` versiya qaydaları, agentinə görə qoşulma, hansı agentlərin qoşulduğu |
-| **Tarixçə** | DepGate işlədikcə layihələr avtomatik yenidən skan olunur (standart hər 12 saat, «⋯» menyusunda dəyişmək olur); hər skan əvvəlki ilə müqayisə olunur: nə yenidir, nə aradan qalxıb, lockfile dəyişib, yoxsa yeni advisory çıxıb; skanı kim edib (interfeys, əmr sətri, avtomatik skan və ya AI agent) və hər agent MCP ilə nəyi yoxlayıb |
+| **Tarixçə** | DepGate işlədikcə layihələr avtomatik yenidən skan olunur (standart hər 12 saat, «⋯» menyusunda dəyişmək olur); göstəricilər (açıq vacib işlər, orta düzəltmə müddəti, ən köhnə açıq iş, həftəlik yeni və həll olunan); hər skan əvvəlki ilə müqayisə olunur: nə yenidir, nə aradan qalxıb, lockfile dəyişib, yoxsa yeni advisory çıxıb; skanı kim edib (interfeys, əmr sətri, avtomatik skan və ya AI agent) və hər agent MCP ilə nəyi yoxlayıb |
 
-Qovluqlar və monorepo-lar üçün birləşmiş səhifə var; bir neçə layihədə olan tapıntı bir dəfə göstərilir. Telefonda səhifə bir sütuna düzülür.
+Qovluqlar və monorepo-lar üçün layihələr cədvəli (trend, ən köhnə açıq iş, düzəltmə müddəti) ilə birləşmiş səhifə var; bir neçə layihədə olan tapıntı bir dəfə göstərilir. Səhifə özü yenilənir (hər 20 saniyədən bir və ona qayıdanda; ⟳ dərhal yeniləyir). Telefonda bir sütuna düzülür.
 
 | Paketlər | Kod dəyişiklikləri |
 |---|---|
@@ -140,7 +140,7 @@ depgate --reset-password      # Docker: docker exec depgate depgate --reset-pass
 | `--data` · `DEPGATE_DATA` | siyahı, hesabatlar, skan tarixçəsi, parol hash-ı | `~/.config/depgate` · macOS `~/Library/Application Support/depgate` · Windows `%AppData%\depgate` |
 | `--offline` | şəbəkəsiz, yalnız keş | söndürülüb |
 | `--cooldown` | N gündən yeni versiyaları hədəf seçmə | 3 |
-| `--depth` | qovluğun altında layihələri nə qədər dərin axtarmaq | 3 |
+| `--depth` | qovluğun altında layihələri nə qədər dərin axtarmaq | 6 |
 | `--addr` · `DEPGATE_ADDR` | dinləmə ünvanı | `127.0.0.1` (konteynerdə `0.0.0.0`) |
 | `--push URL` · `--token` / `DEPGATE_PUSH_TOKEN` | bir dəfə skan et və JSON hesabatı URL-ə POST et | — |
 | `--rescan` · `DEPGATE_RESCAN_HOURS` | son skan N saatdan köhnədirsə, yenidən skan et (0 = söndür; interfeysdə də) | 12 |

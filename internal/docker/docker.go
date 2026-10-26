@@ -13,7 +13,22 @@ import (
 
 const maxFileSize = 1 << 20
 
+// walkDepth is how deep Docker files are looked for below the project and the repository root.
+const walkDepth = 4
+
+var walkSkip = map[string]bool{"node_modules": true, "dist": true, "build": true, "out": true, "coverage": true,
+	"vendor": true, "target": true, "tmp": true}
+
+// isProjectDir: a folder with its own package.json is another project.
+func isProjectDir(d string) bool {
+	st, err := os.Stat(filepath.Join(d, "package.json"))
+	return err == nil && st.Mode().IsRegular()
+}
+
 func isDockerfile(name string) bool {
+	if name == "Containerfile" || strings.HasPrefix(name, "Containerfile.") || strings.HasSuffix(name, ".containerfile") || strings.HasSuffix(name, ".Containerfile") {
+		return true
+	}
 	return name == "Dockerfile" || name == "dockerfile" ||
 		strings.HasPrefix(name, "Dockerfile.") && !strings.HasSuffix(name, ".dockerignore") ||
 		strings.HasSuffix(name, ".Dockerfile") || strings.HasSuffix(name, ".dockerfile")
@@ -34,45 +49,12 @@ func isCompose(name string) bool {
 // It looks in dir and, when different, repoRoot (monorepos keep compose at the root).
 // files lists the files it inspected (relative to dir, e.g. "Dockerfile", "../../docker-compose.yml").
 func Scan(dir, repoRoot string) (issues []report.DockerIssue, files []string) {
-	dirs := []string{dir}
-	if repoRoot != "" {
-		a, errA := filepath.Abs(dir)
-		b, errB := filepath.Abs(repoRoot)
-		if errA == nil && errB == nil && a != b {
-			dirs = append(dirs, repoRoot)
-		}
-	}
-	type found struct{ path, rel string }
-	var dfs, composes []found
-	seen := map[string]bool{}
-	for _, d := range dirs {
-		ents, err := os.ReadDir(d)
-		if err != nil {
-			continue
-		}
-		for _, e := range ents {
-			name := e.Name()
-			if name == "node_modules" || !e.Type().IsRegular() {
-				continue
-			}
-			p := filepath.Join(d, name)
-			abs, _ := filepath.Abs(p)
-			if seen[abs] {
-				continue
-			}
-			rel, err := filepath.Rel(dir, p)
-			if err != nil {
-				rel = p
-			}
-			rel = filepath.ToSlash(rel)
-			switch {
-			case isDockerfile(name):
-				seen[abs] = true
-				dfs = append(dfs, found{p, rel})
-			case isCompose(name):
-				seen[abs] = true
-				composes = append(composes, found{p, rel})
-			}
+	var dfs, composes []foundFile
+	for _, f := range discover(dir, repoRoot) {
+		if f.compose {
+			composes = append(composes, f)
+		} else {
+			dfs = append(dfs, f)
 		}
 	}
 	read := func(p string) (string, bool) {

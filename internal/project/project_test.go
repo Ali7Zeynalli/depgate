@@ -91,3 +91,20 @@ func TestHygiene(t *testing.T) {
 		}
 	}
 }
+
+func TestFindDeepAndSkipped(t *testing.T) {
+	root := t.TempDir()
+	for _, d := range []string{"client/repo/frontend", "client/repo/apps/admin/web", "client/repo/tools/config"} {
+		_ = os.MkdirAll(filepath.Join(root, d), 0o755)
+	}
+	_ = os.WriteFile(filepath.Join(root, "client/repo/frontend/package.json"), []byte(`{"dependencies":{"next":"14.0.0"}}`), 0o644)
+	_ = os.WriteFile(filepath.Join(root, "client/repo/apps/admin/web/package.json"), []byte(`{"devDependencies":{"vite":"5.0.0"}}`), 0o644)
+	_ = os.WriteFile(filepath.Join(root, "client/repo/tools/config/package.json"), []byte(`{"name":"config"}`), 0o644)
+	dirs, skipped, err := FindAll(root, 6)
+	if err != nil || len(dirs) != 2 || len(skipped) != 1 || filepath.Base(skipped[0]) != "config" {
+		t.Fatalf("dirs %v skipped %v %v", dirs, skipped, err)
+	}
+	if d, _ := Find(root, 3); len(d) != 1 {
+		t.Fatalf("depth 3 must stop above apps/admin/web: %v", d)
+	}
+}
