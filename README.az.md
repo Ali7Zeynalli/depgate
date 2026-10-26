@@ -64,14 +64,14 @@ Sonra `http://127.0.0.1:7777` aç, parol seç və **+ Layihə əlavə et** (layi
 
 | Bölmə | Nə göstərir |
 |---|---|
-| **Ümumi** | vəziyyət bir baxışda (zərərli, indi et, kod dəyişikliyi, Docker və server, son dəyişiklik) və ilk addımlar sıra ilə, hər biri öz əmri ilə |
+| **Ümumi** | vəziyyət bir baxışda (zərərli, indi et, kod dəyişikliyi, Docker və server, son dəyişiklik) və ilk addımlar sıra ilə, əmri olanda elə orada |
 | **Paketlər** | hər paket bir sətir, əvvəl risk: nədir, nə tapılıb, zəiflik sadə dildə (CWE), ən təhlükəsiz versiya, əmr və nömrəli addımlar; zərərli paketlər, silinmiş versiyalar, birlikdə yenilənməli paketlər; səbəb və tarixlə **riski qəbul et** (müddət bitəndə özü qayıdır) |
 | **Kod dəyişiklikləri** | Next.js, React, Express, NestJS, Prisma, Zod, Tailwind, ESLint, TanStack Query, React Router üçün `fayl:sətir` yerləri; codemod-lar; reliz qeydlərindən breaking changes |
-| **Docker** | 25 təhlükəsizlik qaydası, Compose Specification xətaları, dəstəyi bitmiş və köhnə image-lər |
+| **Docker** | Dockerfile və compose üçün 37 qayda (təhlükəsizlik səhvləri və Compose Specification xətaları), dəstəyi bitmiş və köhnə image-lər |
 | **Veb server** | nginx / Caddy: versiyanın məlum zəiflikləri, TLS, başlıqlar, yol keçidi, açıq admin API |
-| **Node.js və mühit** | runtime təhlükəsizlik relizləri və dəstəyin bitməsi; lockfile, install skriptləri, gözləmə müddəti |
+| **Node.js və mühit** | runtime təhlükəsizlik relizləri və dəstəyin bitməsi; lockfile, install skriptləri, gözləmə müddəti, hər yerdə eyni Node.js versiyası |
 | **AI və MCP** | hazır prompt, `AGENTS.md` versiya qaydaları, agentinə görə qoşulma, hansı agentlərin qoşulduğu |
-| **Tarixçə** | layihələr avtomatik yenidən skan olunur (standart hər 12 saat, «⋯» menyusunda dəyişmək olur); hər skan əvvəlki ilə müqayisə olunur: nə yenidir, nə aradan qalxıb, lockfile dəyişib, yoxsa yeni advisory çıxıb; skanı kim edib (interfeys, əmr sətri və ya AI agent) və hər agent MCP ilə nəyi yoxlayıb |
+| **Tarixçə** | DepGate işlədikcə layihələr avtomatik yenidən skan olunur (standart hər 12 saat, «⋯» menyusunda dəyişmək olur); hər skan əvvəlki ilə müqayisə olunur: nə yenidir, nə aradan qalxıb, lockfile dəyişib, yoxsa yeni advisory çıxıb; skanı kim edib (interfeys, əmr sətri, avtomatik skan və ya AI agent) və hər agent MCP ilə nəyi yoxlayıb |
 
 Qovluqlar və monorepo-lar üçün birləşmiş səhifə var; bir neçə layihədə olan tapıntı bir dəfə göstərilir. Telefonda səhifə bir sütuna düzülür.
 
@@ -110,14 +110,15 @@ cd ~/projects/shop && claude mcp add --transport http depgate -s local \
 
 ## Mənbələr
 
-Açıq və pulsuz: [OSV.dev](https://osv.dev), [npm advisories](https://docs.npmjs.com/cli/commands/npm-audit), [CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog), [FIRST EPSS](https://www.first.org/epss/), [deps.dev](https://deps.dev), [npm registry](https://www.npmjs.com), [GitHub releases](https://docs.github.com/en/rest/releases/releases), [nginx advisories](https://nginx.org/en/security_advisories.html), [endoflife.date](https://endoflife.date), [Node.js releases](https://nodejs.org/en/about/previous-releases). **Mənbələr** düyməsi hər birinin son skanda necə cavab verdiyini göstərir.
+Açıq və pulsuz: [OSV.dev](https://osv.dev), [npm advisories](https://docs.npmjs.com/cli/commands/npm-audit), [CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog), [FIRST EPSS](https://www.first.org/epss/), [deps.dev](https://deps.dev), [npm registry](https://www.npmjs.com), [GitHub releases](https://docs.github.com/en/rest/releases/releases), [nginx advisories](https://nginx.org/en/security_advisories.html), [endoflife.date](https://endoflife.date), [Node.js releases](https://nodejs.org/en/about/previous-releases). **⋯ → Mənbələr** (və ya layihə səhifəsinin altındakı sətir) hər birinin son skanda necə cavab verdiyini göstərir.
 
 Həftəlik test `npm audit`-in tapdığı hər advisory-nin DepGate-in hesabatında da olduğunu yoxlayır (yazılan vaxt 71-dən 71-i).
 
 ## Əmr sətri
 
 ```bash
-depgate --ci --fail-on high   # yüksək/kritik zəiflik və ya zərərli paket olsa exit 1
+depgate ~/projects            # interfeysi aç və ~/projects altındakı bütün layihələri əlavə et
+depgate --ci --fail-on high   # zərərli paket və ya production asılılığında yüksək/kritik zəiflik olsa exit 1
 depgate --json > report.json  # bir dəfə skan et, JSON ver
 depgate --view report.json    # saxlanmış hesabatı aç
 depgate --reset-password      # Docker: docker exec depgate depgate --reset-password
@@ -135,6 +136,9 @@ depgate --reset-password      # Docker: docker exec depgate depgate --reset-pass
 | `--data` · `DEPGATE_DATA` | siyahı, hesabatlar, skan tarixçəsi, parol hash-ı | `~/.config/depgate` · macOS `~/Library/Application Support/depgate` · Windows `%AppData%\depgate` |
 | `--offline` | şəbəkəsiz, yalnız keş | söndürülüb |
 | `--cooldown` | N gündən yeni versiyaları hədəf seçmə | 3 |
+| `--depth` | qovluğun altında layihələri nə qədər dərin axtarmaq | 3 |
+| `--addr` · `DEPGATE_ADDR` | dinləmə ünvanı | `127.0.0.1` (konteynerdə `0.0.0.0`) |
+| `--push URL` · `--token` / `DEPGATE_PUSH_TOKEN` | bir dəfə skan et və JSON hesabatı URL-ə POST et | — |
 | `--rescan` · `DEPGATE_RESCAN_HOURS` | son skan N saatdan köhnədirsə, yenidən skan et (0 = söndür; interfeysdə də) | 12 |
 | `DEPGATE_NO_UPDATE_CHECK=1` | gündə bir dəfə GitHub-da yeni versiyanı yoxlama | — |
 | `--print-token` · `DEPGATE_TOKEN` | API / MCP tokeni | avtomatik |
@@ -147,9 +151,9 @@ depgate --reset-password      # Docker: docker exec depgate depgate --reset-pass
 
 ## Təhlükəsizlik və məxfilik
 
-- Kompüterindən yalnız paket adları, versiyalar, CVE nömrələri və image adları çıxır — kod, yollar və `.env` faylları heç vaxt. Gündə bir dəfə DepGate GitHub-dan ən son reliz nömrəsini soruşur və yeni versiya varsa, bildiriş göstərir.
+- Kompüterindən yalnız paket adları, versiyalar, CVE nömrələri, image adları və GitHub repo adları (reliz qeydləri üçün) çıxır — kod, yollar və `.env` faylları heç vaxt. Hesabatlar, tarixçə və qəbul edilmiş risklər data qovluğunda qalır. Gündə bir dəfə DepGate GitHub-dan ən son reliz nömrəsini soruşur və yeni versiya varsa, bildiriş göstərir.
 - Yalnız oxuyur: layihələrinə heç nə yazılmır; Docker-də ev qovluğun yalnız oxuma rejimində bağlanır və DepGate root olmadan işləyir.
-- İnterfeys yalnız `127.0.0.1`-də açılır və parolla qorunur (PBKDF2-SHA256); API sorğuları xüsusi başlıq tələb edir, `Host` başlığı yoxlanır, sərt CSP göndərilir.
+- İnterfeys `127.0.0.1`-də açılır (Docker-də port yalnız `127.0.0.1`-də açıqdır) və parolla qorunur (PBKDF2-SHA256); API sorğuları xüsusi başlıq tələb edir, `Host` başlığı yoxlanır, sərt CSP göndərilir.
 
 **Hədlər:** yalnız npm (npm, pnpm, yarn, bun) · kod yerləri mətn nümunələri ilə tapılır, ona görə yoxla · image-lərin içindəki CVE-lər skan olunmur (Trivy istifadə et) · işlədiyi kompüterin qovluqlarını oxuyur.
 

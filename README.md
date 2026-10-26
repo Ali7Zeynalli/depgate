@@ -64,14 +64,14 @@ Then open `http://127.0.0.1:7777`, choose a password and **+ Add project** (a pr
 
 | Section | What it shows |
 |---|---|
-| **Overview** | the state at a glance (malware, do now, code changes, Docker & server, last change) and the first steps in order, each with its command |
+| **Overview** | the state at a glance (malware, do now, code changes, Docker & server, last change) and the first steps in order, with the command where there is one |
 | **Packages** | one row per package, risk first: what it is, what was found, the weakness in plain words (CWE), the safest version, the command and numbered steps; malware, removed versions, packages that must update together; **accept a risk** with a reason until a date (it comes back by itself) |
 | **Code changes** | `file:line` places for Next.js, React, Express, NestJS, Prisma, Zod, Tailwind, ESLint, TanStack Query, React Router; codemods; breaking changes from release notes |
-| **Docker** | 25 security rules, Compose Specification errors, end-of-life and outdated images |
+| **Docker** | 37 Dockerfile and compose rules (security mistakes and Compose Specification errors), end-of-life and outdated images |
 | **Web server** | nginx / Caddy: known vulnerabilities of your version, TLS, headers, path traversal, exposed admin API |
-| **Node.js & setup** | runtime security releases and end of life; lockfile, install scripts, release cooldown |
+| **Node.js & setup** | runtime security releases and end of life; lockfile, install scripts, release cooldown, the same Node.js version everywhere |
 | **AI & MCP** | a ready prompt, `AGENTS.md` version rules, the setup for your agent, which agents are connected |
-| **History** | projects are scanned again automatically (every 12 h by default, changeable in the ⋯ menu); every scan compared with the one before: what is new, what is gone, whether the lockfile changed or a new advisory appeared; who ran it (UI, CLI or an AI agent) and what each agent checked over MCP |
+| **History** | while DepGate runs, projects are scanned again automatically (every 12 h by default, changeable in the ⋯ menu); every scan compared with the one before: what is new, what is gone, whether the lockfile changed or a new advisory appeared; who ran it (UI, command line, automatic scan or an AI agent) and what each agent checked over MCP |
 
 Folders and monorepos get one merged page; a finding in several projects is shown once. On a phone the page stacks into one column.
 
@@ -110,14 +110,15 @@ cd ~/projects/shop && claude mcp add --transport http depgate -s local \
 
 ## Data sources
 
-Public and free: [OSV.dev](https://osv.dev), [npm advisories](https://docs.npmjs.com/cli/commands/npm-audit), [CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog), [FIRST EPSS](https://www.first.org/epss/), [deps.dev](https://deps.dev), [npm registry](https://www.npmjs.com), [GitHub releases](https://docs.github.com/en/rest/releases/releases), [nginx advisories](https://nginx.org/en/security_advisories.html), [endoflife.date](https://endoflife.date), [Node.js releases](https://nodejs.org/en/about/previous-releases). The **Sources** button shows how each one answered in the last scan.
+Public and free: [OSV.dev](https://osv.dev), [npm advisories](https://docs.npmjs.com/cli/commands/npm-audit), [CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog), [FIRST EPSS](https://www.first.org/epss/), [deps.dev](https://deps.dev), [npm registry](https://www.npmjs.com), [GitHub releases](https://docs.github.com/en/rest/releases/releases), [nginx advisories](https://nginx.org/en/security_advisories.html), [endoflife.date](https://endoflife.date), [Node.js releases](https://nodejs.org/en/about/previous-releases). **⋯ → Sources** (or the line at the bottom of a project page) shows how each one answered in the last scan.
 
 A weekly test checks that every advisory `npm audit` reports is also in DepGate's report (71 of 71 at the time of writing).
 
 ## Command line
 
 ```bash
-depgate --ci --fail-on high   # exit 1 on high/critical vulnerabilities or malware
+depgate ~/projects            # open the UI and add every project below ~/projects
+depgate --ci --fail-on high   # exit 1 on malware, or a high/critical vulnerability in a production dependency
 depgate --json > report.json  # scan once, print JSON
 depgate --view report.json    # open a saved report
 depgate --reset-password      # Docker: docker exec depgate depgate --reset-password
@@ -135,6 +136,9 @@ Risks you accept in the UI also count for `--ci`. For CI on another machine, dow
 | `--data` · `DEPGATE_DATA` | project list, reports, scan history, password hash | `~/.config/depgate` · macOS `~/Library/Application Support/depgate` · Windows `%AppData%\depgate` |
 | `--offline` | no network, cache only | off |
 | `--cooldown` | skip target versions younger than N days | 3 |
+| `--depth` | how deep to look for projects below a folder | 3 |
+| `--addr` · `DEPGATE_ADDR` | listen address | `127.0.0.1` (`0.0.0.0` in the container) |
+| `--push URL` · `--token` / `DEPGATE_PUSH_TOKEN` | scan once and POST the JSON report to a URL | — |
 | `--rescan` · `DEPGATE_RESCAN_HOURS` | scan projects again when the last scan is older than N hours (0 = off; also in the UI) | 12 |
 | `DEPGATE_NO_UPDATE_CHECK=1` | don't check GitHub once a day for a newer DepGate | — |
 | `--print-token` · `DEPGATE_TOKEN` | API / MCP token | generated |
@@ -147,9 +151,9 @@ More: `depgate --help`.
 
 ## Security and privacy
 
-- Only package names, versions, CVE ids and image names leave your computer — never code, paths or `.env` files. Once a day DepGate asks GitHub for the newest release number and shows a notice if there is one.
+- Only package names, versions, CVE ids, image names and GitHub repository names (for release notes) leave your computer — never code, paths or `.env` files. Reports, history and accepted risks stay in the data folder. Once a day DepGate asks GitHub for the newest release number and shows a notice if there is one.
 - Read-only: nothing is written into your projects; in Docker your home is mounted read-only and DepGate runs without root.
-- The UI listens on `127.0.0.1` only and is password-protected (PBKDF2-SHA256); API calls need a custom header, the `Host` header is checked, a strict CSP is sent.
+- The UI listens on `127.0.0.1` (in Docker the port is published on `127.0.0.1` only) and is password-protected (PBKDF2-SHA256); API calls need a custom header, the `Host` header is checked, a strict CSP is sent.
 
 **Limits:** npm only (npm, pnpm, yarn, bun) · code places are found by text patterns, so review them · no CVE scan inside container images (use Trivy) · it reads the folders of the computer it runs on.
 
