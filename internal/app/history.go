@@ -85,7 +85,9 @@ func (m *Manager) History(dir string, only bool) (*History, error) {
 	if m.ro != nil || dir == "" {
 		return h, nil
 	}
-	dir = filepath.Clean(dir)
+	if dir != All {
+		dir = filepath.Clean(dir)
+	}
 	for _, e := range m.under(dir) {
 		if only && e.Dir != dir {
 			continue
@@ -107,7 +109,7 @@ func (m *Manager) History(dir string, only bool) (*History, error) {
 		h.Projects = append(h.Projects, ph)
 	}
 	h.KPI = sumKPI(h.Projects)
-	if ev := m.Store.History.Events(dir, 200); ev != nil {
+	if ev := m.Store.History.Events(scope(dir), 200); ev != nil {
 		h.Events = ev
 	}
 	if only { // leave out what agents did in the projects nested inside this one
@@ -130,7 +132,7 @@ func (m *Manager) History(dir string, only bool) (*History, error) {
 		h.Events = keep
 	}
 	h.Agents = agents(h.Events)
-	for _, w := range m.Store.History.Sessions(dir) {
+	for _, w := range m.Store.History.Sessions(scope(dir)) {
 		if !only || filepath.Clean(w.Project) == dir {
 			h.Work = append(h.Work, w)
 		}
@@ -151,10 +153,20 @@ func (m *Manager) ClearHistory(dir string) error {
 	return m.Store.History.Clear(dir, ds)
 }
 
+// All asks History for every project (the overall dashboard).
+const All = "*"
+
+func scope(dir string) string {
+	if dir == All {
+		return ""
+	}
+	return dir
+}
+
 func (m *Manager) under(dir string) []store.Entry {
 	var out []store.Entry
 	for _, e := range m.Store.Projects() {
-		if store.Within(e.Dir, dir) {
+		if dir == All || store.Within(e.Dir, dir) {
 			out = append(out, e)
 		}
 	}

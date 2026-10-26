@@ -625,3 +625,20 @@ svg.tspark polyline { fill: none; stroke: var(--accent); stroke-width: 1.8; stro
 .chip.git code { font-size: 11px; background: none; padding: 0; }
 .gsubj { font-weight: 600; overflow-wrap: anywhere; }
 .gnote { margin-top: 8px; }
+.proj.dashbtn { margin-bottom: 6px; }
+.dbar { display: flex; height: 12px; border-radius: 6px; overflow: hidden; gap: 2px; margin: 12px 0 10px; }
+.seg.bad { background: var(--bad); } .seg.hi { background: #c4320a; } .seg.warn { background: var(--warn); } .seg.good { background: var(--good); }
+.dlegend { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.dlegend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.dtop { display: flex; flex-direction: column; margin-top: 8px; }
+.drow2 { display: flex; align-items: center; gap: 8px; text-align: left; border: 0; border-top: 1px solid var(--line2); background: none; padding: 8px 4px; font: inherit; color: inherit; cursor: pointer; flex-wrap: wrap; border-radius: 0; }
+.drow2:hover { background: var(--line2); }
+.drow2 .dn { width: 20px; color: var(--quiet); font-size: 12px; text-align: right; }
+.drow2 .dtitle { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dshared { border-top: 1px solid var(--line2); padding: 8px 0; }
+.dshared .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.chip.lvl-bad { background: var(--bad-bg); color: var(--bad); } .chip.lvl-hi { background: #ffeadf; color: #a62b06; }
+.chip.lvl-warn { background: var(--warn-bg); color: var(--warn); } .chip.lvl-good { background: var(--good-bg); color: var(--good); }
+.dash .h3.sp { margin-top: 12px; }
+th .link.on { font-weight: 700; }
+.tscroll { overflow-x: auto; }
