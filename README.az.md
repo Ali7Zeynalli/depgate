@@ -51,7 +51,7 @@ və ya Docker ilə:
 
 ```bash
 git clone https://github.com/Ali7Zeynalli/depgate.git && cd depgate
-DEPGATE_UID=$(id -u) DEPGATE_GID=$(id -g) docker compose up -d
+docker compose up -d
 ```
 
 `http://127.0.0.1:7777` aç, parol seç və ev qovluğunun istənilən yerindən layihə əlavə et.
@@ -228,20 +228,22 @@ Qovluq seçici yalnız icazə verilən kökləri göstərir (standart: ev qovlu�
 ### Docker
 
 ```bash
-DEPGATE_UID=$(id -u) DEPGATE_GID=$(id -g) docker compose up -d
+docker compose up -d
 ```
 
 və ya compose-suz:
 
 ```bash
-docker run -d --name depgate -p 127.0.0.1:7777:7777 --user "$(id -u):$(id -g)" \
+docker run -d --name depgate -p 127.0.0.1:7777:7777 --user 0:0 \
   -e HOME=$HOME -e DEPGATE_ROOTS=$HOME \
   -v $HOME:$HOME:ro -v depgate-data:/data \
-  --read-only --tmpfs /tmp --cap-drop ALL ghcr.io/ali7zeynalli/depgate:latest
+  --read-only --tmpfs /tmp --security-opt no-new-privileges --security-opt label=disable \
+  --cap-drop ALL --cap-add CHOWN --cap-add DAC_OVERRIDE --cap-add FOWNER --cap-add SETUID --cap-add SETGID \
+  ghcr.io/ali7zeynalli/depgate:latest
 ```
 
 - **Ev qovluğun eyni yolla, yalnız oxuma rejimində bağlanır.** Ona görə interfeysdə real yollar görünür və heç nəyi köçürmək lazım deyil. DepGate ora heç nə yazmır.
-- Konteyner **sənin istifadəçinlə** işləyir (`DEPGATE_UID`/`DEPGATE_GID`, standart 1000) ki, fayllarını oxuya bilsin. Əvvəlcə qısa `depgate-init` addımı data volume-unu həmin istifadəçiyə verir; köhnə versiyaların yaratdığı volume-ları da düzəldir.
+- **İstifadəçi ID-si yazmaq lazım deyil.** Konteyner yalnız ev qovluğunun sahibini öyrənmək üçün root kimi başlayır, data volume-unu həmin istifadəçiyə verir (köhnə versiyaların volume-larını da düzəldir), ona keçir və heç nə oxumazdan əvvəl bütün hüquqlarını buraxır — DepGate heç vaxt root kimi işləmir. SELinux olan sistemlər (Fedora, RHEL) üçün `label=disable` var. Başqa istifadəçi lazımdırsa: `DEPGATE_UID` / `DEPGATE_GID`. `depgate-init` addımı olan köhnə versiyadan keçəndə: `docker compose up -d --build --remove-orphans`.
 - Siyahı, hesabatlar və parol hash-ı **`depgate-data` Docker volume-unda** saxlanır və yenidən başlatmada və yeniləmədə itmir. Docker-siz `depgate` ilə ortaq istifadə etmək istəsən, volume-u `${HOME}/.config/depgate:/data` ilə əvəz et (`docker-compose.yml`-dəki şərhə bax).
 - DepGate lokal alətdir: işlədiyi kompüterin qovluqlarını oxuyur, ona görə onu layihələrin olduğu kompüterdə işlət. Port yalnız `127.0.0.1`-də açılır. `DEPGATE_PASSWORD=…` parolu əvvəlcədən təyin edir; `DEPGATE_GITHUB_TOKEN=…` release notes üçün GitHub limitini artırır.
 

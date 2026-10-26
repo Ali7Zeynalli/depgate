@@ -64,7 +64,7 @@ or with Docker:
 
 ```bash
 git clone https://github.com/Ali7Zeynalli/depgate.git && cd depgate
-DEPGATE_UID=$(id -u) DEPGATE_GID=$(id -g) docker compose up -d
+docker compose up -d
 ```
 
 Open `http://127.0.0.1:7777`, choose a password and add projects from anywhere in your home folder.
@@ -238,20 +238,22 @@ The browser can only see folders under the allowed roots (your home directory by
 ### Docker
 
 ```bash
-DEPGATE_UID=$(id -u) DEPGATE_GID=$(id -g) docker compose up -d
+docker compose up -d
 ```
 
 or without compose:
 
 ```bash
-docker run -d --name depgate -p 127.0.0.1:7777:7777 --user "$(id -u):$(id -g)" \
+docker run -d --name depgate -p 127.0.0.1:7777:7777 --user 0:0 \
   -e HOME=$HOME -e DEPGATE_ROOTS=$HOME \
   -v $HOME:$HOME:ro -v depgate-data:/data \
-  --read-only --tmpfs /tmp --cap-drop ALL ghcr.io/ali7zeynalli/depgate:latest
+  --read-only --tmpfs /tmp --security-opt no-new-privileges --security-opt label=disable \
+  --cap-drop ALL --cap-add CHOWN --cap-add DAC_OVERRIDE --cap-add FOWNER --cap-add SETUID --cap-add SETGID \
+  ghcr.io/ali7zeynalli/depgate:latest
 ```
 
 - Your **home folder is mounted read-only at the same path**, so the UI shows your real paths and you can add projects from anywhere in it — nothing to move. DepGate never writes there.
-- The container runs **as your user** (`DEPGATE_UID`/`DEPGATE_GID`, default 1000) so it can read your files; a one-shot `depgate-init` step gives the data volume to that user first (this also repairs volumes created by older versions).
+- **No user ids to set.** The container starts as root only to see who owns your home folder, gives that user the data volume (this also repairs volumes from older versions), switches to it and drops every privilege before reading anything — DepGate never runs as root. SELinux hosts (Fedora, RHEL) are covered by `label=disable`. To force a user: `DEPGATE_UID` / `DEPGATE_GID`. Upgrading from a version with the `depgate-init` step: `docker compose up -d --build --remove-orphans`.
 - The project list, reports and password hash live in the **`depgate-data` Docker volume** (survives restarts and upgrades). Prefer sharing them with a native `depgate`? Swap the volume for `${HOME}/.config/depgate:/data` (see the comment in `docker-compose.yml`).
 - DepGate is a local tool: it reads the folders of the computer it runs on, so run it on the machine that has your projects. The port is published on `127.0.0.1` only. `DEPGATE_PASSWORD=…` sets the password up front; `DEPGATE_GITHUB_TOKEN=…` raises the GitHub limit for release notes.
 

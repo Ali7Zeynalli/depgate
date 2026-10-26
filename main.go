@@ -146,6 +146,14 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 	dataDir, cacheDir := dirsFor(c.data)
 
+	// started as root in the container: become the owner of the mounted folders, never stay root
+	if container && c.chownData == "" {
+		if err := dropRoot(dataDir, true); err != nil {
+			fmt.Fprintln(stderr, "depgate:", err)
+			return 1
+		}
+	}
+
 	if c.chownData != "" {
 		if err := chownTree(dataDir, c.chownData); err != nil {
 			fmt.Fprintln(stderr, "depgate:", err)
@@ -588,6 +596,12 @@ func runMCP(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return 2
 	}
 	dataDir, cacheDir := dirsFor(*data)
+	if os.Getenv("DEPGATE_CONTAINER") == "1" { // `docker exec … depgate mcp` runs as root: write reports as the owner
+		if err := dropRoot(dataDir, false); err != nil {
+			fmt.Fprintln(stderr, "depgate:", err)
+			return 1
+		}
+	}
 	st, err := store.Open(dataDir)
 	if err != nil {
 		fmt.Fprintln(stderr, "depgate mcp:", err)

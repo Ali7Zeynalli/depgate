@@ -1,45 +1,31 @@
 # DepGate in Docker
 #
-#   DEPGATE_UID=$(id -u) DEPGATE_GID=$(id -g) docker compose up -d
+#   docker compose up -d
 #
 # Open http://127.0.0.1:7777 and set a password on the first visit.
 #
 # Your home folder is mounted read-only at the SAME path, so the UI shows your
 # real paths (/home/you/projects/...) and you can add a project from anywhere in
 # your home — no need to move anything. DepGate only reads; it never writes there.
+#
+# No user ids to set: the container starts as root only to see who owns your
+# home folder, gives that user the data volume, switches to it and drops every
+# privilege before it reads anything. (To force another user: DEPGATE_UID / DEPGATE_GID.)
 services:
-  # one-shot step: makes the data volume belong to your user (also fixes volumes
-  # created by older versions), then exits
-  depgate-init:
-    image: ghcr.io/ali7zeynalli/depgate:latest
-    build: .
-    user: "0:0"
-    command: ["--chown-data", "${DEPGATE_UID:-1000}:${DEPGATE_GID:-1000}"]
-    volumes:
-      - depgate-data:/data
-    network_mode: none
-    read_only: true
-    cap_drop: [ALL]
-    cap_add: [CHOWN, DAC_READ_SEARCH, FOWNER]
-    security_opt:
-      - no-new-privileges:true
-    restart: "no"
-
   depgate:
     image: ghcr.io/ali7zeynalli/depgate:latest
     build: .
     container_name: depgate
     restart: unless-stopped
-    depends_on:
-      depgate-init:
-        condition: service_completed_successfully
-    # run as you, so DepGate can read your files (check with: id -u ; id -g)
-    user: "${DEPGATE_UID:-1000}:${DEPGATE_GID:-1000}"
+    user: "0:0" # only for the first moment — DepGate switches to the owner of your home folder
     ports:
       - "127.0.0.1:7777:7777"
     environment:
       - HOME=${HOME}
       - DEPGATE_ROOTS=${HOME}
+      # optional: run as this user instead of the owner of your home folder
+      - DEPGATE_UID=${DEPGATE_UID:-}
+      - DEPGATE_GID=${DEPGATE_GID:-}
       # optional: set the password here instead of in the browser (min. 8 characters)
       - DEPGATE_PASSWORD=${DEPGATE_PASSWORD:-}
       # optional: GitHub token (no scopes needed) for release notes beyond 60 requests an hour
@@ -55,9 +41,15 @@ services:
     read_only: true
     tmpfs:
       - /tmp
+    # the few rights needed to hand the data volume to your user and switch to it;
+    # all of them are gone once DepGate has switched (it never runs as root)
     cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETUID, SETGID]
     security_opt:
       - no-new-privileges:true
+      # SELinux hosts (Fedora, RHEL): lets the container read your home without
+      # relabelling it; no effect elsewhere
+      - label=disable
 
 volumes:
   depgate-data:
