@@ -189,6 +189,10 @@ func agents(ev []history.Event) []Agent {
 }
 
 // important: what the KPIs count as needing attention
+func sevRank(s string) int {
+	return map[string]int{"malware": 5, "critical": 4, "high": 3, "moderate": 2, "medium": 2, "low": 1}[s]
+}
+
 func important(it history.Item) bool {
 	return it.Kind == "malware" || it.Kind == "removed" || it.Sev == "critical" || it.Sev == "high" ||
 		it.Group == "now_easy" || it.Group == "now_code"
@@ -275,11 +279,28 @@ func kpiOf(scans []history.Scan, now time.Time) KPI {
 			continue
 		}
 		k.OpenUrgent++
-		if oldest.IsZero() || since.Before(oldest) {
-			oldest, k.OldestPkg, k.OldestSev = since, it.Pkg, it.Sev
-			if it.Kind == "malware" {
-				k.OldestSev = "malware"
+		sev := it.Sev
+		if it.Kind == "malware" {
+			sev = "malware"
+		}
+		// same age: the more severe one (map order must not decide what is shown)
+		if oldest.IsZero() || since.Before(oldest) || since.Equal(oldest) && (sevRank(sev) > sevRank(k.OldestSev) || sevRank(sev) == sevRank(k.OldestSev) && it.Pkg < k.OldestPkg) {
+			oldest, k.OldestPkg, k.OldestSev = since, it.Pkg, sev
+		}
+	}
+	// a Node.js security release or end of life is an open task too (the
+	// overview counts it); it is open since the first scan in a row that said so
+	if s := scans[0]; s.NodeNeed == "now" {
+		since := s.At
+		for _, p := range scans[1:] {
+			if p.NodeNeed != "now" || p.Node != s.Node {
+				break
 			}
+			since = p.At
+		}
+		k.OpenUrgent++
+		if oldest.IsZero() || since.Before(oldest) || since.Equal(oldest) && sevRank("high") > sevRank(k.OldestSev) {
+			oldest, k.OldestPkg, k.OldestSev = since, "Node.js "+s.Node, "high"
 		}
 	}
 	if !oldest.IsZero() {
@@ -300,7 +321,7 @@ func sumKPI(ps []ProjectHistory) KPI {
 		k.AcceptedSoon += x.AcceptedSoon
 		hours += x.MTTRHours * float64(x.FixedN)
 		k.FixedN += x.FixedN
-		if x.OldestDays > k.OldestDays || k.OldestPkg == "" && x.OldestPkg != "" {
+		if x.OldestPkg != "" && (k.OldestPkg == "" || x.OldestDays > k.OldestDays || x.OldestDays == k.OldestDays && sevRank(x.OldestSev) > sevRank(k.OldestSev)) {
 			k.OldestDays, k.OldestPkg, k.OldestSev, k.OldestDir = x.OldestDays, x.OldestPkg, x.OldestSev, p.Dir
 		}
 		if x.LastScan != nil && (k.LastScan == nil || x.LastScan.After(*k.LastScan)) {

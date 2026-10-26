@@ -73,6 +73,17 @@ func TestKPI(t *testing.T) {
 	if s.OpenUrgent != 1 || s.OldestDir != "/x" || s.MTTRHours != 48 {
 		t.Fatalf("sum %+v", s)
 	}
+	// Node.js "do now" counts as an open task since the first scan in a row that said so
+	scans[0].Node, scans[0].NodeNeed = "22.20.0", "now"
+	scans[1].Node, scans[1].NodeNeed = "22.20.0", "now"
+	if k := kpiOf(scans, now); k.OpenUrgent != 2 || k.OldestPkg != "a" {
+		t.Fatalf("node %+v", k)
+	}
+	scans[2].Node, scans[2].NodeNeed = "22.20.0", "now"
+	scans[2].Items = nil
+	if k := kpiOf(scans, now); k.OpenUrgent != 2 || k.OldestPkg != "Node.js 22.20.0" || k.OldestDays != 10 {
+		t.Fatalf("node oldest %+v", k)
+	}
 }
 
 func TestHistoryOnlyThisProject(t *testing.T) {
