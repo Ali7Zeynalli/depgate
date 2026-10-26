@@ -120,6 +120,12 @@ func One(ctx context.Context, d *decide.Data, dir string, opt Options) report.Pr
 		return p
 	}
 	p.Manager, p.Lockfile, p.Approximate, p.Packages = decide.ManagerOf(lr), lr.File, lr.Approximate, len(lr.Packages)
+	if !lr.Approximate { // versions guessed from package.json ranges would show changes that never happened
+		p.Versions = make([]report.Version, 0, len(lr.Packages))
+		for _, x := range lr.Packages {
+			p.Versions = append(p.Versions, report.Version{Name: x.Name, Version: x.Version, Direct: x.Direct, Dev: x.Dev})
+		}
+	}
 
 	srcs := project.NodeSources(abs, root, man.Engines)
 	p.Node = decide.EvalNode(srcs, d.Node, opt.Now)

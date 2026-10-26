@@ -442,6 +442,15 @@
     hByMCP: ["AI agent", "AI agent"],
     hCounts: ["təcili {0} · planla {1} · zərərli {2} · Docker/server {3}", "urgent {0} · plan {1} · malware {2} · Docker/server {3}"],
     hNewL: ["Yeni", "New"],
+    pkTitle: ["Paket versiyaları dəyişib ({0})", "Package versions changed ({0})"],
+    pkTrans: ["dolayı paketlər: {0}", "transitive packages: {0}"],
+    pkMore: ["… və daha {0} (saxlanmayıb)", "… and {0} more (not stored)"],
+    pkN: ["{0} paket dəyişib", "{0} packages changed"],
+    pkDownN: ["{0} köhnə versiyaya qayıdıb", "{0} back to an older version"],
+    pkUp: ["yeniləndi", "updated"],
+    pkDown: ["köhnəyə qayıdıb", "older version"],
+    pkAdd: ["yeni", "added"],
+    pkRemove: ["silindi", "removed"],
     hFixedL: ["Aradan qalxıb", "Gone"],
     hChangedL: ["Dəyişib", "Changed"],
     hSameN: ["{0} skan dəyişikliksiz", "{0} scans without changes"],
@@ -1332,6 +1341,29 @@
     return el("div", { class: "hitems" }, el("div", { class: "lbl " + cls }, label + " (" + its.length + ")"),
       its.map((it) => el("div", { class: "hit" }, it.s ? el("span", { class: "chip " + (SEVC[it.s] || "sev-" + it.s) }, it.s) : el("span", { class: "chip" }, it.t), " ", itemText(it))));
   }
+  // package versions that changed in a scan: updated, back to an older version, added, removed
+  const PKK = { down: ["pkDown", "warn", "↓"], add: ["pkAdd", "sev-high", "+"], remove: ["pkRemove", "", "−"], up: ["pkUp", "ok", "↑"] };
+  function pkgChips(p) {
+    const cs = (p && p.c) || [];
+    if (!cs.length) return null;
+    const down = cs.filter((c) => c.k === "down").length;
+    return [el("span", { class: "chip" }, t("pkN", cs.length + (p.more || 0))), down ? el("span", { class: "chip warn" }, t("pkDownN", down)) : null];
+  }
+  function pkgList(p) {
+    const cs = (p && p.c) || [];
+    if (!cs.length) return null;
+    const line = (c) => el("div", { class: "hit" },
+      el("span", { class: "chip " + PKK[c.k][1] }, PKK[c.k][2] + " " + t(PKK[c.k][0])), " ",
+      el("b", null, c.n), " ",
+      el("span", { class: "mono" }, c.k === "add" ? c.t : c.k === "remove" ? c.f : c.f + " → " + c.t),
+      c.dev ? el("span", { class: "quiet small" }, " dev") : null);
+    const direct = cs.filter((c) => c.d), trans = cs.filter((c) => !c.d), more = p.more || 0;
+    return el("div", { class: "hitems" }, el("div", { class: "lbl" }, t("pkTitle", cs.length + more)),
+      direct.map(line),
+      trans.length ? el("details", { class: "pktrans", open: !direct.length && trans.length <= 10 || undefined },
+        el("summary", { class: "quiet small" }, t("pkTrans", trans.length + more)), trans.map(line),
+        more ? el("div", { class: "quiet small" }, t("pkMore", more)) : null) : null);
+  }
   function chart(scans) {
     const xs = scans.slice(0, 30).reverse(); // oldest → newest
     if (xs.length < 2) return null;
@@ -1357,15 +1389,15 @@
     let same = 0;
     const flush = () => { if (same) out.push(el("div", { class: "hrow same quiet small" }, t("hSameN", same))); same = 0; };
     ph.scans.forEach((s, i) => {
-      const d = s.diff, changed = d.first || d.new.length || d.fixed.length || d.changed.length;
+      const d = s.diff, pk = (s.pkgs && s.pkgs.c) || [], changed = d.first || d.new.length || d.fixed.length || d.changed.length || pk.length;
       if (!changed && i > 0) { same++; return; }
       flush();
       const head = el("summary", null,
         el("span", { class: "ht" }, fmtTime(s.at)),
         el("span", { class: "chip" + (s.by === "mcp" ? " ai" : "") }, byText(s)),
         el("span", { class: "hc quiet small" }, t("hCounts", urgentOf(s), s.sum.plan || 0, s.sum.malware || 0, (s.docker || 0) + (s.server || 0))),
-        el("span", { class: "hd" }, diffChips(d)));
-      const body = [itemList(t("hNewL"), "bad", d.new), itemList(t("hFixedL"), "good", d.fixed), itemList(t("hChangedL"), "warn", d.changed)].filter(Boolean);
+        el("span", { class: "hd" }, diffChips(d), pkgChips(s.pkgs)));
+      const body = [itemList(t("hNewL"), "bad", d.new), itemList(t("hFixedL"), "good", d.fixed), itemList(t("hChangedL"), "warn", d.changed), pkgList(s.pkgs)].filter(Boolean);
       out.push(body.length ? el("details", { class: "hrow", open: i === 0 || undefined }, head, el("div", { class: "hbody" }, body))
         : el("div", { class: "hrow flat" }, [...head.childNodes]));
     });

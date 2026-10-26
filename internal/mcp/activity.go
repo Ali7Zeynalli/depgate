@@ -136,7 +136,7 @@ func runHistory(ctx context.Context, s *Server, args map[string]any) (string, er
 		case d.First:
 			b.WriteString("First scan.\n")
 		case d.Same():
-			b.WriteString("No change since the scan before.\n")
+			b.WriteString("No findings changed since the scan before.\n")
 		default:
 			if d.LockChanged {
 				b.WriteString("Lockfile changed since the scan before.\n")
@@ -152,8 +152,41 @@ func runHistory(ctx context.Context, s *Server, args map[string]any) (string, er
 			items("fixed", d.Fixed)
 			items("changed", d.Changed)
 		}
+		writePkgs(&b, cur.Pkgs)
 	}
 	return b.String(), nil
+}
+
+// writePkgs lists the package versions that changed in a scan (direct ones first).
+func writePkgs(b *strings.Builder, p *history.PkgDiff) {
+	if p == nil || len(p.Changes) == 0 {
+		return
+	}
+	const show = 40
+	b.WriteString("Package versions changed:\n")
+	for i, c := range p.Changes {
+		if i == show {
+			fmt.Fprintf(b, "- … and %d more\n", len(p.Changes)-show+p.More)
+			return
+		}
+		where := "transitive"
+		if c.Direct {
+			where = "direct"
+		}
+		switch c.Kind {
+		case "add":
+			fmt.Fprintf(b, "- added %s@%s (%s)\n", c.Name, c.To, where)
+		case "remove":
+			fmt.Fprintf(b, "- removed %s@%s (%s)\n", c.Name, c.From, where)
+		case "down":
+			fmt.Fprintf(b, "- DOWNGRADED %s %s → %s (%s)\n", c.Name, c.From, c.To, where)
+		default:
+			fmt.Fprintf(b, "- %s %s → %s (%s)\n", c.Name, c.From, c.To, where)
+		}
+	}
+	if p.More > 0 {
+		fmt.Fprintf(b, "- … and %d more\n", p.More)
+	}
 }
 
 func sevOf(it history.Item) string {
