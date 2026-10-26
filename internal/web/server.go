@@ -15,6 +15,8 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -172,7 +174,10 @@ func (s *Server) Handler() http.Handler {
 	})
 	mux.HandleFunc("GET /api/mcp", func(w http.ResponseWriter, r *http.Request) {
 		// what the "AI agent (MCP)" dialog needs to build a connection for this server
-		writeJSON(w, http.StatusOK, map[string]any{"enabled": s.MCP != nil, "token": s.Token})
+		// home / hostHome: in Docker, the home folder as the page sees it and as the computer sees it
+		// (the agent runs on the computer, so the dialog shows the real path)
+		writeJSON(w, http.StatusOK, map[string]any{"enabled": s.MCP != nil, "token": s.Token,
+			"home": filepath.Clean(os.Getenv("HOME")), "hostHome": os.Getenv("DEPGATE_HOST_HOME")})
 	})
 	mux.Handle("GET /", static)
 

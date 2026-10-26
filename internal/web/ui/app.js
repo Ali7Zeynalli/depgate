@@ -226,7 +226,41 @@
     mcpBtn: ["AI agent (MCP)", "AI agent (MCP)"],
     mcpTitle: ["Bu layihəni AI agentə qoş (MCP)", "Connect this project to an AI agent (MCP)"],
     mcpHelp: ["Bir dəfə qoş: sonra Claude Code, Cursor və ya başqa agent bu layihənin tapıntılarını, kod dəyişikliklərini və qaydalarını DepGate-dən özü soruşur, yeni paket əlavə etməzdən əvvəl check_package ilə yoxlayır. Hər layihəyə ayrıca qoşulur.", "Connect once: Claude Code, Cursor or any agent then asks DepGate itself for this project's findings, code changes and rules, and checks every new package with check_package before installing it. Each project is connected on its own."],
-    mcpStats: ["9 alət · yalnız oxuyur", "9 tools · read-only"],
+    mcpStats: ["10 alət · yalnız oxuyur", "10 tools · read-only"],
+    mcpAgent: ["Hansı AI agenti istifadə edirsən?", "Which AI agent do you use?"],
+    mcpOther: ["Digər (stdio)", "Other (stdio)"],
+    shBash: ["Terminal (bash/zsh, Git Bash)", "Terminal (bash/zsh, Git Bash)"],
+    mcpRunIn: ["Terminal aç (layihə qovluğunda olmaq lazım deyil — əmr özü keçir).", "Open a terminal (any folder — the command changes into the project)."],
+    mcpRun: ["Bu əmri işlət:", "Run this command:"],
+    mcpCheck: ["Yoxla — siyahıda depgate «connected» görünməlidir:", "Check — depgate should show as connected:"],
+    mcpClaudeNote: ["-s local: qoşulma yalnız səndə və yalnız bu layihədə saxlanır, layihə fayllarına yazılmır.", "-s local: the connection is stored only for you and only for this project, not in the project files."],
+    mcpFile: ["Bu faylı yarat (varsa, depgate hissəsini içinə əlavə et):", "Create this file (if it exists, add the depgate entry to it):"],
+    mcpGlobalFile: ["Bu faylı aç və depgate hissəsini əlavə et (fayl yoxdursa, yarat). Hər layihənin öz adı var, ona görə bir neçə layihəni yan-yana qoşa bilərsən:", "Open this file and add the depgate entry (create it if missing). Each project gets its own name, so several projects can sit side by side:"],
+    mcpGitignore: ["Faylda token var — .gitignore-a əlavə et:", "The file holds the token — add it to .gitignore:"],
+    mcpCursorCheck: ["Cursor → Settings → MCP: depgate yaşıl olmalıdır (lazım olsa, yenilə).", "Cursor → Settings → MCP: depgate should be green (refresh if needed)."],
+    mcpVsToken: ["Faylı saxla, server üzərində «Start» bas; token soruşulanda bunu yapışdır (VS Code onu təhlükəsiz saxlayır, fayla yazılmır):", "Save the file and click “Start” above the server; when asked for the token paste this (VS Code stores it securely, not in the file):"],
+    mcpVsCheck: ["Copilot Chat → Agent rejimi → alətlər düyməsi: depgate alətləri görünməlidir.", "Copilot Chat → Agent mode → tools button: the depgate tools should be listed."],
+    mcpWindsurfCheck: ["Cascade → MCP ikonu → Refresh: depgate görünməlidir.", "Cascade → MCPs icon → Refresh: depgate should appear."],
+    mcpGeminiCheck: ["Gemini CLI-ı yenidən aç və yaz — depgate «Ready» olmalıdır:", "Restart Gemini CLI and type — depgate should be ready:"],
+    mcpStdioHelp: ["Agent DepGate-i özü işə salır (server lazım deyil). MCP dəstəkləyən istənilən agent üçün.", "The agent starts DepGate itself (no server needed). For any agent that supports MCP."],
+    mcpStdioClaude: ["Claude Code:", "Claude Code:"],
+    mcpStdioJson: ["Digər agentlər (mcpServers JSON):", "Other agents (mcpServers JSON):"],
+    mcpNoHttp: ["Bu rejimdə HTTP qoşulma yoxdur — yalnız stdio.", "No HTTP connection in this mode — stdio only."],
+    mcpTokenNote: ["Əmrdə/faylda sənin DepGate tokenin var: onu paylaşma və git-ə əlavə etmə.", "The command/file contains your DepGate token: don't share it or commit it."],
+    mcpTokenVs: ["Faylda token yoxdur, ona görə .vscode/mcp.json-u git-ə əlavə etmək olar.", "The file has no token, so .vscode/mcp.json can be committed."],
+    mcpVerify: ["Qoşulduqdan sonra agent bu səhifənin «Tarixçə» bölməsində yaşıl nöqtə ilə görünəcək.", "Once connected, the agent shows up with a green dot in this page's History tab."],
+    mcpAsk: ["Agentə yaz, məsələn: «DepGate ilə bu layihənin asılılıqlarını düzəlt» və ya «paket əlavə etməzdən əvvəl DepGate ilə yoxla».", "Then ask the agent e.g. “fix this project's dependencies with DepGate” or “check with DepGate before adding a package”."],
+    mcpTools: ["Agentin alacağı alətlər ({0})", "Tools the agent gets ({0})"],
+    toolCheck: ["paketi quraşdırmadan əvvəl yoxlayır: təhlükəsizdirmi, hansı versiya", "checks a package before install: is it safe, which version"],
+    toolPlan: ["bütün düzəlişlər üçün sıralı tam tapşırıq", "the whole ordered fix task"],
+    toolFindings: ["tapıntılar: hədəf versiya, səbəb, əmr", "findings: target version, why, command"],
+    toolCode: ["bir paket üçün dəyişməli kod yerləri (fayl:sətir)", "code places to change for one package (file:line)"],
+    toolDocker: ["Docker, compose, nginx və Caddy tapıntıları", "Docker, compose, nginx and Caddy findings"],
+    toolRules: ["layihənin versiyalarına görə kod yazma qaydaları", "coding rules for the project's versions"],
+    toolHistory: ["son skanlar arasında nə dəyişib", "what changed between recent scans"],
+    toolStatus: ["layihənin qısa xülasəsi", "short project summary"],
+    toolScan: ["layihəni yenidən skan edir", "scans the project again"],
+    toolList: ["DepGate-in bildiyi bütün layihələr", "all projects DepGate knows"],
     rulesBtn: ["AI qaydaları", "AI rules"],
     rulesTitle: ["AI agentlər üçün versiya qaydaları", "Version rules for AI agents"],
     rulesHelp: ["Bunu layihənin AGENTS.md, CLAUDE.md və ya .cursor/rules faylına əlavə et: AI köhnə versiyalara görə yox, sənin quraşdırdığın versiyalara görə kod yazacaq. DepGate faylı özü yazmır.", "Add this to the project's AGENTS.md, CLAUDE.md or .cursor/rules: the AI will write code for the versions you actually have, not the ones it was trained on. DepGate does not write the file itself."],
@@ -1289,28 +1323,100 @@
     const text = [`<!-- depgate:ai-rules — generated by DepGate on ${day} from the installed versions; regenerate after upgrades -->`, "## Dependency versions and rules", "", ...L, "<!-- /depgate:ai-rules -->"].join("\n");
     return { text, rules: nr, repl: nx };
   }
+  // ---------- MCP: one tab per agent, each with only what that agent needs ----------
+  const AGENTS = [["claude", "Claude Code"], ["cursor", "Cursor"], ["vscode", "VS Code (Copilot)"], ["windsurf", "Windsurf"], ["codex", "Codex CLI"], ["gemini", "Gemini CLI"], ["stdio", "stdio"]];
+  const MCP_TOOLS = [["check_package", "toolCheck"], ["get_fix_plan", "toolPlan"], ["get_findings", "toolFindings"], ["get_code_changes", "toolCode"], ["get_docker_issues", "toolDocker"],
+    ["get_ai_rules", "toolRules"], ["get_history", "toolHistory"], ["project_status", "toolStatus"], ["scan_project", "toolScan"], ["list_projects", "toolList"]];
+  let mcpPick = { agent: "claude", shell: "" };
+  try { Object.assign(mcpPick, JSON.parse(localStorage.getItem("depgate-mcp") || "{}")); } catch {}
   async function openMCP(dir) {
     let info = { enabled: false, token: "" };
     try { info = await api("GET", "api/mcp"); } catch {}
-    const q = (x) => /^[\w@%+=:,./-]+$/.test(x) ? x : "'" + x.replace(/'/g, "'\\''") + "'";
-    const url = location.origin + "/mcp?project=" + encodeURIComponent(dir);
-    const L = [];
-    if (info.enabled && info.token) {
-      L.push("# 1) Recommended — over HTTP to this DepGate server: same projects and reports as this page, works with Docker too.",
-        "#    The command contains your DepGate token: -s local keeps it out of the project files.",
-        `cd ${q(dir)} && claude mcp add --transport http depgate -s local ${q(url)} --header ${q("Authorization: Bearer " + info.token)}`,
-        "",
-        "# Cursor (.cursor/mcp.json), VS Code, Windsurf… — keep this file out of git (it holds the token)",
-        JSON.stringify({ mcpServers: { depgate: { url, headers: { Authorization: "Bearer " + info.token } } } }, null, 2),
-        "");
+    // in Docker the page sees /host/…; the agent runs on the computer itself and needs the real folder
+    let hp = dir;
+    if (info.home && info.hostHome && (dir === info.home || dir.startsWith(info.home + "/"))) {
+      hp = info.hostHome + dir.slice(info.home.length);
+      if (/^[A-Za-z]:\\/.test(info.hostHome)) hp = hp.replace(/\//g, "\\");
     }
-    const cmdline = st.container ? ["docker", "exec", "-i", "depgate", "depgate", "mcp", "--project", dir] : ["depgate", "mcp", "--project", dir];
-    L.push(`# ${info.enabled ? "2" : "1"}) Over stdio — the agent starts DepGate itself (${st.container ? "inside the DepGate container" : "uses the local data folder"})`,
-      `cd ${q(dir)} && claude mcp add depgate -s local -- ${cmdline.map(q).join(" ")}`,
-      "",
-      "# Tools: project_status · get_findings · get_fix_plan · get_code_changes · get_docker_issues · get_ai_rules · check_package · scan_project · list_projects",
-      "# Ask the agent e.g.: \"fix this project's dependencies with DepGate\" or \"check with DepGate before adding a package\"");
-    textModal(t("mcpTitle"), t("mcpHelp"), L.join("\n"), t("mcpStats"), "depgate-mcp.txt");
+    const win = /^[A-Za-z]:\\/.test(hp) || /Win/i.test(navigator.platform || "");
+    const sep = /^[A-Za-z]:\\/.test(hp) ? "\\" : "/";
+    const inDir = (f) => hp + sep + f.split("/").join(sep);
+    const home = (f) => (win ? "%USERPROFILE%\\" + f.split("/").join("\\") : "~/" + f);
+    if (!mcpPick.shell) mcpPick.shell = win ? "ps" : "sh";
+    const url = location.origin + "/mcp?project=" + encodeURIComponent(dir).replace(/%2F/gi, "/");
+    const tok = info.token, auth = "Bearer " + tok, http = info.enabled && !!tok;
+    const slug = "depgate-" + (baseName(dir).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "project");
+    const sh = (x) => /^[\w@%+=:,./-]+$/.test(x) ? x : "'" + x.replace(/'/g, "'\\''") + "'";
+    const ps = (x) => /^[\w@%+=:,./\\-]+$/.test(x) ? x : "'" + x.replace(/'/g, "''") + "'";
+    const json = (o) => JSON.stringify(o, null, 2);
+    const stdio = st.container ? ["docker", "exec", "-i", "depgate", "depgate", "mcp", "--project", dir] : ["depgate", "mcp", "--project", dir];
+
+    const body = el("div", { class: "mcpbody" });
+    const step = (n, text, code, file) => el("div", { class: "mstep2" },
+      el("span", { class: "num" }, n),
+      el("div", { class: "grow" }, el("div", null, text, file ? [" ", el("code", { class: "file" }, file)] : null),
+        code ? el("div", { class: "codebox" }, el("pre", null, code), copyBtn(code)) : null));
+    function guide() {
+      if (!http) mcpPick.agent = "stdio";
+      const a = mcpPick.agent, out = [];
+      if (!http) out.push(el("div", { class: "warnbox" }, t("mcpNoHttp")));
+      if (a === "claude") {
+        const q = mcpPick.shell === "ps" ? ps : sh, join = mcpPick.shell === "ps" ? "; " : " && ";
+        out.push(el("div", { class: "fchips small" }, [["sh", t("shBash")], ["ps", "PowerShell"]].map(([k, l]) =>
+          el("button", { class: "fchip" + (mcpPick.shell === k ? " on" : ""), "aria-pressed": String(mcpPick.shell === k), onclick: () => { mcpPick.shell = k; save(); draw(); } }, l))));
+        out.push(step(1, t("mcpRunIn")), step(2, t("mcpRun"),
+          `cd ${q(hp)}${join}claude mcp add --transport http depgate -s local ${q(url)} --header ${q("Authorization: " + auth)}`),
+          step(3, t("mcpCheck"), "claude mcp list"));
+        out.push(el("div", { class: "quiet small" }, t("mcpClaudeNote")));
+      } else if (a === "cursor") {
+        out.push(step(1, t("mcpFile"), json({ mcpServers: { depgate: { url, headers: { Authorization: auth } } } }), inDir(".cursor/mcp.json")),
+          step(2, t("mcpGitignore"), ".cursor/mcp.json"),
+          step(3, t("mcpCursorCheck")));
+      } else if (a === "vscode") {
+        out.push(step(1, t("mcpFile"), json({ inputs: [{ type: "promptString", id: "depgate-token", description: "DepGate token", password: true }],
+          servers: { depgate: { type: "http", url, headers: { Authorization: "Bearer ${input:depgate-token}" } } } }), inDir(".vscode/mcp.json")),
+          step(2, t("mcpVsToken"), tok),
+          step(3, t("mcpVsCheck")));
+      } else if (a === "windsurf") {
+        out.push(step(1, t("mcpGlobalFile"), json({ mcpServers: { [slug]: { serverUrl: url, headers: { Authorization: auth } } } }), home(".codeium/windsurf/mcp_config.json")),
+          step(2, t("mcpWindsurfCheck")));
+      } else if (a === "codex") {
+        out.push(step(1, t("mcpGlobalFile"), `[mcp_servers.${slug}]\nurl = ${JSON.stringify(url)}\nhttp_headers = { "Authorization" = ${JSON.stringify(auth)} }`, home(".codex/config.toml")),
+          step(2, t("mcpCheck"), "codex mcp list"));
+      } else if (a === "gemini") {
+        out.push(step(1, t("mcpGlobalFile"), json({ mcpServers: { [slug]: { httpUrl: url, headers: { Authorization: auth } } } }), home(".gemini/settings.json")),
+          step(2, t("mcpGeminiCheck"), "/mcp"));
+      } else {
+        out.push(el("div", { class: "quiet small" }, t("mcpStdioHelp")),
+          step(1, t("mcpStdioClaude"), `cd ${(mcpPick.shell === "ps" ? ps : sh)(hp)}${mcpPick.shell === "ps" ? "; " : " && "}claude mcp add depgate -s local -- ${stdio.map(sh).join(" ")}`),
+          step(2, t("mcpStdioJson"), json({ mcpServers: { depgate: { command: stdio[0], args: stdio.slice(1) } } })));
+      }
+      if (a !== "stdio") out.push(el("div", { class: "quiet small" }, t(a === "vscode" ? "mcpTokenVs" : "mcpTokenNote")));
+      out.push(el("div", { class: "mok" }, t("mcpVerify")),
+        el("div", { class: "quiet small" }, t("mcpAsk")));
+      return out;
+    }
+    const tabs = el("div", { class: "fchips", role: "tablist", "aria-label": t("mcpAgent") });
+    const save = () => { try { localStorage.setItem("depgate-mcp", JSON.stringify(mcpPick)); } catch {} };
+    function draw() {
+      tabs.replaceChildren(...AGENTS.filter(([k]) => http || k === "stdio").map(([k, l]) => el("button", {
+        role: "tab", class: "fchip" + (mcpPick.agent === k ? " on" : ""), "aria-selected": String(mcpPick.agent === k),
+        onclick: () => { mcpPick.agent = k; save(); draw(); } }, k === "stdio" ? t("mcpOther") : l)));
+      body.replaceChildren(...guide());
+    }
+    draw();
+    const toolsBox = el("details", { class: "mtools" }, el("summary", null, t("mcpTools", MCP_TOOLS.length)),
+      el("div", { class: "tl" }, MCP_TOOLS.map(([n, k]) => el("div", null, el("code", null, n), el("span", { class: "quiet small" }, t(k))))));
+    const close = () => { ov.remove(); document.removeEventListener("keydown", esc); };
+    const esc = (e) => { if (e.key === "Escape") close(); };
+    const dlg = el("div", { class: "modal wide", role: "dialog", "aria-modal": "true", "aria-label": t("mcpTitle") },
+      el("div", { class: "mhead" }, el("div", { class: "h3" }, t("mcpTitle")), el("div", { class: "quiet" }, t("mcpHelp")),
+        el("div", { class: "quiet small mono" }, hp)),
+      el("div", { class: "pad mcpscroll" }, el("div", { class: "quiet small" }, t("mcpAgent")), tabs, body, toolsBox),
+      el("div", { class: "pfoot" }, el("div", { class: "quiet" }, t("mcpStats")), el("span", { class: "grow" }), el("button", { class: "primary", onclick: () => close() }, t("close"))));
+    const ov = el("div", { class: "overlay", onclick: (e) => { if (e.target === ov) close(); } }, dlg);
+    document.body.append(ov); document.addEventListener("keydown", esc);
+    const sel = tabs.querySelector(".on"); if (sel) sel.focus();
   }
   function openRules(ps, rootDir, g) {
     const r = rulesFor(ps, g);

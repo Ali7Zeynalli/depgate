@@ -21,6 +21,8 @@ services:
   depgate:
     image: ghcr.io/ali7zeynalli/depgate:latest
     build: .
+    # `docker compose up -d` always fetches the newest release (no stale old version)
+    pull_policy: always
     container_name: depgate
     restart: unless-stopped
     user: "0:0" # only for the first moment — DepGate switches to the owner of your home folder
@@ -31,6 +33,8 @@ services:
       - DEPGATE_ROOTS=${HOME:-/host}
       # set when started from WSL, so DepGate can explain where Windows files are
       - DEPGATE_WSL=${WSL_DISTRO_NAME:-}
+      # your home as your computer sees it (C:\Users\you on Windows), for the AI agent setup
+      - DEPGATE_HOST_HOME=${USERPROFILE:-${HOME}}
       # optional: run as this user instead of the owner of your home folder
       - DEPGATE_UID=${DEPGATE_UID:-}
       - DEPGATE_GID=${DEPGATE_GID:-}
