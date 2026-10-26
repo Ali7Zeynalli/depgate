@@ -11,11 +11,12 @@ import (
 
 // History is the scan history and agent activity of a project or folder.
 type History struct {
-	Dir      string           `json:"dir"`
-	KPI      KPI              `json:"kpi"` // the projects together
-	Projects []ProjectHistory `json:"projects"`
-	Events   []history.Event  `json:"events"`
-	Agents   []Agent          `json:"agents"`
+	Dir      string                `json:"dir"`
+	KPI      KPI                   `json:"kpi"` // the projects together
+	Projects []ProjectHistory      `json:"projects"`
+	Events   []history.Event       `json:"events"`
+	Agents   []Agent               `json:"agents"`
+	Work     []history.WorkSession `json:"work"` // tasks AI agents took on (get_overview → start_tasks → complete_task)
 }
 
 // ProjectHistory lists the scans of one project, newest first.
@@ -77,7 +78,7 @@ const showScans = 60
 // History returns the history of dir: a folder of projects, or with only set
 // just the project at dir (a monorepo root is both).
 func (m *Manager) History(dir string, only bool) (*History, error) {
-	h := &History{Dir: dir, Projects: []ProjectHistory{}, Events: []history.Event{}, Agents: []Agent{}}
+	h := &History{Dir: dir, Projects: []ProjectHistory{}, Events: []history.Event{}, Agents: []Agent{}, Work: []history.WorkSession{}}
 	if m.ro != nil || dir == "" {
 		return h, nil
 	}
@@ -125,6 +126,11 @@ func (m *Manager) History(dir string, only bool) (*History, error) {
 		h.Events = keep
 	}
 	h.Agents = agents(h.Events)
+	for _, w := range m.Store.History.Sessions(dir) {
+		if !only || filepath.Clean(w.Project) == dir {
+			h.Work = append(h.Work, w)
+		}
+	}
 	return h, nil
 }
 

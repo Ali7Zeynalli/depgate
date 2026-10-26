@@ -23,16 +23,15 @@ var promptOrder = []string{"fix", "status", "check", "docker", "changes"}
 var prompts = map[string]prompt{
 	"fix": {
 		title: "Fix dependencies with DepGate",
-		desc:  "Update what must be updated now, change the code where needed, test, and confirm with a new scan.",
+		desc:  "Shows a checklist by category, asks which to do, then fixes them one by one; DepGate verifies each task with a new scan.",
 		args:  []promptArg{{name: "project", desc: "Project path or name (default: the current one)"}},
 		text: func(a map[string]string) string {
-			return "Fix the npm dependencies of " + projectOf(a) + " with DepGate.\n" +
-				"1. Call get_fix_plan and follow it in its order: malware first, then \"do now\", then \"plan\" only if I agree.\n" +
-				"2. For every package whose code impact is yes, call get_code_changes and change each listed file:line.\n" +
-				"3. Before adding any new package, call check_package.\n" +
-				"4. Run the build and the tests.\n" +
-				"5. Call scan_project, then get_history, and tell me what is fixed and what is left.\n" +
-				"Leave findings the user accepted alone. Do not change anything that is not in the plan."
+			return "Fix the dependencies of " + projectOf(a) + " with DepGate, step by step.\n" +
+				"1. Call get_overview and show me the checklist exactly. Ask me which tasks to do. Do not change anything before I answer.\n" +
+				"2. Call start_tasks with the ids I chose.\n" +
+				"3. For each task in order: call get_task, do only that task (for code changes call get_code_changes and check the places, they are approximate), install, build and test, then call complete_task.\n" +
+				"4. Tell me what DepGate verified after each task — done, partly done or not done — not your own guess.\n" +
+				"Before adding any new package, call check_package. Leave accepted risks and tasks I did not choose alone."
 		},
 	},
 	"status": {
