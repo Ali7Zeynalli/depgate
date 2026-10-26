@@ -33,6 +33,10 @@ func (f *fakeBackend) Add(p string) ([]string, error) {
 	return []string{p}, nil
 }
 func (f *fakeBackend) Remove(string) error { return app.ErrReadOnly }
+func (f *fakeBackend) History(d string) (*app.History, error) {
+	return &app.History{Dir: d, Projects: []app.ProjectHistory{}}, nil
+}
+func (f *fakeBackend) ClearHistory(string) error { return app.ErrReadOnly }
 func (f *fakeBackend) Browse(p string) (*app.Listing, error) {
 	if p == "/nope" {
 		return nil, errors.New("x")

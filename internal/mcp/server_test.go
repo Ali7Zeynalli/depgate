@@ -117,7 +117,7 @@ func TestProtocol(t *testing.T) {
 		t.Fatalf("initialize %v", init)
 	}
 	ts := got["2"]["result"].(map[string]any)["tools"].([]any)
-	if len(ts) != 9 {
+	if len(ts) != 10 {
 		t.Fatalf("tools %d", len(ts))
 	}
 	for _, x := range ts {

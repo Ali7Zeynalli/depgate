@@ -293,7 +293,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		if err != nil {
 			fmt.Fprintln(stderr, "depgate:", err)
 		} else {
-			_ = m.Scan(dirs) // re-scan even when already remembered
+			_ = m.ScanBy(dirs, "cli") // re-scan even when already remembered
 			fmt.Fprintf(stderr, L("%d layihə skan olunur (arxa planda)…\n", "scanning %d project(s) in the background…\n"), len(dirs))
 		}
 	}

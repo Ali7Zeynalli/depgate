@@ -64,6 +64,11 @@ var tools = map[string]tool{
 		props: map[string]any{"project": projectProp,
 			"severity": map[string]any{"type": "string", "enum": []string{"high", "medium", "low", "all"}, "description": "Minimum severity (default: all)."}},
 		run: runDocker},
+	"get_history": {readOK: true,
+		desc: "What changed between the project's recent scans: when each scan ran and who asked for it, counts, and which findings are new, fixed or changed (and whether the lockfile changed or new advisories appeared). Use it to confirm your changes fixed what they should.",
+		props: map[string]any{"project": projectProp,
+			"limit": map[string]any{"type": "integer", "description": "How many scans (default 5, max 30)."}},
+		run: runHistory},
 	"scan_project": {
 		desc:  "Scan the project again (after you changed dependencies) and return the new status. Reads files only.",
 		props: map[string]any{"project": projectProp},
@@ -613,6 +618,9 @@ func runCheck(ctx context.Context, s *Server, args map[string]any) (string, erro
 	pc, err := decide.CheckPackage(ctx, d, name, str(args, "version"), in, decide.Options{CooldownDays: or0(s.Opt.CooldownDays, 3), Now: time.Now()})
 	if err != nil {
 		return "", err
+	}
+	if i := infoOf(ctx); i != nil {
+		i.target, i.verdict = clean(pc.Pkg+"@"+or(pc.Version, "latest"), 120), pc.Verdict
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "# %s@%s — %s\n\n", pc.Pkg, or(pc.Version, "?"), strings.ToUpper(pc.Verdict))

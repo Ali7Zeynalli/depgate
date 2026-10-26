@@ -84,6 +84,7 @@ type Manager struct {
 	mu       sync.Mutex
 	running  map[string]bool
 	queued   map[string]bool
+	by       map[string]string // who asked for the queued scan: ui | cli
 	errors   []string
 	sources  []report.Source
 	lastScan *time.Time
@@ -108,7 +109,7 @@ var ErrOutside = newErr("bu qovluq icazə verilən köklərdən kənardadır", "
 
 func (m *Manager) start(ctx context.Context) {
 	m.once.Do(func() {
-		m.running, m.queued = map[string]bool{}, map[string]bool{}
+		m.running, m.queued, m.by = map[string]bool{}, map[string]bool{}, map[string]string{}
 		m.jobs = make(chan []string, 64)
 		go m.worker(ctx)
 	})
@@ -129,9 +130,12 @@ func (m *Manager) worker(ctx context.Context) {
 		case dirs := <-m.jobs:
 			m.mu.Lock()
 			var todo []string
+			by := map[string]string{}
 			for _, d := range dirs {
 				if m.queued[d] {
+					by[d] = m.by[d]
 					delete(m.queued, d)
+					delete(m.by, d)
 					m.running[d] = true
 					todo = append(todo, d)
 				}
@@ -146,6 +150,7 @@ func (m *Manager) worker(ctx context.Context) {
 			for i := range rep.Projects {
 				p := &rep.Projects[i]
 				_ = m.Store.SaveReport(p)
+				m.Store.RecordScan(p, or(by[p.Dir], "ui"), "")
 				m.Store.Rename(p.Dir, p.Name)
 			}
 			now := time.Now().UTC()
@@ -159,8 +164,11 @@ func (m *Manager) worker(ctx context.Context) {
 	}
 }
 
-// Scan queues dirs (all remembered projects when empty).
-func (m *Manager) Scan(dirs []string) error {
+// Scan queues dirs (all remembered projects when empty), asked for in the UI.
+func (m *Manager) Scan(dirs []string) error { return m.ScanBy(dirs, "ui") }
+
+// ScanBy queues dirs; by (ui, cli) is kept in the scan history.
+func (m *Manager) ScanBy(dirs []string, by string) error {
 	if m.ro != nil {
 		return ErrReadOnly
 	}
@@ -177,6 +185,7 @@ func (m *Manager) Scan(dirs []string) error {
 			continue
 		}
 		m.queued[d] = true
+		m.by[d] = by
 		ok = append(ok, d)
 	}
 	m.mu.Unlock()
@@ -469,4 +478,11 @@ func (m *Manager) crumbs(abs string) ([]Crumb, string) {
 		parent = "" // back to the roots list
 	}
 	return cs, parent
+}
+
+func or(a, b string) string {
+	if a != "" {
+		return a
+	}
+	return b
 }

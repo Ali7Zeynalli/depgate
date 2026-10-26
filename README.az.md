@@ -69,7 +69,8 @@ Sonra `http://127.0.0.1:7777` aç, parol seç və **+ Layihə əlavə et** (layi
 | **Docker** | 25 təhlükəsizlik qaydası, Compose Specification xətaları, dəstəyi bitmiş və köhnə image-lər |
 | **Veb server** | nginx / Caddy: versiyanın məlum zəiflikləri, TLS, başlıqlar, yol keçidi, açıq admin API |
 | **Node.js və mühit** | runtime təhlükəsizlik relizləri və dəstəyin bitməsi; lockfile, install skriptləri, gözləmə müddəti |
-| **AI və MCP** | hazır prompt, `AGENTS.md` versiya qaydaları, MCP qoşulma əmri |
+| **AI və MCP** | hazır prompt, `AGENTS.md` versiya qaydaları, MCP qoşulma əmri, hansı agentlərin qoşulduğu |
+| **Tarixçə** | hər skan əvvəlki ilə müqayisə olunur: nə yenidir, nə aradan qalxıb, lockfile dəyişib, yoxsa yeni advisory çıxıb; skanı kim edib (interfeys, əmr sətri və ya AI agent) və hər agent MCP ilə nəyi yoxlayıb |
 
 Qovluqlar və monorepo-lar üçün birləşmiş səhifə var; bir neçə layihədə olan tapıntı bir dəfə göstərilir.
 
@@ -94,6 +95,7 @@ cd ~/projects/shop && claude mcp add --transport http depgate -s local \
 | `get_findings` · `get_code_changes` | hədəf və əmrlə tapıntılar · bir paket üçün `fayl:sətir` yerləri |
 | `get_docker_issues` | Docker, compose, image, nginx və Caddy tapıntıları |
 | `get_ai_rules` · `project_status` · `scan_project` · `list_projects` | versiya qaydaları · xülasə · yenidən skan · bütün layihələr |
+| `get_history` | son skanlar arasında nə dəyişib — düzəlişin işlədiyini təsdiqləmək üçün |
 
 - Windows PowerShell: `cd $HOME\projects\shop; claude mcp add --transport http depgate -s local "http://127.0.0.1:7777/mcp?project=$PWD" --header "Authorization: Bearer $(depgate --print-token)"`
 - Docker-də token: `docker exec depgate depgate --print-token`.
@@ -123,7 +125,7 @@ depgate --reset-password      # Docker: docker exec depgate depgate --reset-pass
 |---|---|---|
 | `--port` | interfeysin portu | 7777 |
 | `--root` · `DEPGATE_ROOTS` | interfeysin gəzə biləcəyi qovluqlar | ev qovluğu |
-| `--data` · `DEPGATE_DATA` | siyahı, hesabatlar, parol hash-ı | `~/.config/depgate` · macOS `~/Library/Application Support/depgate` · Windows `%AppData%\depgate` |
+| `--data` · `DEPGATE_DATA` | siyahı, hesabatlar, skan tarixçəsi, parol hash-ı | `~/.config/depgate` · macOS `~/Library/Application Support/depgate` · Windows `%AppData%\depgate` |
 | `--offline` | şəbəkəsiz, yalnız keş | söndürülüb |
 | `--cooldown` | N gündən yeni versiyaları hədəf seçmə | 3 |
 | `--print-token` · `DEPGATE_TOKEN` | API / MCP tokeni | avtomatik |
