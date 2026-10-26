@@ -18,7 +18,7 @@ jobs:
       tag: ${{ steps.t.outputs.tag }}
       skip: ${{ steps.t.outputs.skip }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - id: t
@@ -47,7 +47,7 @@ jobs:
       id-token: write
       attestations: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: refs/tags/${{ needs.prepare.outputs.tag }} # never a branch of the same name
           fetch-depth: 0
@@ -75,7 +75,7 @@ jobs:
       id-token: write
       attestations: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: refs/tags/${{ needs.prepare.outputs.tag }} # never a branch of the same name
       - uses: docker/setup-qemu-action@v3
