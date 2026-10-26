@@ -5,6 +5,8 @@ package app
 
 import (
 	"context"
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -379,6 +381,10 @@ func (m *Manager) Browse(path string) (*Listing, error) {
 	}
 	ents, err := os.ReadDir(abs)
 	if err != nil {
+		if errors.Is(err, fs.ErrPermission) {
+			return nil, newErr("%s qovluğunu oxumağa icazə yoxdur (DepGate uid %d ilə işləyir). Docker-də: ən son docker-compose.yml ilə yenidən başlat (docker compose up -d --build) — DepGate qovluğun sahibini özü təyin edir. SELinux (Fedora/RHEL) varsa, compose-dakı «label=disable» sətri lazımdır.",
+				"cannot read %s (DepGate runs as uid %d). In Docker: restart with the latest docker-compose.yml (docker compose up -d --build) — DepGate picks the folder's owner itself. On SELinux (Fedora/RHEL) the «label=disable» line in the compose file is needed.", abs, os.Getuid())
+		}
 		return nil, err
 	}
 	l := &Listing{Path: abs, Entries: []Entry{}}
