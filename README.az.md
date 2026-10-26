@@ -86,9 +86,12 @@ Qovluqlar və monorepo-lar üçün birləşmiş səhifə var; bir neçə layihə
 Agent DepGate-dən özü soruşur və hər paketi **quraşdırmadan əvvəl** yoxlayır (`check_package`). **AI və MCP → Qoşulma əmri** düyməsi agentinə görə qoşulmanı göstərir — Claude Code, Cursor, VS Code, Windsurf, Codex CLI, Gemini CLI və ya istənilən stdio klienti — yol və token artıq doldurulub:
 
 ```bash
-cd ~/projects/shop && claude mcp add --transport http depgate -s local \
-  "http://127.0.0.1:7777/mcp?project=$PWD" --header "Authorization: Bearer $(depgate --print-token)"
+# bir dəfə, bütün layihələr üçün (Claude Code hansı qovluqda olduğunu DepGate-ə özü bildirir)
+claude mcp add --transport http depgate -s user http://127.0.0.1:7777/mcp \
+  --header "Authorization: Bearer $(depgate --print-token)"
 ```
+
+Sonra agentə yaz və ya hazır əmrlərdən istifadə et: `/mcp__depgate__fix` (asılılıqları düzəlt), `/mcp__depgate__status`, `/mcp__depgate__check` (paketi quraşdırmadan əvvəl), `/mcp__depgate__docker`, `/mcp__depgate__changes`.
 
 <details>
 <summary>Alətlər, Windows, stdio</summary>
@@ -102,9 +105,10 @@ cd ~/projects/shop && claude mcp add --transport http depgate -s local \
 | `get_ai_rules` · `project_status` · `scan_project` · `list_projects` | versiya qaydaları · xülasə · yenidən skan · bütün layihələr |
 | `get_history` | son skanlar arasında nə dəyişib — düzəlişin işlədiyini təsdiqləmək üçün |
 
-- Windows PowerShell: `cd $HOME\projects\shop; claude mcp add --transport http depgate -s local "http://127.0.0.1:7777/mcp?project=$PWD" --header "Authorization: Bearer $(depgate --print-token)"`
+- Windows PowerShell: `claude mcp add --transport http depgate -s user http://127.0.0.1:7777/mcp --header "Authorization: Bearer $(depgate --print-token)"` — Docker-də Windows yolları (`C:\Users\sən\…`) başa düşülür.
+- Yalnız bir layihə üçün: URL-ə `?project=<yolu>` əlavə et və layihə qovluğunda `-s local` istifadə et.
 - Docker-də token: `docker exec depgate depgate --print-token`.
-- Server işləmirsə (stdio): `claude mcp add depgate -s local -- depgate mcp --project "$PWD"`.
+- Server işləmirsə (stdio), yenə bir dəfə bütün layihələr üçün: `claude mcp add depgate -s user -- depgate mcp` (Claude Code-un işlədiyi qovluğu götürür).
 - `/mcp` token tələb edir, yad origin-ləri rədd edir və yalnız icazəli qovluqları oxuyur; advisory mətni təlimat kimi yox, məlumat kimi ötürülür.
 </details>
 

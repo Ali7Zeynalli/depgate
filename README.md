@@ -86,9 +86,12 @@ Folders and monorepos get one merged page; a finding in several projects is show
 The agent asks DepGate itself — and checks every package **before** it installs it (`check_package`). The **AI & MCP → Connection command** button shows the setup for your agent — Claude Code, Cursor, VS Code, Windsurf, Codex CLI, Gemini CLI or any stdio client — with path and token filled in:
 
 ```bash
-cd ~/projects/shop && claude mcp add --transport http depgate -s local \
-  "http://127.0.0.1:7777/mcp?project=$PWD" --header "Authorization: Bearer $(depgate --print-token)"
+# once, for every project (Claude Code tells DepGate which folder it is in)
+claude mcp add --transport http depgate -s user http://127.0.0.1:7777/mcp \
+  --header "Authorization: Bearer $(depgate --print-token)"
 ```
+
+Then ask it, or use the ready commands: `/mcp__depgate__fix` (fix the dependencies), `/mcp__depgate__status`, `/mcp__depgate__check` (a package before installing), `/mcp__depgate__docker`, `/mcp__depgate__changes`.
 
 <details>
 <summary>Tools, Windows, stdio</summary>
@@ -102,9 +105,10 @@ cd ~/projects/shop && claude mcp add --transport http depgate -s local \
 | `get_ai_rules` · `project_status` · `scan_project` · `list_projects` | version rules · summary · rescan · all projects |
 | `get_history` | what changed between recent scans — to confirm a fix worked |
 
-- Windows PowerShell: `cd $HOME\projects\shop; claude mcp add --transport http depgate -s local "http://127.0.0.1:7777/mcp?project=$PWD" --header "Authorization: Bearer $(depgate --print-token)"`
+- Windows PowerShell: `claude mcp add --transport http depgate -s user http://127.0.0.1:7777/mcp --header "Authorization: Bearer $(depgate --print-token)"` — Docker on Windows: Windows paths (`C:\Users\you\…`) are understood.
+- Only this project: add `?project=<its path>` to the URL and use `-s local` in the project folder.
 - Token in Docker: `docker exec depgate depgate --print-token`.
-- Without a running server (stdio): `claude mcp add depgate -s local -- depgate mcp --project "$PWD"`.
+- Without a running server (stdio), also once for every project: `claude mcp add depgate -s user -- depgate mcp` (it uses the folder Claude Code runs in).
 - `/mcp` needs the token, rejects foreign origins and reads only allowed folders; advisory text is passed as data, not instructions.
 </details>
 

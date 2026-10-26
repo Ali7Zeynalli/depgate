@@ -75,7 +75,10 @@ var tools = map[string]tool{
 		run:   runScan},
 }
 
-func toolList() []any {
+// needProjectProp is the project property when the server cannot tell the project itself.
+var needProjectProp = map[string]any{"type": "string", "description": "The absolute path of your current working directory (the project you are working on), or a project name from list_projects."}
+
+func toolList(needProject bool) []any {
 	names := make([]string, 0, len(tools))
 	for n := range tools {
 		names = append(names, n)
@@ -84,9 +87,18 @@ func toolList() []any {
 	out := make([]any, 0, len(names))
 	for _, n := range names {
 		t := tools[n]
-		schema := map[string]any{"type": "object", "properties": t.props, "additionalProperties": false}
-		if len(t.req) > 0 {
-			schema["required"] = t.req
+		props, req := t.props, t.req
+		if _, ok := props["project"]; ok && needProject && n != "check_package" {
+			props = map[string]any{}
+			for k, v := range t.props {
+				props[k] = v
+			}
+			props["project"] = needProjectProp
+			req = append([]string{"project"}, req...)
+		}
+		schema := map[string]any{"type": "object", "properties": props, "additionalProperties": false}
+		if len(req) > 0 {
+			schema["required"] = req
 		}
 		out = append(out, map[string]any{
 			"name": n, "description": t.desc, "inputSchema": schema,

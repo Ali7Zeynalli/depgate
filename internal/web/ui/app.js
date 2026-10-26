@@ -225,7 +225,7 @@
     readOnlyNote: ["DepGate heç bir faylı dəyişmir — yalnız göstərir və təklif edir.", "DepGate never changes your files — it only shows and suggests."],
     mcpBtn: ["AI agent (MCP)", "AI agent (MCP)"],
     mcpTitle: ["Bu layihəni AI agentə qoş (MCP)", "Connect this project to an AI agent (MCP)"],
-    mcpHelp: ["Bir dəfə qoş: sonra Claude Code, Cursor və ya başqa agent bu layihənin tapıntılarını, kod dəyişikliklərini və qaydalarını DepGate-dən özü soruşur, yeni paket əlavə etməzdən əvvəl check_package ilə yoxlayır. Hər layihəyə ayrıca qoşulur.", "Connect once: Claude Code, Cursor or any agent then asks DepGate itself for this project's findings, code changes and rules, and checks every new package with check_package before installing it. Each project is connected on its own."],
+    mcpHelp: ["Qoş: sonra Claude Code, Cursor və ya başqa agent bu layihənin tapıntılarını, kod dəyişikliklərini və qaydalarını DepGate-dən özü soruşur, yeni paket əlavə etməzdən əvvəl check_package ilə yoxlayır. Bir dəfə qoşmaq bütün layihələr üçün kifayətdir.", "Connect it: Claude Code, Cursor or any agent then asks DepGate itself for this project's findings, code changes and rules, and checks every new package with check_package before installing it. Connecting once is enough for every project."],
     mcpStats: ["10 alət · yalnız oxuyur", "10 tools · read-only"],
     mcpAgent: ["Hansı AI agenti istifadə edirsən?", "Which AI agent do you use?"],
     mcpOther: ["Digər (stdio)", "Other (stdio)"],
@@ -235,7 +235,12 @@
     mcpCheck: ["Yoxla — siyahıda depgate «connected» görünməlidir:", "Check — depgate should show as connected:"],
     mcpClaudeNote: ["-s local: qoşulma yalnız səndə və yalnız bu layihədə saxlanır, layihə fayllarına yazılmır.", "-s local: the connection is stored only for you and only for this project, not in the project files."],
     mcpFile: ["Bu faylı yarat (varsa, depgate hissəsini içinə əlavə et):", "Create this file (if it exists, add the depgate entry to it):"],
-    mcpGlobalFile: ["Bu faylı aç və depgate hissəsini əlavə et (fayl yoxdursa, yarat). Hər layihənin öz adı var, ona görə bir neçə layihəni yan-yana qoşa bilərsən:", "Open this file and add the depgate entry (create it if missing). Each project gets its own name, so several projects can sit side by side:"],
+    mcpGlobalFile: ["Bu faylı aç və depgate hissəsini əlavə et (fayl yoxdursa, yarat). Bir dəfə kifayətdir — bütün layihələr üçün işləyir, agent hansı qovluqda olduğunu özü bildirir:", "Open this file and add the depgate entry (create it if missing). Once is enough — it works for every project; the agent tells DepGate which folder it is in:"],
+    mcpRunInAll: ["Terminal aç (istənilən qovluqda).", "Open a terminal (any folder)."],
+    mcpAll: ["Bütün layihələr (bir dəfə)", "All projects (once)"],
+    mcpOne: ["Yalnız bu layihə", "This project only"],
+    mcpAllNote: ["-s user: bir dəfə qoşulursan, Claude Code hansı layihədə açılsa, DepGate-dən o layihəni soruşur. Layihə fayllarına heç nə yazılmır.", "-s user: connect once; whichever project Claude Code is opened in, it asks DepGate about that one. Nothing is written into your projects."],
+    mcpPrompts: ["Claude Code-da hazır əmrlər:", "Ready commands in Claude Code:"],
     mcpGitignore: ["Faylda token var — .gitignore-a əlavə et:", "The file holds the token — add it to .gitignore:"],
     mcpCursorCheck: ["Cursor → Settings → MCP: depgate yaşıl olmalıdır (lazım olsa, yenilə).", "Cursor → Settings → MCP: depgate should be green (refresh if needed)."],
     mcpVsToken: ["Faylı saxla, server üzərində «Start» bas; token soruşulanda bunu yapışdır (VS Code onu təhlükəsiz saxlayır, fayla yazılmır):", "Save the file and click “Start” above the server; when asked for the token paste this (VS Code stores it securely, not in the file):"],
@@ -1686,9 +1691,9 @@
     const inDir = (f) => hp + sep + f.split("/").join(sep);
     const home = (f) => (win ? "%USERPROFILE%\\" + f.split("/").join("\\") : "~/" + f);
     if (!mcpPick.shell) mcpPick.shell = win ? "ps" : "sh";
-    const url = location.origin + "/mcp?project=" + encodeURIComponent(dir).replace(/%2F/gi, "/");
+    const base = location.origin + "/mcp";
+    const url = base + "?project=" + encodeURIComponent(dir).replace(/%2F/gi, "/");
     const tok = info.token, auth = "Bearer " + tok, http = info.enabled && !!tok;
-    const slug = "depgate-" + (baseName(dir).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "project");
     const sh = (x) => /^[\w@%+=:,./-]+$/.test(x) ? x : "'" + x.replace(/'/g, "'\\''") + "'";
     const ps = (x) => /^[\w@%+=:,./\\-]+$/.test(x) ? x : "'" + x.replace(/'/g, "''") + "'";
     const json = (o) => JSON.stringify(o, null, 2);
@@ -1707,10 +1712,15 @@
         const q = mcpPick.shell === "ps" ? ps : sh, join = mcpPick.shell === "ps" ? "; " : " && ";
         out.push(el("div", { class: "fchips small" }, [["sh", t("shBash")], ["ps", "PowerShell"]].map(([k, l]) =>
           el("button", { class: "fchip" + (mcpPick.shell === k ? " on" : ""), "aria-pressed": String(mcpPick.shell === k), onclick: () => { mcpPick.shell = k; save(); draw(); } }, l))));
-        out.push(step(1, t("mcpRunIn")), step(2, t("mcpRun"),
-          `cd ${q(hp)}${join}claude mcp add --transport http depgate -s local ${q(url)} --header ${q("Authorization: " + auth)}`),
+        const all = mcpPick.scope !== "one";
+        out.push(el("div", { class: "fchips small" }, [["all", t("mcpAll")], ["one", t("mcpOne")]].map(([k, l]) =>
+          el("button", { class: "fchip" + ((k === "all") === all ? " on" : ""), "aria-pressed": String((k === "all") === all), onclick: () => { mcpPick.scope = k; save(); draw(); } }, l))));
+        out.push(step(1, t(all ? "mcpRunInAll" : "mcpRunIn")), step(2, t("mcpRun"), all
+          ? `claude mcp add --transport http depgate -s user ${q(base)} --header ${q("Authorization: " + auth)}`
+          : `cd ${q(hp)}${join}claude mcp add --transport http depgate -s local ${q(url)} --header ${q("Authorization: " + auth)}`),
           step(3, t("mcpCheck"), "claude mcp list"));
-        out.push(el("div", { class: "quiet small" }, t("mcpClaudeNote")));
+        out.push(el("div", { class: "quiet small" }, t(all ? "mcpAllNote" : "mcpClaudeNote")));
+        out.push(el("div", { class: "mok" }, t("mcpPrompts"), " ", ["fix", "status", "check", "docker", "changes"].map((n, i) => [i ? " · " : "", el("code", null, "/mcp__depgate__" + n)])));
       } else if (a === "cursor") {
         out.push(step(1, t("mcpFile"), json({ mcpServers: { depgate: { url, headers: { Authorization: auth } } } }), inDir(".cursor/mcp.json")),
           step(2, t("mcpGitignore"), ".cursor/mcp.json"),
@@ -1721,13 +1731,13 @@
           step(2, t("mcpVsToken"), tok),
           step(3, t("mcpVsCheck")));
       } else if (a === "windsurf") {
-        out.push(step(1, t("mcpGlobalFile"), json({ mcpServers: { [slug]: { serverUrl: url, headers: { Authorization: auth } } } }), home(".codeium/windsurf/mcp_config.json")),
+        out.push(step(1, t("mcpGlobalFile"), json({ mcpServers: { depgate: { serverUrl: base, headers: { Authorization: auth } } } }), home(".codeium/windsurf/mcp_config.json")),
           step(2, t("mcpWindsurfCheck")));
       } else if (a === "codex") {
-        out.push(step(1, t("mcpGlobalFile"), `[mcp_servers.${slug}]\nurl = ${JSON.stringify(url)}\nhttp_headers = { "Authorization" = ${JSON.stringify(auth)} }`, home(".codex/config.toml")),
+        out.push(step(1, t("mcpGlobalFile"), `[mcp_servers.depgate]\nurl = ${JSON.stringify(base)}\nhttp_headers = { "Authorization" = ${JSON.stringify(auth)} }`, home(".codex/config.toml")),
           step(2, t("mcpCheck"), "codex mcp list"));
       } else if (a === "gemini") {
-        out.push(step(1, t("mcpGlobalFile"), json({ mcpServers: { [slug]: { httpUrl: url, headers: { Authorization: auth } } } }), home(".gemini/settings.json")),
+        out.push(step(1, t("mcpGlobalFile"), json({ mcpServers: { depgate: { httpUrl: base, headers: { Authorization: auth } } } }), home(".gemini/settings.json")),
           step(2, t("mcpGeminiCheck"), "/mcp"));
       } else {
         out.push(el("div", { class: "quiet small" }, t("mcpStdioHelp")),
