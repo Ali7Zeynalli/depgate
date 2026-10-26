@@ -448,6 +448,29 @@
     hByMCP: ["AI agent", "AI agent"],
     hCounts: ["təcili {0} · planla {1} · zərərli {2} · Docker/server {3}", "urgent {0} · plan {1} · malware {2} · Docker/server {3}"],
     hNewL: ["Yeni", "New"],
+    footMore: ["Eyni müəllifdən:", "More from the author:"],
+    footDock: ["Docker idarəetmə paneli (lokal və SSH ilə serverlər)", "Docker control panel (local and remote hosts over SSH)"],
+    footNovus: ["WireGuard üzərində öz VPN şəbəkən", "your own private VPN network on WireGuard"],
+    dashTitle: ["Ümumi panel", "Dashboard"],
+    dashSub: ["bütün layihələr", "all projects"],
+    dashDs: ["Docker və server (yüksək)", "Docker & server (high)"],
+    dashDsShort: ["Docker/server", "Docker/server"],
+    dashNodeSub: ["{0} layihədə təhlükəsizlik relizi və ya dəstək bitib", "{0} projects: security release or end of life"],
+    dashNodeOk: ["hamısı qaydasındadır", "all fine"],
+    dashHealth: ["Layihələrin vəziyyəti", "How the projects are doing"],
+    dashTop: ["Haradan başlamalı: ən vacib 10 iş", "Where to start: the 10 most important"],
+    dashTopHelp: ["Bütün layihələrdən: əvvəl zərərli, sonra real hücumda istifadə olunan və ən yüksək prioritet. Klikləyəndə həmin paket açılır.", "From every project: malware first, then exploited and highest priority. Click to open the package."],
+    dashNothing: ["Hazırda vacib iş yoxdur.", "Nothing important right now."],
+    dashShared: ["Bir dəfə düzəlt, hər yerdə həll olsun", "Fix once, everywhere"],
+    dashSharedHelp: ["Eyni yeniləmə bir neçə layihədə lazımdır. Əmrlər hər layihənin öz qovluğunda işləyir — təklifdir.", "The same update is needed in several projects. The commands run in each project's own folder — suggestions."],
+    dashCopyAll: ["Hamısının əmrləri", "All commands"],
+    dashProjects: ["Bütün layihələr", "All projects"],
+    dashState: ["Vəziyyət", "State"],
+    dashScanned: ["Son skan", "Last scan"],
+    dashSystem: ["Sistem", "System"],
+    dashStale: ["7 gündən çox skan olunmayıb: {0}", "Not scanned for over 7 days: {0}"],
+    dashFresh: ["Bütün layihələr son 7 gündə skan olunub", "Every project was scanned in the last 7 days"],
+    dashSourcesOk: ["Bütün məlumat mənbələri cavab verdi", "Every data source answered"],
     gitN: ["{0} git commit-i (90 gün)", "{0} git commits (90 days)"],
     hTimelineHelp: ["DepGate skanları və package.json / lockfile-ı dəyişən git commit-ləri bir xətt üzərində, yenidən köhnəyə.", "DepGate's scans and the git commits that changed package.json or the lockfile on one line, newest first."],
     gitUncommitted: ["commit olunmayıb", "not committed"],
@@ -684,11 +707,13 @@
   setInterval(quietRefresh, 20000);
   window.addEventListener("focus", quietRefresh);
   document.addEventListener("visibilitychange", quietRefresh);
-  const FOLDER = "folder:";
+  const FOLDER = "folder:", DASH = "dashboard";
   const currentGroup = () => current.startsWith(FOLDER) ? groupsOf(st.projects).find((g) => FOLDER + g.dir === current && g.items.length > 1) : null;
   function setState(s) {
     st = s; lastRaw = JSON.stringify(s);
-    if (!currentGroup() && !st.projects.some((p) => p.dir === current)) current = st.projects.length ? st.projects[0].dir : "";
+    // the overall dashboard is the start page once there is more than one project
+    if (current === DASH && st.projects.length < 2) current = "";
+    if (current !== DASH && !currentGroup() && !st.projects.some((p) => p.dir === current)) current = st.projects.length > 1 ? DASH : st.projects.length ? st.projects[0].dir : "";
     render();
     clearTimeout(pollT);
     if (st.busy) pollT = setTimeout(() => load().catch(() => {}), 1200);
@@ -762,7 +787,10 @@
     const nav = $("#projects");
     nav.hidden = ps.length === 0;
     nav.setAttribute("aria-label", t("projects", ps.length));
-    nav.replaceChildren(el("h2", null, t("projects", ps.length)), ...groupsOf(ps).map(groupNav));
+    nav.replaceChildren(
+      ps.length > 1 ? el("button", { class: "proj dashbtn" + (current === DASH ? " active" : ""), onclick: () => select(DASH) },
+        el("span", { class: "nm" }, el("span", { class: "lbl" }, "📊 " + t("dashTitle")), el("span", { class: "pkg" }, t("dashSub"))), countsEl(ps)) : null,
+      el("h2", null, t("projects", ps.length)), ...groupsOf(ps).map(groupNav));
 
     const mals = ps.flatMap((p) => ((p.report && p.report.findings) || []).filter((f) => f.kind === "malware").map((f) => ({ p, f })));
     const ban = $("#banner");
@@ -780,14 +808,26 @@
     else if (st.errors && st.errors.length) { ban.hidden = false; ban.className = "banner warn"; ban.textContent = t("sourcesFailed", st.errors.join(" · ")); }
     else ban.hidden = true;
 
+    renderFoot();
     const main = $("#main");
     if (!ps.length) { main.replaceChildren(welcome()); return; }
+    if (current === DASH) { main.replaceChildren(dashboardView(ps)); return; }
     const cg = currentGroup();
     if (cg) { main.replaceChildren(folderView(cg)); return; }
     const p = ps.find((x) => x.dir === current) || ps[0];
     main.replaceChildren(projectView(p));
   }
 
+  // ---------- footer: the version and the author's other open-source projects (plain links, nothing is loaded) ----------
+  const GH = "https://github.com/Ali7Zeynalli/";
+  function renderFoot() {
+    const a = (href, text) => el("a", { href, target: "_blank", rel: "noopener noreferrer" }, text);
+    $("#appfoot").replaceChildren(
+      el("span", null, a(GH + "depgate", "DepGate"), st.version ? " " + st.version : "", " · MIT"),
+      el("span", { class: "fsep" }, t("footMore")),
+      el("span", null, a(GH + "dockgate", "DockGate"), " — ", t("footDock")),
+      el("span", null, a(GH + "NovusGate", "NovusGate"), " — ", t("footNovus")));
+  }
   // ---------- sidebar: projects nested under the folder they were added from ----------
   const baseName = (d) => d.replace(/[\\/]+$/, "").split(/[\\/]/).pop() || d;
   const relTo = (dir, group) => dir === group ? "" : dir.slice(group.length).replace(/^[\\/]+/, "");
@@ -836,6 +876,7 @@
     const groups = groupsOf(st.projects || []);
     if ((st.projects || []).length < 2) return null;
     const opts = [];
+    opts.push(el("option", { value: DASH, selected: current === DASH || undefined }, "📊 " + t("dashTitle")));
     for (const g of groups) {
       if (g.items.length > 1) opts.push(el("option", { value: FOLDER + g.dir, selected: current === FOLDER + g.dir || undefined }, baseName(g.dir) + " — " + t("nProjects", g.items.length)));
       for (const p of g.items) {
@@ -983,12 +1024,14 @@
       devUrgent: es.filter((e) => e.f.dev && (e.f.group === "now_easy" || e.f.group === "now_code")).length, dsDev: ds.filter(isDevIssue).length };
   }
 
+  const levelOf = (x) => x.mal.length ? "bad" : x.urgent || x.nodeNow ? "hi" : x.n("plan") || x.high ? "warn" : "good";
+  const LVL = { bad: "hMal", hi: "hUrgent", warn: "hPlan", good: "hOk" };
   // the state of a project (or folder) at a glance: a ring of clean packages and one word
   function healthCard(ctx) {
     const x = factsOf(ctx);
     const tasks = x.tasks;
-    const lvl = x.mal.length ? "bad" : x.urgent || x.nodeNow ? "hi" : x.n("plan") || x.high ? "warn" : "good";
-    const label = { bad: "hMal", hi: "hUrgent", warn: "hPlan", good: "hOk" }[lvl];
+    const lvl = levelOf(x);
+    const label = LVL[lvl];
     const share = x.total ? x.clean / x.total : 1, C = 2 * Math.PI * 18;
     const ring = sv("svg", { viewBox: "0 0 44 44", class: "ring " + lvl, role: "img", "aria-label": t("hClean", x.clean, x.total) },
       sv("circle", { cx: 22, cy: 22, r: 18, class: "track" }),
@@ -1545,7 +1588,7 @@
       card(k.openUrgent ? "hi" : "good", t("kOpen"), k.openUrgent, t("kOpenSub")),
       card(k.fixedN ? "code" : "zero", t("kMttr"), k.fixedN ? fmtDur(k.mttrHours) : "—", k.fixedN ? t("kMttrSub", k.fixedN) : t("kMttrNone")),
       card(k.oldestDays >= 14 ? "bad" : k.oldestPkg ? "warn" : "good", t("kOldest"), k.oldestPkg ? t("kDays", k.oldestDays) : "—",
-        k.oldestPkg ? k.oldestPkg + (k.oldestSev ? " · " + (k.oldestSev === "malware" ? t("tagMal") : sevName(k.oldestSev)) : "") + (k.oldestDir && k.oldestDir !== dir ? " · " + (relTo(k.oldestDir, dir) || baseName(k.oldestDir)) : "") : t("kNothingOpen")),
+        k.oldestPkg ? k.oldestPkg + (k.oldestSev ? " · " + (k.oldestSev === "malware" ? t("tagMal") : sevName(k.oldestSev)) : "") + (k.oldestDir && k.oldestDir !== dir ? " · " + ((dir && relTo(k.oldestDir, dir)) || baseName(k.oldestDir)) : "") : t("kNothingOpen")),
       card(k.weekNew > k.weekFixed ? "hi" : "good", t("kWeek"), "+" + k.weekNew + " / −" + k.weekFixed, t("kWeekSub")),
       k.acceptedSoon ? card("warn", t("kAccSoon"), k.acceptedSoon, t("kAccSoonSub")) : card("zero", t("kLast"), k.lastScan ? fmtTime(k.lastScan).slice(11) : "—", k.lastScan ? fmtTime(k.lastScan).slice(0, 10) : t("kLastSub")));
   }
@@ -1577,7 +1620,7 @@
     const shown = ws.slice(0, max || 5);
     const sess = (w, i) => {
       const fin = w.tasks.filter((x) => x.status === "done").length, open = w.tasks.some((x) => x.status === "todo" || x.status === "doing");
-      const proj = relTo(w.project, dir);
+      const proj = dir ? relTo(w.project, dir) : baseName(w.project);
       return el("details", { class: "work", open: i === 0 || undefined },
         el("summary", null,
           el("span", { class: "dot" + (open ? " on" : ""), "aria-hidden": "true" }),
@@ -1784,6 +1827,140 @@
     const vctx = envView(ctx);
     head.append(healthCard(vctx));
     return el("div", null, bar, head, tabbed(vctx));
+  }
+  // ---------- the overall dashboard: every project together ----------
+  function allCtx(ps) {
+    const scanned = ps.filter((p) => p.report);
+    const merge = (issuesOf) => {
+      const m = new Map();
+      for (const p of scanned) for (const d of issuesOf(p.report) || []) {
+        const abs = joinPath(p.dir, d.file), k = abs + "|" + d.line + "|" + d.rule + "|" + (d.service || "");
+        if (!m.has(k)) m.set(k, { ...d, abs });
+      }
+      return { issues: [...m.values()], files: [], label: (d) => d.abs };
+    };
+    return envView({
+      reps: scanned, dir: "", g: null, hkey: "*",
+      entries: mergeFindings(scanned).map((e) => ({ f: e.f, where: e.where, rep: e.where[0].p.report })),
+      docker: merge((r) => r.docker), server: merge((r) => r.server),
+      nodes: scanned.filter((p) => p.report.node).map((p) => ({ label: p.name, n: p.report.node, p })),
+      hygBad: scanned.reduce((a, p) => a + (p.report.hygiene || []).filter((h) => !h.ok).length, 0),
+      migs: (e) => e.where.flatMap((w) => (w.f.migrate || []).map((m) => ({ m, label: "" }))),
+    });
+  }
+  const projName = (p) => p.name || baseName(p.dir);
+  function openFinding(p, f) { current = p.dir; goTab("packages", { grp: f.group, open: keyOf(f) }); window.scrollTo(0, 0); }
+  function dashboardView(ps) {
+    const ctx = allCtx(ps), x = factsOf(ctx), scanned = ctx.reps;
+    const perProj = scanned.map((p) => { const c = envView(projectCtx(p)), fx = factsOf(c); return { p, c, x: fx, lvl: levelOf(fx) }; });
+    const lastScan = scanned.map((p) => p.report.scannedAt).filter(Boolean).sort().pop();
+    const pkgs = scanned.reduce((a, p) => a + (p.report.packages || 0), 0);
+    const head = el("div", { class: "phead" },
+      el("div", null, el("h1", null, t("dashTitle")),
+        el("div", { class: "pchips" }, el("span", { class: "pc" }, t("nProjects", ps.length)), el("span", { class: "pc" }, t("packages", pkgs)),
+          lastScan ? el("span", { class: "pc" }, t("lastScan", fmtTime(lastScan))) : null)),
+      healthCard(ctx));
+
+    // 1. the numbers across every project
+    const card = (cls, label, value, sub, onclick) => el(onclick ? "button" : "div", { class: "stile " + cls, onclick },
+      el("span", { class: "sl" }, el("span", { class: "sdot", "aria-hidden": "true" }), label), el("span", { class: "sv" }, value), el("span", { class: "ss" }, sub));
+    const nodeNow = perProj.filter((r) => r.x.nodeNow).length;
+    const dsHigh = x.high;
+    const tiles = el("div", { class: "stiles" },
+      card(x.mal.length ? "bad" : "zero", t("tileMal"), x.mal.length, x.mal.length ? [...new Set(x.mal.map((e) => e.f.pkg + " " + e.f.current))].slice(0, 2).join(", ") + " · " + t("inProjects", x.malProj) : t("tileNone")),
+      card(x.urgent ? "hi" : "zero", t("tileNow"), x.urgent, t("tileNowSub", x.n("now_easy"), x.n("now_code")) + (x.urgentProj > x.urgent ? " · " + t("inProjects", x.urgentProj) : "")),
+      card(x.hits ? "code" : "zero", t("tileCode"), x.hits, x.hits ? tn("tileCodeSub", x.pkgsNow) : t("tileNone")),
+      card(dsHigh ? "warn" : "zero", t("dashDs"), dsHigh, t("tileDsSub", x.high, x.medium, x.low)),
+      card(nodeNow ? "hi" : "zero", "Node.js", nodeNow, nodeNow ? t("dashNodeSub", nodeNow) : t("dashNodeOk")));
+
+    // 2. how the projects are doing
+    const byLvl = { bad: [], hi: [], warn: [], good: [] };
+    for (const r of perProj) byLvl[r.lvl].push(r);
+    const bar = el("div", { class: "dbar", role: "img", "aria-label": ["bad", "hi", "warn", "good"].map((l) => t(LVL[l]) + " " + byLvl[l].length).join(", ") },
+      ["bad", "hi", "warn", "good"].filter((l) => byLvl[l].length).map((l) => { const s = el("span", { class: "seg " + l }); s.style.flexGrow = byLvl[l].length; return s; }));
+    const health = el("div", { class: "card" }, el("div", { class: "h3" }, t("dashHealth")), bar,
+      el("div", { class: "dlegend" }, ["bad", "hi", "warn", "good"].map((l) => el("span", null, el("i", { class: "seg " + l }), t(LVL[l]), " ", el("b", null, byLvl[l].length),
+        byLvl[l].length ? el("span", { class: "quiet small" }, " — " + byLvl[l].map((r) => projName(r.p)).slice(0, 3).join(", ") + (byLvl[l].length > 3 ? " …" : "")) : null))));
+
+    // 3. where to start: the riskiest findings anywhere
+    const open = ctx.entries.filter((e) => !["ok", "optional", "accepted"].includes(e.f.group))
+      .sort((a, b) => (b.f.kind === "malware") - (a.f.kind === "malware") || (b.f.priority || 0) - (a.f.priority || 0)).slice(0, 10);
+    const top = el("div", { class: "card" }, el("div", { class: "h3" }, t("dashTop")), el("div", { class: "quiet small" }, t("dashTopHelp")),
+      open.length ? el("div", { class: "dtop" }, open.map((e, i) => {
+        const f = e.f, kev = (f.advisories || []).some((a) => a.kev);
+        return el("button", { class: "drow2", onclick: () => openFinding(e.where[0].p, f) },
+          el("span", { class: "dn" }, i + 1),
+          el("span", { class: "chip " + (f.kind === "malware" ? "sev-critical" : SEVC[f.severity] || "") }, f.kind === "malware" ? t("malicious") : sevName(f.severity) || needText(f.kind, f.needUpdate)),
+          el("span", { class: "dpk" }, el("b", null, f.pkg), " ", el("span", { class: "mono" }, f.current + (f.target ? " → " + f.target : ""))),
+          kev ? el("span", { class: "chip sev-critical" }, t("tagKev")) : null,
+          f.dev ? el("span", { class: "chip envc" }, "dev") : null,
+          el("span", { class: "grow quiet small dtitle" }, f.title || ""),
+          el("span", { class: "quiet small" }, e.where.map((w) => projName(w.p)).join(", ")));
+      })) : el("div", { class: "empty" }, t("dashNothing")));
+
+    // 4. fix once, everywhere: the same update in several projects
+    const shared = ctx.entries.filter((e) => e.where.length > 1 && (e.f.group === "now_easy" || e.f.group === "now_code"));
+    const sharedCard = shared.length ? el("div", { class: "card" }, el("div", { class: "h3" }, t("dashShared")), el("div", { class: "quiet small" }, t("dashSharedHelp")),
+      shared.map((e) => {
+        const lines = e.where.filter((w) => realCmd(w.f.fix)).map((w) => "(cd " + (/\s/.test(w.p.dir) ? JSON.stringify(w.p.dir) : w.p.dir) + " && " + realCmd(w.f.fix) + ")");
+        return el("div", { class: "dshared" },
+          el("div", { class: "row" }, el("b", null, e.f.pkg), el("span", { class: "mono" }, " " + e.f.current + (e.f.target ? " → " + e.f.target : "")),
+            el("span", { class: "chip" }, t("inProjects", e.where.length)), el("span", { class: "quiet small" }, e.where.map((w) => projName(w.p)).join(", ")),
+            el("span", { class: "grow" }), lines.length ? copyBtn(lines.join("\n"), t("dashCopyAll")) : null));
+      })) : null;
+
+    // 5. every project in one table (sortable)
+    const sortKey = state.dsort || "risk";
+    const rank = { bad: 0, hi: 1, warn: 2, good: 3 };
+    const rows = [...perProj].sort((a, b) => sortKey === "name" ? projName(a.p).localeCompare(projName(b.p))
+      : sortKey === "now" ? b.x.urgent - a.x.urgent : sortKey === "ds" ? b.x.ds.length - a.x.ds.length
+      : sortKey === "scan" ? String(b.p.report.scannedAt).localeCompare(String(a.p.report.scannedAt))
+      : rank[a.lvl] - rank[b.lvl] || b.x.tasks - a.x.tasks);
+    const th = (k, label) => el("th", null, el("button", { class: "link" + (sortKey === k ? " on" : ""), onclick: () => { state.dsort = k; render(); } }, label, sortKey === k ? " ▾" : ""));
+    const table = el("div", { class: "card ptable" }, el("div", { class: "h3" }, t("dashProjects")),
+      el("div", { class: "tscroll" }, el("table", null,
+        el("thead", null, el("tr", null, th("name", t("colProject")), th("risk", t("dashState")), el("th", null, t("tileMal")), th("now", t("tileNow")), el("th", null, t("tCode")),
+          th("ds", t("dashDsShort")), el("th", null, "Node"), el("th", null, t("colTrend")), el("th", null, t("colOldest")), el("th", null, t("kMttr")), th("scan", t("dashScanned")))),
+        el("tbody", null, rows.map((r) => {
+          const x2 = r.x, nd = r.p.report.node;
+          const num = (v, bad) => el("td", { class: "num" + (v && bad ? " bad" : "") }, v || 0);
+          return el("tr", { class: "clickable", onclick: () => select(r.p.dir) },
+            el("td", { title: r.p.dir }, el("div", null, projName(r.p)), el("div", { class: "quiet small" }, baseName(r.p.dir) !== projName(r.p) ? baseName(r.p.dir) : "")),
+            el("td", null, el("span", { class: "chip lvl-" + r.lvl }, t(LVL[r.lvl]))),
+            num(x2.mal.length, true), num(x2.urgent, true), num(x2.hits), num(x2.ds.length, x2.high > 0),
+            el("td", { class: nd && nd.need === "now" ? "bad" : "" }, nd ? (nd.version || nd.line || "?") : "—"),
+            el("td", { class: "kt", "data-dir": r.p.dir }, "…"), el("td", { class: "ko", "data-dir": r.p.dir }, "…"), el("td", { class: "km", "data-dir": r.p.dir }, "…"),
+            el("td", { class: "quiet small" }, r.p.report.scannedAt ? fmtTime(r.p.report.scannedAt) : "—"));
+        })))));
+
+    // 6–7. indicators, weeks, AI and system — from the history of every project
+    const hist = st.readOnly ? null : slot("*", (h) => {
+      for (const ph of h.projects) {
+        const cell = (c) => [...table.querySelectorAll("td." + c)].find((x) => x.dataset.dir === ph.dir);
+        const k = ph.kpi, tr = (k.trend || []).slice(-12), kt = cell("kt"), ko = cell("ko"), km = cell("km");
+        if (kt) {
+          if (tr.length >= 2) {
+            const W = 90, H = 24, max = Math.max(1, ...tr.map((v) => v.urgent));
+            const X = (i) => 2 + i * (W - 4) / (tr.length - 1), Y = (v) => H - 3 - v * (H - 6) / max;
+            kt.replaceChildren(sv("svg", { viewBox: `0 0 ${W} ${H}`, class: "tspark", role: "img", "aria-label": t("hChart") + ": " + tr.map((v) => v.urgent).join(", ") },
+              sv("polyline", { points: tr.map((v, i) => X(i) + "," + Y(v.urgent)).join(" ") })));
+          } else kt.textContent = "—";
+        }
+        if (ko) { ko.textContent = k.oldestPkg ? t("kDays", k.oldestDays) + " · " + k.oldestPkg : "—"; ko.className = "ko" + (k.oldestDays >= 14 ? " bad" : ""); }
+        if (km) km.textContent = k.fixedN ? fmtDur(k.mttrHours) : "—";
+      }
+      return [kpiStrip(h.kpi, ""), weekChart(h.kpi.weeks), workPanel(h.work, "", 3)];
+    }, true);
+
+    const stale = scanned.filter((p) => p.report.scannedAt && Date.now() - new Date(p.report.scannedAt) > 7 * 864e5);
+    const sys = el("div", { class: "card" }, el("div", { class: "h3" }, t("dashSystem")),
+      el("ul", { class: "why" },
+        el("li", null, st.rescanHours ? t("metaAuto", st.rescanHours) : t("metaAutoOff")),
+        stale.length ? el("li", { class: "warntext" }, t("dashStale", stale.map(projName).join(", "))) : el("li", null, t("dashFresh")),
+        st.errors && st.errors.length ? el("li", { class: "warntext" }, t("sourcesFailed", st.errors.join(" · "))) : el("li", null, t("dashSourcesOk")),
+        st.update ? el("li", null, t("updText", st.update.latest, st.version)) : null),
+      st.readOnly ? null : slot("*", (h) => [el("div", { class: "h3 sp" }, t("agTitle")), agentList(h.agents.slice(0, 4))]));
+    return el("div", { class: "dash" }, head, envSwitch(), tiles, el("div", { class: "areas two" }, health, sys), sharedCard, top, hist, table);
   }
   function folderNodeCard(g, ps) {
     const withNode = ps.filter((p) => p.report.node);

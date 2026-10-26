@@ -64,6 +64,7 @@ Sonra `http://127.0.0.1:7777` aç, parol seç və **+ Layihə əlavə et** (layi
 
 | Bölmə | Nə göstərir |
 |---|---|
+| **Ümumi panel** | bütün layihələr bir səhifədə — birdən çox layihə olanda açılış səhifəsi: cəmlər (zərərli, indi et, kod dəyişikliyi, Docker və server, Node.js), hər layihənin vəziyyəti, hər yerdən **ən vacib 10 iş**, **bir neçə layihədə lazım olan yeniləmələr** və onların bütün əmrləri, göstəricilər, həftəlik qrafik, AI işləri və trend, ən köhnə açıq iş və düzəltmə müddəti ilə sıralanan layihələr cədvəli |
 | **Ümumi** | vəziyyət bir baxışda (zərərli, indi et, kod dəyişikliyi, Docker və server, son dəyişiklik) və ilk addımlar sıra ilə, əmri olanda elə orada; göstəricilər: düzəltmə müddəti, ən köhnə açıq iş, bu həftə |
 | **Paketlər** | hər paket bir sətir, əvvəl risk: nədir, nə tapılıb, zəiflik sadə dildə (CWE), ən təhlükəsiz versiya, **hansı versiya nəyi düzəldir**, əmr və nömrəli addımlar; süzgəclər: real hücumda (KEV), EPSS, düzəlişi yoxdur, birbaşa / dolayı; zərərli paketlər, silinmiş versiyalar, birlikdə yenilənməli paketlər; səbəb və tarixlə **riski qəbul et** (müddət bitəndə özü qayıdır); **Əmrlər** düyməsi layihənin və ya qovluğun bütün `package.json` / lockfile əmrlərini yoxlamaq üçün bir skript kimi verir (əvvəl zərərli, sonra «indi et», override-lar `npm pkg set` ilə, «planla» və «istəyə görə» şərhdə) |
 | **Kod dəyişiklikləri** | Next.js, React, Express, NestJS, Prisma, Zod, Tailwind, ESLint, TanStack Query, React Router üçün `fayl:sətir` yerləri; codemod-lar; reliz qeydlərindən breaking changes |
@@ -82,6 +83,8 @@ Qovluqlar və monorepo-lar üçün layihələr cədvəli (trend, ən köhnə aç
 | <img src="docs/packages-az.png" alt="Açılmış paket sətri: nə tapılıb və nə etməli" width="420"> | <img src="docs/code-changes-az.png" alt="Yeniləmə üçün kodda dəyişməli yerlər" width="420"> |
 | **Tarixçə** | **AI və MCP** |
 | <img src="docs/history-az.png" alt="Skanlar və git commit-ləri bir xətt üzərində, AI işləri və göstəricilər" width="420"> | <img src="docs/mcp-az.png" alt="AI işləri: agentin götürdüyü tapşırıqlar və DepGate-in təsdiqlədikləri" width="420"> |
+
+<p align="center"><img src="docs/dashboard-az.png" alt="Ümumi panel: bütün layihələr bir səhifədə" width="860"></p>
 
 ## AI agentlər (MCP)
 
@@ -170,5 +173,7 @@ depgate --reset-password      # Docker: docker exec depgate depgate --reset-pass
 ## İnkişaf
 
 `go test ./... && go vet ./...` — yalnız standart kitabxana. [CONTRIBUTING.md](CONTRIBUTING.md) və [SECURITY.md](SECURITY.md)-ə bax.
+
+**Eyni müəllifdən:** [DockGate](https://github.com/Ali7Zeynalli/dockgate) — lokal və SSH ilə uzaq serverlər üçün öz Docker idarəetmə panelin · [NovusGate](https://github.com/Ali7Zeynalli/NovusGate) — WireGuard üzərində, bir paneldən idarə olunan öz VPN şəbəkən.
 
 Faydalı olsa, ⭐ başqalarının onu tapmasına kömək edir. — [MIT](LICENSE)
