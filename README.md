@@ -80,8 +80,8 @@ Folders and monorepos get one merged page with a table of their projects (trend,
 | Packages | Code changes |
 |---|---|
 | <img src="docs/packages.png" alt="A package row opened: what was found and what to do" width="420"> | <img src="docs/code-changes.png" alt="Places in the code to change for an upgrade" width="420"> |
-| **History** | **AI agent setup** |
-| <img src="docs/history.png" alt="Scans compared and what AI agents did" width="420"> | <img src="docs/mcp.png" alt="MCP setup per agent" width="420"> |
+| **History** | **AI & MCP** |
+| <img src="docs/history.png" alt="Scans and git commits on one timeline, AI work and indicators" width="420"> | <img src="docs/mcp.png" alt="AI work: the tasks an agent took on and what DepGate verified" width="420"> |
 
 ## AI agents (MCP)
 

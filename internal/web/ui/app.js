@@ -500,6 +500,8 @@
     pkTrans: ["dolayı paketlər: {0}", "transitive packages: {0}"],
     pkMore: ["… və daha {0} (saxlanmayıb)", "… and {0} more (not stored)"],
     pkN: ["{0} paket dəyişib", "{0} packages changed"],
+    pkN1: ["1 paket dəyişib", "1 package changed"],
+    pkDownN1: ["1 köhnə versiyaya qayıdıb", "1 back to an older version"],
     pkDownN: ["{0} köhnə versiyaya qayıdıb", "{0} back to an older version"],
     pkUp: ["yeniləndi", "updated"],
     pkDown: ["köhnəyə qayıdıb", "older version"],
@@ -1449,7 +1451,7 @@
     const cs = (p && p.c) || [];
     if (!cs.length) return null;
     const down = cs.filter((c) => c.k === "down").length;
-    return [el("span", { class: "chip" }, t("pkN", cs.length + (p.more || 0))), down ? el("span", { class: "chip warn" }, t("pkDownN", down)) : null];
+    return [el("span", { class: "chip" }, tn("pkN", cs.length + (p.more || 0))), down ? el("span", { class: "chip warn" }, tn("pkDownN", down)) : null];
   }
   function pkgList(p) {
     const cs = (p && p.c) || [];

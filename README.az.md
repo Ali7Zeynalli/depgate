@@ -80,8 +80,8 @@ Qovluqlar və monorepo-lar üçün layihələr cədvəli (trend, ən köhnə aç
 | Paketlər | Kod dəyişiklikləri |
 |---|---|
 | <img src="docs/packages-az.png" alt="Açılmış paket sətri: nə tapılıb və nə etməli" width="420"> | <img src="docs/code-changes-az.png" alt="Yeniləmə üçün kodda dəyişməli yerlər" width="420"> |
-| **Tarixçə** | **AI agent qoşulması** |
-| <img src="docs/history-az.png" alt="Skanların müqayisəsi və AI agentlərin etdikləri" width="420"> | <img src="docs/mcp-az.png" alt="Agentə görə MCP qoşulması" width="420"> |
+| **Tarixçə** | **AI və MCP** |
+| <img src="docs/history-az.png" alt="Skanlar və git commit-ləri bir xətt üzərində, AI işləri və göstəricilər" width="420"> | <img src="docs/mcp-az.png" alt="AI işləri: agentin götürdüyü tapşırıqlar və DepGate-in təsdiqlədikləri" width="420"> |
 
 ## AI agentlər (MCP)
 
