@@ -23,7 +23,7 @@ func TestActivityAndHistoryStdio(t *testing.T) {
 		callTool("get_history", 5, nil),
 	)
 	h, _ := text(t, got["5"])
-	if !strings.Contains(h, "by mcp (claude-code 2.1.4)") || !strings.Contains(h, "No change since the scan before.") || !strings.Contains(h, "First scan.") {
+	if !strings.Contains(h, "by mcp (claude-code 2.1.4)") || !strings.Contains(h, "No findings changed since the scan before.") || !strings.Contains(h, "First scan.") {
 		t.Fatalf("history: %s", h)
 	}
 	if n := len(st.History.Scans(web)); n != 2 {
