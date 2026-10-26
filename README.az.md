@@ -50,7 +50,15 @@ docker compose up -d
 
 Eyni əmr Linux terminalında, macOS Terminal-da və Windows PowerShell-də işləyir. Heç nə ayarlamaq lazım deyil:
 
-- ev qovluğun **yalnız oxuma** rejimində bağlanır — Linux və macOS-da öz real yolu ilə (`/home/sən`, `/Users/sən`), Windows-da istifadəçi qovluğun (`C:\Users\sən`) `/host` kimi görünür;
+- ev qovluğun **yalnız oxuma** rejimində bağlanır:
+
+  | Haradan işə salınıb | DepGate nəyi görür |
+  |---|---|
+  | Linux, macOS terminalı | ev qovluğunu öz real yolu ilə (`/home/sən`, `/Users/sən`) |
+  | Windows PowerShell / cmd | `C:\Users\sən`, `/host` kimi görünür |
+  | Windows Git Bash | `C:\Users\sən`, `/c/Users/sən` kimi görünür |
+  | Windows WSL terminalı | WSL ev qovluğunu (`/home/sən`) — layihələr Windows tərəfindədirsə, PowerShell-dən işə sal; qovluq boş olanda DepGate bunu özü deyir |
+
 - konteyner həmin qovluğun sahibini özü tapır, onun adından işləyir və bütün hüquqlarını buraxır — istifadəçi ID-si yazmaq lazım deyil, SELinux (Fedora, RHEL) də daxil;
 - layihə siyahısı, hesabatlar və parol `depgate-data` volume-unda saxlanır, yenidən başlatmada və yeniləmədə itmir;
 - port yalnız `127.0.0.1`-də açılır.

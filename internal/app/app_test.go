@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -204,5 +205,26 @@ func TestReAddSetsGroup(t *testing.T) {
 	_, _ = s.Add(store.Entry{Dir: "/h/k/apps/a", Group: "/h/k/apps"}) // narrower: keep the wider one
 	if g := s.Projects()[0].Group; g != "/h/k" {
 		t.Fatalf("narrowed to %q", g)
+	}
+}
+
+func TestBrowseEmptyRootHint(t *testing.T) {
+	root := t.TempDir()
+	st, err := store.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := &Manager{Roots: []string{root}, Store: st}
+	l, err := m.Browse("")
+	if err != nil || l.Hint == nil || !strings.Contains(l.Hint.En, "--root") {
+		t.Fatalf("native hint: %+v %v", l, err)
+	}
+	m.Container = true
+	if l, _ = m.Browse(""); !strings.Contains(l.Hint.En, "docker-compose.yml") {
+		t.Fatalf("docker hint: %+v", l.Hint)
+	}
+	t.Setenv("DEPGATE_WSL", "Ubuntu")
+	if l, _ = m.Browse(""); !strings.Contains(l.Hint.En, "WSL (Ubuntu)") || !strings.Contains(l.Hint.En, `C:\Users\`) {
+		t.Fatalf("wsl hint: %+v", l.Hint)
 	}
 }

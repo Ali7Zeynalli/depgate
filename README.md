@@ -64,7 +64,15 @@ docker compose up -d
 
 The same command works in a Linux terminal, macOS Terminal and Windows PowerShell. Nothing to configure:
 
-- your home folder is mounted **read-only** — on Linux and macOS at its real path (`/home/you`, `/Users/you`); on Windows your user folder (`C:\Users\you`) appears as `/host`;
+- your home folder is mounted **read-only**:
+
+  | Started from | DepGate sees |
+  |---|---|
+  | Linux, macOS terminal | your home at its real path (`/home/you`, `/Users/you`) |
+  | Windows PowerShell / cmd | `C:\Users\you`, shown as `/host` |
+  | Windows Git Bash | `C:\Users\you`, shown as `/c/Users/you` |
+  | Windows WSL terminal | your WSL home (`/home/you`) — projects on the Windows side? start it from PowerShell instead; DepGate tells you so if the folder is empty |
+
 - the container finds out who owns that folder, runs as that user and drops every privilege — no user ids to set, SELinux (Fedora, RHEL) included;
 - the project list, reports and password live in the `depgate-data` volume and survive restarts and upgrades;
 - the port is published on `127.0.0.1` only.
