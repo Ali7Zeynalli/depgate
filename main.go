@@ -6,6 +6,7 @@ package main
 import (
 	"bytes"
 	"context"
+	_ "embed"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -36,7 +37,18 @@ import (
 	"github.com/Ali7Zeynalli/depgate/internal/web"
 )
 
-var version = "0.1.0-dev" // set by goreleaser: -ldflags "-X main.version=..."
+// version is set by the release build (-ldflags "-X main.version=..."); other
+// builds (go install, go build, docker compose build) use the VERSION file.
+var version string
+
+//go:embed VERSION
+var versionFile string
+
+func init() {
+	if version == "" {
+		version = strings.TrimSpace(versionFile)
+	}
+}
 
 type config struct {
 	port      int

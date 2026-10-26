@@ -2,10 +2,11 @@
 FROM golang:1.24-alpine AS build
 WORKDIR /src
 COPY . .
-ARG VERSION=dev
+# empty: the VERSION file (embedded in the binary) is used
+ARG VERSION=
 # /data must be writable by whatever UID the container runs as (compose runs it as you,
 # so it can read your home); a new named volume copies this mode. Files inside are 0600.
-RUN CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /out/depgate . \
+RUN CGO_ENABLED=0 go build -trimpath -ldflags "-s -w ${VERSION:+-X main.version=${VERSION}}" -o /out/depgate . \
  && mkdir -p /out/data /out/projects \
  && chmod 1777 /out/data
 
