@@ -6,7 +6,7 @@
 
 <p align="center">
   <b>Your npm dependencies, triaged in one screen: what to update now, what can wait, whether it breaks your code — and exactly where.</b><br>
-  Local web UI · runs in Docker · zero dependencies · English &amp; Azerbaijani
+  Local web UI · Linux, macOS, Windows · Docker or a single binary · zero dependencies · English &amp; Azerbaijani
 </p>
 
 <p align="center">
@@ -17,7 +17,7 @@
   <img src="https://img.shields.io/badge/third--party%20deps-0-brightgreen" alt="zero dependencies">
 </p>
 
-<p align="center"><a href="#quick-start">Quick start</a> · <a href="#features">Features</a> · <a href="#mcp">MCP</a> · <a href="#what-it-checks">What it checks</a> · <a href="#data-sources">Data sources</a> · <a href="#docker">Docker</a> · <a href="README.az.md">Azərbaycan dilində</a></p>
+<p align="center"><a href="#quick-start">Install</a> · <a href="#features">Features</a> · <a href="#mcp">MCP</a> · <a href="#what-it-checks">What it checks</a> · <a href="#data-sources">Data sources</a> · <a href="#docker">Docker</a> · <a href="README.az.md">Azərbaycan dilində</a></p>
 
 ---
 
@@ -42,6 +42,94 @@ Each project (and each folder) opens on **Overview**: the few things to do first
 
 ![Packages](docs/screenshot.png)
 
+<a id="quick-start"></a>
+## Install
+
+DepGate runs on **Linux, macOS and Windows**. Pick one way — all three give the same web UI at `http://127.0.0.1:7777`.
+
+| | Linux | macOS | Windows |
+|---|---|---|---|
+| **Docker** (Docker Engine / Docker Desktop) | ✓ | ✓ | ✓ |
+| **Single binary** from [Releases](https://github.com/Ali7Zeynalli/depgate/releases) | ✓ amd64, arm64 | ✓ Intel, Apple Silicon | ✓ amd64, arm64 |
+| **Go** 1.24+ | ✓ | ✓ | ✓ |
+
+<a id="docker"></a>
+### 1. Docker — nothing else to install
+
+```bash
+git clone https://github.com/Ali7Zeynalli/depgate.git
+cd depgate
+docker compose up -d
+```
+
+The same command works in a Linux terminal, macOS Terminal and Windows PowerShell. Nothing to configure:
+
+- your home folder is mounted **read-only** — on Linux and macOS at its real path (`/home/you`, `/Users/you`); on Windows your user folder (`C:\Users\you`) appears as `/host`;
+- the container finds out who owns that folder, runs as that user and drops every privilege — no user ids to set, SELinux (Fedora, RHEL) included;
+- the project list, reports and password live in the `depgate-data` volume and survive restarts and upgrades;
+- the port is published on `127.0.0.1` only.
+
+Update: `git pull && docker compose up -d --build` (coming from a version with the `depgate-init` step: add `--remove-orphans`).
+
+<details>
+<summary>Without compose (<code>docker run</code>)</summary>
+
+```bash
+docker run -d --name depgate -p 127.0.0.1:7777:7777 --user 0:0 \
+  -e HOME=$HOME -e DEPGATE_ROOTS=$HOME \
+  -v $HOME:$HOME:ro -v depgate-data:/data \
+  --read-only --tmpfs /tmp --security-opt no-new-privileges --security-opt label=disable \
+  --cap-drop ALL --cap-add CHOWN --cap-add DAC_OVERRIDE --cap-add FOWNER --cap-add SETUID --cap-add SETGID \
+  ghcr.io/ali7zeynalli/depgate:latest
+```
+
+The added capabilities are used only to hand the data volume to your user and switch to it; they are gone before DepGate reads anything.
+</details>
+
+### 2. Single binary — no Docker
+
+Download the archive for your system from [Releases](https://github.com/Ali7Zeynalli/depgate/releases) (`…_linux_amd64.tar.gz`, `…_darwin_arm64.tar.gz`, `…_windows_amd64.zip`, …), unpack it and run:
+
+```bash
+./depgate          # Linux, macOS
+depgate.exe        # Windows
+```
+
+The browser opens by itself. Paths are your real ones on every system, which also suits AI agents best.
+
+- **macOS:** the binary is not notarized — the first time, run `xattr -d com.apple.quarantine ./depgate` (or right-click → Open).
+- **Windows:** SmartScreen may warn about an unknown publisher — *More info → Run anyway*.
+- Every archive has a SHA-256 in `checksums.txt` and a signed build provenance (`gh attestation verify <file> -R Ali7Zeynalli/depgate`).
+
+### 3. Go
+
+```bash
+go install github.com/Ali7Zeynalli/depgate@latest
+depgate
+```
+
+### First steps
+
+1. Open `http://127.0.0.1:7777` and choose a password (min. 8 characters).
+2. **+ Add project** → browse to a project or a whole folder (monorepos included) → the scan starts.
+3. Optional — connect your AI agent to a project ([MCP](#mcp)). Easiest: the **Connection command** button in the **AI & MCP** section fills in the path and token. By hand:
+
+```bash
+# Linux / macOS
+cd ~/projects/shop && claude mcp add --transport http depgate -s local \
+  "http://127.0.0.1:7777/mcp?project=$PWD" --header "Authorization: Bearer $(depgate --print-token)"
+```
+
+```powershell
+# Windows PowerShell
+cd $HOME\projects\shop; claude mcp add --transport http depgate -s local `
+  "http://127.0.0.1:7777/mcp?project=$PWD" --header "Authorization: Bearer $(depgate --print-token)"
+```
+
+In Docker the token comes from `docker exec depgate depgate --print-token`.
+
+If DepGate saves you a bad afternoon, a ⭐ helps other developers find it.
+
 ## Why now
 
 2026 has been the worst year yet for the npm supply chain:
@@ -53,33 +141,6 @@ Each project (and each folder) opens on **Overview**: the few things to do first
 
 Dependabot opens a PR per package; `npm audit fix --force` may jump majors and break your build. DepGate gives you the full picture across all your projects — runtime included — and the exact, smallest safe step for each one.
 
-## Quick start
-
-```bash
-go install github.com/Ali7Zeynalli/depgate@latest
-depgate            # opens http://127.0.0.1:7777 — set a password, then "+ Add project"
-```
-
-or with Docker:
-
-```bash
-git clone https://github.com/Ali7Zeynalli/depgate.git && cd depgate
-docker compose up -d
-```
-
-Open `http://127.0.0.1:7777`, choose a password and add projects from anywhere in your home folder.
-
-Connect your AI agent to a project (see [MCP](#mcp)) — easiest with the **Connection command** button in the **AI & MCP** section, which fills in the path and token; by hand:
-
-```bash
-cd ~/projects/shop && claude mcp add --transport http depgate -s local \
-  "http://127.0.0.1:7777/mcp?project=$PWD" --header "Authorization: Bearer $(depgate --print-token)"
-# token in Docker:  docker exec depgate depgate --print-token
-```
-
-If DepGate saves you a bad afternoon, a ⭐ helps other developers find it.
-
-<a id="features"></a>
 ## Features
 
 ### 📍 What changes in your code
@@ -228,34 +289,11 @@ depgate
 
 Opens `http://127.0.0.1:7777`. The dashboard is bilingual (English / Azerbaijani): it follows your browser language and the **AZ / EN** button switches instantly, no rescan needed. Click **+ Add project**, browse your folders (folders with a `package.json` are marked as projects) and add one — or a whole folder: every project below it, monorepo workspaces included, is added and scanned in the background.
 
-DepGate remembers your projects and their last reports (`~/.config/depgate`), so next time everything is already there. Per project: **Scan**, **Remove**, **AI prompt**, and the sections Overview · Packages · Code changes · Docker · Node.js & setup · AI & MCP (the open section is kept in the address, so a reload or a shared link opens the same one); per folder the same for all of its projects; **Scan all** in the header. Running `depgate` inside a project folder (or `depgate ~/projects`) adds it right away.
+DepGate remembers your projects and their last reports (in its data folder, see `--data` below), so next time everything is already there. Per project: **Scan**, **Remove**, **AI prompt**, and the sections Overview · Packages · Code changes · Docker · Node.js & setup · AI & MCP (the open section is kept in the address, so a reload or a shared link opens the same one); per folder the same for all of its projects; **Scan all** in the header. Running `depgate` inside a project folder (or `depgate ~/projects`) adds it right away.
 
 The browser can only see folders under the allowed roots (your home directory by default; `--root` to change).
 
 ![Adding a project](docs/add-project.png)
-
-<a id="docker"></a>
-### Docker
-
-```bash
-docker compose up -d
-```
-
-or without compose:
-
-```bash
-docker run -d --name depgate -p 127.0.0.1:7777:7777 --user 0:0 \
-  -e HOME=$HOME -e DEPGATE_ROOTS=$HOME \
-  -v $HOME:$HOME:ro -v depgate-data:/data \
-  --read-only --tmpfs /tmp --security-opt no-new-privileges --security-opt label=disable \
-  --cap-drop ALL --cap-add CHOWN --cap-add DAC_OVERRIDE --cap-add FOWNER --cap-add SETUID --cap-add SETGID \
-  ghcr.io/ali7zeynalli/depgate:latest
-```
-
-- Your **home folder is mounted read-only at the same path**, so the UI shows your real paths and you can add projects from anywhere in it — nothing to move. DepGate never writes there.
-- **No user ids to set.** The container starts as root only to see who owns your home folder, gives that user the data volume (this also repairs volumes from older versions), switches to it and drops every privilege before reading anything — DepGate never runs as root. SELinux hosts (Fedora, RHEL) are covered by `label=disable`. To force a user: `DEPGATE_UID` / `DEPGATE_GID`. Upgrading from a version with the `depgate-init` step: `docker compose up -d --build --remove-orphans`.
-- The project list, reports and password hash live in the **`depgate-data` Docker volume** (survives restarts and upgrades). Prefer sharing them with a native `depgate`? Swap the volume for `${HOME}/.config/depgate:/data` (see the comment in `docker-compose.yml`).
-- DepGate is a local tool: it reads the folders of the computer it runs on, so run it on the machine that has your projects. The port is published on `127.0.0.1` only. `DEPGATE_PASSWORD=…` sets the password up front; `DEPGATE_GITHUB_TOKEN=…` raises the GitHub limit for release notes.
 
 ### One-shot modes
 
@@ -273,7 +311,7 @@ depgate mcp --project DIR    # MCP server for AI agents (stdio)
 | `--port` | UI port (next free port if busy) | 7777 |
 | `--addr` | Listen address | 127.0.0.1 (0.0.0.0 in Docker) |
 | `--root` | Folder the UI may browse (repeatable; `DEPGATE_ROOTS`) | home directory |
-| `--data` | Project list, reports, password hash (`DEPGATE_DATA`) | `~/.config/depgate` |
+| `--data` | Project list, reports, password hash (`DEPGATE_DATA`) | `~/.config/depgate` · macOS `~/Library/Application Support/depgate` · Windows `%AppData%\depgate` |
 | `--allow-host` | Extra allowed `Host` name, e.g. a LAN name (repeatable) | — |
 | `--print-token` | Print the API/MCP token (Docker: `docker exec depgate depgate --print-token`) | — |
 | `--reset-password` | Forget the UI password; the next visit asks for a new one | — |
@@ -296,7 +334,7 @@ depgate mcp --project DIR    # MCP server for AI agents (stdio)
 
 ## Privacy
 
-Only public package data leaves your machine: package names and versions (OSV, npm, deps.dev), CVE IDs (EPSS), the GitHub repository names of packages that get a major update (release notes), and the product names of your Docker images (endoflife.date). Source code, file paths, project names and `.env` files never do. Responses are cached in `~/.cache/depgate/`.
+Only public package data leaves your machine: package names and versions (OSV, npm, deps.dev), CVE IDs (EPSS), the GitHub repository names of packages that get a major update (release notes), and the product names of your Docker images (endoflife.date). Source code, file paths, project names and `.env` files never do. Responses are cached in `~/.cache/depgate` (macOS `~/Library/Caches/depgate`, Windows `%LocalAppData%\depgate`).
 
 The UI binds to `127.0.0.1` (in Docker: published on the host's `127.0.0.1`), is protected by your password, checks the `Host` header and sends a strict Content Security Policy. Folder browsing is limited to the allowed roots, and DepGate only ever reads your projects.
 

@@ -3,9 +3,9 @@
 <h1 align="center">DepGate</h1>
 
 <p align="center"><b>npm asılılıqların bir ekranda: nəyi indi yeniləmək lazımdır, nə gözləyə bilər, yeniləmə kodunu sındırırmı və dəqiq harada.</b><br>
-Lokal veb interfeys · Docker · sıfır asılılıq · Azərbaycan və ingilis dili</p>
+Lokal veb interfeys · Linux, macOS, Windows · Docker və ya tək fayl · sıfır asılılıq · Azərbaycan və ingilis dili</p>
 
-<p align="center"><a href="#tez-başla">Tez başla</a> · <a href="#imkanlar">İmkanlar</a> · <a href="#mcp">MCP</a> · <a href="#nə-yoxlayır">Nə yoxlayır</a> · <a href="#mənbələr">Mənbələr</a> · <a href="#docker">Docker</a> · <a href="README.md">English</a></p>
+<p align="center"><a href="#tez-başla">Quraşdırma</a> · <a href="#imkanlar">İmkanlar</a> · <a href="#mcp">MCP</a> · <a href="#nə-yoxlayır">Nə yoxlayır</a> · <a href="#mənbələr">Mənbələr</a> · <a href="#docker">Docker</a> · <a href="README.md">English</a></p>
 
 ---
 
@@ -28,6 +28,94 @@ Hər layihə (və hər qovluq) **Ümumi** bölməsində açılır: əvvəlcə n�
 
 ![DepGate](docs/screenshot-az.png)
 
+<a id="tez-başla"></a>
+## Quraşdırma
+
+DepGate **Linux, macOS və Windows**-da işləyir. Bir yolu seç — üçü də eyni veb interfeysi açır: `http://127.0.0.1:7777`.
+
+| | Linux | macOS | Windows |
+|---|---|---|---|
+| **Docker** (Docker Engine / Docker Desktop) | ✓ | ✓ | ✓ |
+| [Releases](https://github.com/Ali7Zeynalli/depgate/releases)-dən **tək fayl** | ✓ amd64, arm64 | ✓ Intel, Apple Silicon | ✓ amd64, arm64 |
+| **Go** 1.24+ | ✓ | ✓ | ✓ |
+
+<a id="docker"></a>
+### 1. Docker — başqa heç nə quraşdırmaq lazım deyil
+
+```bash
+git clone https://github.com/Ali7Zeynalli/depgate.git
+cd depgate
+docker compose up -d
+```
+
+Eyni əmr Linux terminalında, macOS Terminal-da və Windows PowerShell-də işləyir. Heç nə ayarlamaq lazım deyil:
+
+- ev qovluğun **yalnız oxuma** rejimində bağlanır — Linux və macOS-da öz real yolu ilə (`/home/sən`, `/Users/sən`), Windows-da istifadəçi qovluğun (`C:\Users\sən`) `/host` kimi görünür;
+- konteyner həmin qovluğun sahibini özü tapır, onun adından işləyir və bütün hüquqlarını buraxır — istifadəçi ID-si yazmaq lazım deyil, SELinux (Fedora, RHEL) də daxil;
+- layihə siyahısı, hesabatlar və parol `depgate-data` volume-unda saxlanır, yenidən başlatmada və yeniləmədə itmir;
+- port yalnız `127.0.0.1`-də açılır.
+
+Yeniləmə: `git pull && docker compose up -d --build` (`depgate-init` addımı olan köhnə versiyadan keçirsənsə, `--remove-orphans` əlavə et).
+
+<details>
+<summary>Compose-suz (<code>docker run</code>)</summary>
+
+```bash
+docker run -d --name depgate -p 127.0.0.1:7777:7777 --user 0:0 \
+  -e HOME=$HOME -e DEPGATE_ROOTS=$HOME \
+  -v $HOME:$HOME:ro -v depgate-data:/data \
+  --read-only --tmpfs /tmp --security-opt no-new-privileges --security-opt label=disable \
+  --cap-drop ALL --cap-add CHOWN --cap-add DAC_OVERRIDE --cap-add FOWNER --cap-add SETUID --cap-add SETGID \
+  ghcr.io/ali7zeynalli/depgate:latest
+```
+
+Əlavə hüquqlar yalnız data volume-unu sənin istifadəçinə vermək və ona keçmək üçündür; DepGate nəsə oxumazdan əvvəl hamısı buraxılır.
+</details>
+
+### 2. Tək fayl — Docker-siz
+
+[Releases](https://github.com/Ali7Zeynalli/depgate/releases)-dən sisteminə uyğun arxivi yüklə (`…_linux_amd64.tar.gz`, `…_darwin_arm64.tar.gz`, `…_windows_amd64.zip` və s.), aç və işlət:
+
+```bash
+./depgate          # Linux, macOS
+depgate.exe        # Windows
+```
+
+Brauzer özü açılır. Hər sistemdə yollar real görünür, bu AI agentlər üçün də ən rahatıdır.
+
+- **macOS:** fayl notarizasiya olunmayıb — ilk dəfə `xattr -d com.apple.quarantine ./depgate` işlət (və ya sağ klik → Open).
+- **Windows:** SmartScreen naməlum nəşriyyatçı barədə xəbərdarlıq edə bilər — *More info → Run anyway*.
+- Hər arxivin SHA-256-sı `checksums.txt`-dədir, imzalı build mənşəyi də var (`gh attestation verify <fayl> -R Ali7Zeynalli/depgate`).
+
+### 3. Go
+
+```bash
+go install github.com/Ali7Zeynalli/depgate@latest
+depgate
+```
+
+### İlk addımlar
+
+1. `http://127.0.0.1:7777` aç və parol seç (ən azı 8 simvol).
+2. **+ Layihə əlavə et** → layihəni və ya bütöv qovluğu seç (monorepo-lar da) → skan başlayır.
+3. İstəsən, AI agentini layihəyə qoş ([MCP](#mcp)). Ən asan yol: **AI və MCP** bölməsindəki **Qoşulma əmri** düyməsi yolu və tokeni özü doldurur. Əl ilə:
+
+```bash
+# Linux / macOS
+cd ~/projects/shop && claude mcp add --transport http depgate -s local \
+  "http://127.0.0.1:7777/mcp?project=$PWD" --header "Authorization: Bearer $(depgate --print-token)"
+```
+
+```powershell
+# Windows PowerShell
+cd $HOME\projects\shop; claude mcp add --transport http depgate -s local `
+  "http://127.0.0.1:7777/mcp?project=$PWD" --header "Authorization: Bearer $(depgate --print-token)"
+```
+
+Docker-də tokeni `docker exec depgate depgate --print-token` verir.
+
+Faydalı olsa, ⭐ başqa developerlərin onu tapmasına kömək edir.
+
 ## Niyə indi
 
 2026-cı il npm təchizat zənciri üçün ən ağır il oldu:
@@ -38,33 +126,6 @@ Hər layihə (və hər qovluq) **Ümumi** bölməsində açılır: əvvəlcə n�
 - **Oktyabr** — Node.js-in özündə Brotli RCE (CVE-2026-111497) daxil olmaqla [10 zəiflik düzəldildi](https://securityonline.info/nodejs-security-release-october-2026/).
 
 Dependabot hər paket üçün ayrıca PR açır; `npm audit fix --force` major-ları atlayıb build-i sındıra bilər. DepGate bütün layihələrinin tam mənzərəsini runtime ilə birlikdə göstərir və hər biri üçün ən kiçik təhlükəsiz addımı verir.
-
-<a id="tez-başla"></a>
-## Tez başla
-
-```bash
-go install github.com/Ali7Zeynalli/depgate@latest
-depgate            # http://127.0.0.1:7777 açılır — parol təyin et, sonra «+ Layihə əlavə et»
-```
-
-və ya Docker ilə:
-
-```bash
-git clone https://github.com/Ali7Zeynalli/depgate.git && cd depgate
-docker compose up -d
-```
-
-`http://127.0.0.1:7777` aç, parol seç və ev qovluğunun istənilən yerindən layihə əlavə et.
-
-AI agentini layihəyə qoş ([MCP](#mcp)-yə bax). Ən asan yol interfeysin **AI və MCP** bölməsindəki **Qoşulma əmri** düyməsidir, orada əmr layihə yolu və token ilə hazır olur. Əl ilə belədir:
-
-```bash
-cd ~/projects/shop && claude mcp add --transport http depgate -s local \
-  "http://127.0.0.1:7777/mcp?project=$PWD" --header "Authorization: Bearer $(depgate --print-token)"
-# Docker-də token:  docker exec depgate depgate --print-token
-```
-
-Faydalı olsa, ⭐ başqa developerlərin onu tapmasına kömək edir.
 
 <a id="imkanlar"></a>
 ## İmkanlar
@@ -218,34 +279,11 @@ depgate
 
 `http://127.0.0.1:7777` açılır. İnterfeys iki dillidir (Azərbaycan / ingilis): brauzerin dilinə uyğun açılır, **AZ / EN** düyməsi isə yenidən skan etmədən dərhal dəyişir. **+ Layihə əlavə et** düyməsini bas, qovluqları gəz (`package.json` olanlar «layihə» kimi işarələnib) və layihəni seç. Bütöv qovluq da seçmək olar: altındakı bütün layihələr, monorepo üzvləri daxil, əlavə olunur və arxa planda skan edilir.
 
-Layihə siyahısı və son hesabatlar yadda qalır (`~/.config/depgate`), növbəti dəfə hamısı yerindədir. Hər layihə üçün **Skan et**, **Siyahıdan sil**, **AI üçün prompt** düymələri və bölmələr var: Ümumi · Paketlər · Kod dəyişiklikləri · Docker · Node.js və mühit · AI və MCP. Açıq bölmə ünvanda saxlanır, ona görə səhifəni yeniləyəndə və ya linki paylaşanda eyni bölmə açılır. Qovluqda eyniləri bütün layihələrinə təsir edir. Yuxarıda **Hamısını skan et** var. Layihə qovluğunda `depgate` (və ya `depgate ~/projects`) yazsan, dərhal əlavə olunur.
+Layihə siyahısı və son hesabatlar yadda qalır (data qovluğunda, aşağıdakı `--data`-ya bax), növbəti dəfə hamısı yerindədir. Hər layihə üçün **Skan et**, **Siyahıdan sil**, **AI üçün prompt** düymələri və bölmələr var: Ümumi · Paketlər · Kod dəyişiklikləri · Docker · Node.js və mühit · AI və MCP. Açıq bölmə ünvanda saxlanır, ona görə səhifəni yeniləyəndə və ya linki paylaşanda eyni bölmə açılır. Qovluqda eyniləri bütün layihələrinə təsir edir. Yuxarıda **Hamısını skan et** var. Layihə qovluğunda `depgate` (və ya `depgate ~/projects`) yazsan, dərhal əlavə olunur.
 
 Qovluq seçici yalnız icazə verilən kökləri göstərir (standart: ev qovluğu; `--root` ilə dəyişir).
 
 ![Layihə əlavə etmək](docs/add-project.png)
-
-<a id="docker"></a>
-### Docker
-
-```bash
-docker compose up -d
-```
-
-və ya compose-suz:
-
-```bash
-docker run -d --name depgate -p 127.0.0.1:7777:7777 --user 0:0 \
-  -e HOME=$HOME -e DEPGATE_ROOTS=$HOME \
-  -v $HOME:$HOME:ro -v depgate-data:/data \
-  --read-only --tmpfs /tmp --security-opt no-new-privileges --security-opt label=disable \
-  --cap-drop ALL --cap-add CHOWN --cap-add DAC_OVERRIDE --cap-add FOWNER --cap-add SETUID --cap-add SETGID \
-  ghcr.io/ali7zeynalli/depgate:latest
-```
-
-- **Ev qovluğun eyni yolla, yalnız oxuma rejimində bağlanır.** Ona görə interfeysdə real yollar görünür və heç nəyi köçürmək lazım deyil. DepGate ora heç nə yazmır.
-- **İstifadəçi ID-si yazmaq lazım deyil.** Konteyner yalnız ev qovluğunun sahibini öyrənmək üçün root kimi başlayır, data volume-unu həmin istifadəçiyə verir (köhnə versiyaların volume-larını da düzəldir), ona keçir və heç nə oxumazdan əvvəl bütün hüquqlarını buraxır — DepGate heç vaxt root kimi işləmir. SELinux olan sistemlər (Fedora, RHEL) üçün `label=disable` var. Başqa istifadəçi lazımdırsa: `DEPGATE_UID` / `DEPGATE_GID`. `depgate-init` addımı olan köhnə versiyadan keçəndə: `docker compose up -d --build --remove-orphans`.
-- Siyahı, hesabatlar və parol hash-ı **`depgate-data` Docker volume-unda** saxlanır və yenidən başlatmada və yeniləmədə itmir. Docker-siz `depgate` ilə ortaq istifadə etmək istəsən, volume-u `${HOME}/.config/depgate:/data` ilə əvəz et (`docker-compose.yml`-dəki şərhə bax).
-- DepGate lokal alətdir: işlədiyi kompüterin qovluqlarını oxuyur, ona görə onu layihələrin olduğu kompüterdə işlət. Port yalnız `127.0.0.1`-də açılır. `DEPGATE_PASSWORD=…` parolu əvvəlcədən təyin edir; `DEPGATE_GITHUB_TOKEN=…` release notes üçün GitHub limitini artırır.
 
 ### Bir dəfəlik rejimlər
 
@@ -263,7 +301,7 @@ depgate mcp --project DIR    # AI agentlər üçün MCP server (stdio)
 | `--port` | Veb interfeysin portu (məşğuldursa növbəti) | 7777 |
 | `--addr` | Dinlənilən ünvan | 127.0.0.1 (Docker-də 0.0.0.0) |
 | `--root` | Gəzilə bilən qovluq (təkrarlana bilər; `DEPGATE_ROOTS`) | ev qovluğu |
-| `--data` | Siyahı, hesabatlar, parol hash-ı (`DEPGATE_DATA`) | `~/.config/depgate` |
+| `--data` | Siyahı, hesabatlar, parol hash-ı (`DEPGATE_DATA`) | `~/.config/depgate` · macOS `~/Library/Application Support/depgate` · Windows `%AppData%\depgate` |
 | `--allow-host` | Əlavə icazəli `Host` adı, məsələn lokal şəbəkə adı (təkrarlana bilər) | — |
 | `--print-token` | API/MCP token-ini çap et (Docker: `docker exec depgate depgate --print-token`) | — |
 | `--reset-password` | Parolu unut; növbəti açılışda yenisi istənir | — |
@@ -286,7 +324,7 @@ depgate mcp --project DIR    # AI agentlər üçün MCP server (stdio)
 
 ## Kənara nə gedir
 
-Kompüterindən yalnız açıq paket məlumatı çıxır: paket adları və versiyalar (OSV, npm, deps.dev), CVE nömrələri (EPSS), major yeniləməsi olan paketlərin GitHub repo adları (release notes üçün) və Docker image-lərinin məhsul adları (endoflife.date). Kod, fayl yolları, layihə adları və `.env` faylları heç vaxt getmir. Cavablar `~/.cache/depgate/` qovluğunda keşlənir.
+Kompüterindən yalnız açıq paket məlumatı çıxır: paket adları və versiyalar (OSV, npm, deps.dev), CVE nömrələri (EPSS), major yeniləməsi olan paketlərin GitHub repo adları (release notes üçün) və Docker image-lərinin məhsul adları (endoflife.date). Kod, fayl yolları, layihə adları və `.env` faylları heç vaxt getmir. Cavablar keşdə saxlanır: `~/.cache/depgate` (macOS `~/Library/Caches/depgate`, Windows `%LocalAppData%\depgate`).
 
 Veb interfeys `127.0.0.1`-də işləyir (Docker-də host-un `127.0.0.1`-inə açılır) və parolla qorunur. Həmçinin `Host` başlığını yoxlayır və sərt Content Security Policy göndərir. Qovluq gəzmə icazəli köklərlə məhdudlaşır və DepGate layihələri yalnız oxuyur.
 
