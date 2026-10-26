@@ -15,6 +15,7 @@ import (
 // The finding key contains the version, so it ends by itself when the version changes.
 type Acceptance struct {
 	Dir    string    `json:"dir"`
+	File   string    `json:"-"` // from a depgate-accept.json
 	Key    string    `json:"key"`
 	Pkg    string    `json:"pkg,omitempty"`
 	Reason string    `json:"reason"`
@@ -127,6 +128,8 @@ func (s *Store) saveAcceptances(as []Acceptance) error {
 
 // applyAccepted moves accepted findings into GroupAccepted (and back when an
 // acceptance was removed or has ended), then recounts the summary. Idempotent.
+// Acceptances come from this computer (accepted.json) and from a
+// depgate-accept.json in the project or a parent folder.
 func (s *Store) applyAccepted(p *report.Project) {
 	if p == nil {
 		return
@@ -134,6 +137,11 @@ func (s *Store) applyAccepted(p *report.Project) {
 	s.amu.Lock()
 	as := s.acceptances()
 	s.amu.Unlock()
+	ApplyAcceptances(p, append(FileAcceptances(p.Dir), as...))
+}
+
+// ApplyAcceptances applies the acceptances made for p.Dir (later entries win).
+func ApplyAcceptances(p *report.Project, as []Acceptance) {
 	now := time.Now()
 	by := map[string]Acceptance{}
 	for _, a := range as {
@@ -148,11 +156,21 @@ func (s *Store) applyAccepted(p *report.Project) {
 			f.Group, f.Accepted, changed = f.Accepted.Group, nil, true
 		}
 		if a, ok := by[f.Key]; ok && f.Kind != "malware" {
-			f.Accepted = &report.Accepted{Reason: a.Reason, At: a.At, Until: a.Until, Group: f.Group}
+			f.Accepted = &report.Accepted{Reason: a.Reason, At: a.At, Until: a.Until, Group: f.Group, File: a.File}
 			f.Group, changed = report.GroupAccepted, true
 		}
 	}
 	if changed {
 		p.Summary = report.Summarize(p.Findings)
 	}
+}
+
+// LocalAcceptances reads the acceptances saved on this computer without
+// creating anything (for one-shot runs such as --ci).
+func LocalAcceptances(dataDir string) []Acceptance {
+	var as []Acceptance
+	if b, err := os.ReadFile(filepath.Join(dataDir, "accepted.json")); err == nil {
+		_ = json.Unmarshal(b, &as)
+	}
+	return as
 }

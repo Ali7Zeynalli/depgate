@@ -296,6 +296,10 @@
     accInfo: ["Risk qəbul edilib — {0} tarixinədək. Səbəb: ", "Risk accepted until {0}. Reason: "],
     accFrom: ["Əvvəlki qrup: {0} · qəbul tarixi {1}", "Was: {0} · accepted on {1}"],
     accChip: ["qəbul edilib", "accepted"],
+    accFromFile: ["Komandanın faylından — dəyişmək üçün faylı redaktə et:", "From the team file — edit it to change:"],
+    accExpTitle: ["CI və komanda üçün", "For CI and your team"],
+    accExpHelp: ["depgate-accept.json-u yüklə və layihənin (və ya repo-nun) kök qovluğuna qoy: depgate --ci və komandandakı hər DepGate bu riskləri eyni cür qəbul edəcək. DepGate faylı özü yazmır.", "Download depgate-accept.json and put it in the project (or repository) root: depgate --ci and every DepGate on your team treat these risks the same way. DepGate never writes the file itself."],
+    accExpBtn: ["depgate-accept.json yüklə", "Download depgate-accept.json"],
     accNoMal: ["Zərərli paketin riski qəbul edilmir — onu dərhal sil.", "A malicious package's risk cannot be accepted — remove it now."],
     rescanLbl: ["Avto-skan", "Auto scan"],
     rescanOff: ["Avto-skan: söndürülüb", "Auto scan: off"],
@@ -759,6 +763,7 @@
       help.textContent = grp ? t("help_" + grp) : "";
       if (!grp) { list.replaceChildren(el("div", { class: "empty" }, t("noMatch"))); return; }
       if (grp === "bundles") { list.replaceChildren(...ctx.bundles); return; }
+      const accBar = grp === "accepted" && !st.readOnly ? acceptExport(ctx) : null;
       const es = vis.filter((e) => e.f.group === grp);
       const out = [];
       if (!es.length) out.push(el("div", { class: "empty" }, t("noMatch")));
@@ -769,7 +774,7 @@
           el("div", { class: "rhead", "aria-hidden": "true" }, el("span", null, t("colPkg")), el("span", null, t("colVer")), el("span", null, t("colWhy")), el("span", null, t("colImpact")), el("span")),
           es.map((e) => prow(e, ctx))));
       }
-      list.replaceChildren(...out.filter(Boolean));
+      list.replaceChildren(...[accBar, ...out].filter(Boolean));
     }
     rerender();
     return [chips, toolbar, help, list];
@@ -841,9 +846,9 @@
     const a = f.accepted;
     if (a) {
       return el("div", { class: "accbox" },
-        el("div", null, el("b", null, t("accInfo", fmtTime(a.until).slice(0, 10))), a.reason),
-        el("div", { class: "quiet small" }, t("accFrom", grpTitle(a.group), fmtTime(a.at).slice(0, 10))),
-        el("button", { class: "small", onclick: async () => {
+        el("div", null, el("b", null, t("accInfo", String(a.until).slice(0, 10))), a.reason),
+        el("div", { class: "quiet small" }, t("accFrom", grpTitle(a.group), a.at && !a.at.startsWith("0001") ? String(a.at).slice(0, 10) : "—")),
+        a.file ? el("div", { class: "quiet small" }, t("accFromFile"), " ", el("code", null, a.file)) : el("button", { class: "small", onclick: async () => {
           try { setState(await api("POST", "api/accept", { dirs, key: f.key, remove: true })); toast(t("accUndone")); }
           catch (e) { toast(t("error", e.message)); }
         } }, t("accUndo")));
@@ -851,6 +856,26 @@
     if (f.group === "ok") return null;
     if (f.kind === "malware") return null;
     return el("div", { class: "accrow" }, el("button", { class: "small ghost acc", onclick: () => openAccept(f, dirs) }, t("accBtn")));
+  }
+  // depgate-accept.json: the same accepted risks for the team and for depgate --ci
+  function acceptExport(ctx) {
+    const seen = new Set(), list = [];
+    for (const e of ctx.entries) {
+      const f = e.f, a = f.accepted;
+      if (!a || seen.has(f.key)) continue;
+      seen.add(f.key);
+      list.push({ key: f.key, pkg: f.pkg, reason: a.reason, until: String(a.until).slice(0, 10), at: a.at && !a.at.startsWith("0001") ? String(a.at).slice(0, 10) : undefined });
+    }
+    if (!list.length) return null;
+    const text = JSON.stringify({ schema: "depgate/accept@1", accepted: list }, null, 2) + "\n";
+    const dl = () => {
+      const a = el("a", { href: URL.createObjectURL(new Blob([text], { type: "application/json" })), download: "depgate-accept.json" });
+      document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+    };
+    return el("div", { class: "card accexport" },
+      el("div", null, el("b", null, t("accExpTitle")), el("div", { class: "quiet small" }, t("accExpHelp"))),
+      el("span", { class: "grow" }),
+      el("button", { class: "small", onclick: dl }, t("accExpBtn")));
   }
   function openAccept(f, dirs) {
     const close = () => { ov.remove(); document.removeEventListener("keydown", esc); };

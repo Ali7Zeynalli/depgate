@@ -241,6 +241,9 @@ type Accepted struct {
 	At     time.Time `json:"at"`
 	Until  time.Time `json:"until"`
 	Group  Group     `json:"group"` // the group DepGate gave it
+	// File is set when the acceptance comes from a depgate-accept.json in the
+	// project (shared with the team and CI); it is changed by editing that file.
+	File string `json:"file,omitempty"`
 }
 
 // Summarize counts findings per group. Accepted findings count only as accepted.

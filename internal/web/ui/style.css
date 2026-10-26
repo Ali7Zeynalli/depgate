@@ -428,3 +428,5 @@ button.acc:hover { color: var(--ink); border-color: var(--quiet); }
 .accreason { font: inherit; font-weight: 400; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); resize: vertical; }
 .accform select { font: inherit; padding: 5px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); }
 @media (max-width: 760px) { select.rescan { max-width: 150px; } }
+.card.accexport { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.card.accexport > div { flex: 1 1 320px; }

@@ -238,6 +238,11 @@ func run(args []string, stdout, stderr io.Writer) int {
 		if ctx.Err() != nil {
 			return 130
 		}
+		// risks accepted on this computer or in a committed depgate-accept.json
+		local := store.LocalAcceptances(dataDir)
+		for i := range rep.Projects {
+			store.ApplyAcceptances(&rep.Projects[i], append(store.FileAcceptances(rep.Projects[i].Dir), local...))
+		}
 		if c.push != "" {
 			if err := push(ctx, c.push, c.token, rep); err != nil {
 				fmt.Fprintln(stderr, L("depgate: göndərilmədi, növbəti dəfə təkrar ediləcək:", "depgate: push failed, will retry next run:"), err)
@@ -456,6 +461,9 @@ func exitCode(rep *report.Report, c config) int {
 	}
 	for _, p := range rep.Projects {
 		for _, f := range p.Findings {
+			if f.Group == report.GroupAccepted {
+				continue // the user accepted this risk until a date (never malware)
+			}
 			if f.Kind == "malware" || (f.Kind == "vuln" && sevRank[f.Severity] >= lim && !f.Dev) {
 				return 1
 			}
@@ -477,6 +485,11 @@ func printSummary(w io.Writer, rep *report.Report) {
 			fmt.Fprintf(w, L("  !!! ZƏRƏRLİ PAKET: %d — dərhal hesabata bax\n", "  !!! MALICIOUS PACKAGE: %d — open the report now\n"), s.Malware)
 		}
 		fmt.Fprintf(w, L("  İndi et: kod dəyişmir %d · kod dəyişir %d · Planla %d · İstəyə görə %d · Lazım deyil %d\n", "  Do now: no code change %d · code change %d · Plan %d · Optional %d · Nothing to do %d\n"), s.NowEasy, s.NowCode, s.Plan, s.Optional, s.OK)
+		for _, f := range p.Findings {
+			if a := f.Accepted; a != nil {
+				fmt.Fprintf(w, L("  ~ %s %s: risk qəbul edilib %s tarixinədək — %s\n", "  ~ %s %s: risk accepted until %s — %s\n"), f.Pkg, f.Current, a.Until.Format("2006-01-02"), a.Reason)
+			}
+		}
 		var urgent []report.Finding
 		for _, f := range p.Findings {
 			if f.Group == report.GroupNowEasy || f.Group == report.GroupNowCode {
