@@ -71,7 +71,7 @@ Then open `http://127.0.0.1:7777`, choose a password and **+ Add project** (a pr
 | **Web server** | nginx / Caddy: known vulnerabilities of your version, TLS, headers, path traversal, exposed admin API |
 | **Node.js & setup** | runtime security releases and end of life; lockfile, install scripts, release cooldown, the same Node.js version everywhere |
 | **AI & MCP** | a ready prompt, `AGENTS.md` version rules, the setup for your agent, which agents are connected, and **AI work**: the tasks an agent took on and what DepGate verified |
-| **History** | while DepGate runs, projects are scanned again automatically (every 12 h by default, changeable in the ⋯ menu); indicators (open important findings, mean time to fix, oldest open finding, new and fixed per week); every scan compared with the one before: what is new, what is gone, whether the lockfile changed or a new advisory appeared, and **which package versions changed** (updated, back to an older version, added, removed — direct ones first); who ran it (UI, command line, automatic scan or an AI agent) and what each agent checked over MCP |
+| **History** | while DepGate runs, projects are scanned again automatically (every 12 h by default, changeable in the ⋯ menu); indicators (open important findings, mean time to fix, oldest open finding, new and fixed per week); every scan compared with the one before: what is new, what is gone, whether the lockfile changed or a new advisory appeared, and **which package versions changed** (updated, back to an older version, added, removed — direct ones first); **git commits** that changed `package.json` or the lockfile in the last 90 days on the same timeline, with what each one changed, plus lockfile changes not committed yet (read straight from `.git`, git itself is not needed); who ran it (UI, command line, automatic scan or an AI agent) and what each agent checked over MCP |
 
 **Production / Dev** at the top of every page: see only what reaches production (dependencies, Docker and server files that are not dev) or only development (devDependencies, dev Dockerfiles, compose files and stages); "All" shows how many of each are dev. Malware stays in every view — in devDependencies it runs on your machine and in CI.
 
@@ -161,6 +161,7 @@ More: `depgate --help`.
 ## Security and privacy
 
 - Only package names, versions, CVE ids, image names and GitHub repository names (for release notes) leave your computer — never code, paths or `.env` files. Reports, history and accepted risks stay in the data folder. At start and every 6 hours DepGate asks GitHub for the newest release number and shows a notice if there is one.
+- Git history is read from the project's `.git` folder on your computer (commit message, date and the lockfile at each commit); git is never run and nothing is sent.
 - Read-only: nothing is written into your projects; in Docker your home is mounted read-only and DepGate runs without root.
 - The UI listens on `127.0.0.1` (in Docker the port is published on `127.0.0.1` only) and is password-protected (PBKDF2-SHA256); API calls need a custom header, the `Host` header is checked, a strict CSP is sent.
 

@@ -154,6 +154,28 @@ func runHistory(ctx context.Context, s *Server, args map[string]any) (string, er
 		}
 		writePkgs(&b, cur.Pkgs)
 	}
+	if p, err := s.reportOf(ctx, t); err == nil {
+		g := history.ReadGitLog(t.dir, p.Lockfile, time.Now().AddDate(0, 0, -90), 300)
+		if len(g.Changes) > 0 {
+			b.WriteString("\n# Git: commits that changed package.json or the lockfile (newest first)\n")
+			for i, c := range g.Changes {
+				if i == n {
+					fmt.Fprintf(&b, "… %d more\n", len(g.Changes)-n)
+					break
+				}
+				switch {
+				case c.Uncommitted:
+					fmt.Fprintf(&b, "\n## not committed yet (lockfile on disk differs from HEAD)\n")
+				default:
+					fmt.Fprintf(&b, "\n## %s %s — %s\n", c.Hash[:7], c.At.Format("2006-01-02"), untrusted(c.Subject, 140))
+				}
+				if c.Manifest {
+					b.WriteString("package.json changed, package versions did not.\n")
+				}
+				writePkgs(&b, c.Pkgs)
+			}
+		}
+	}
 	return b.String(), nil
 }
 

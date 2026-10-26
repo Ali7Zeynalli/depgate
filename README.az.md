@@ -71,7 +71,7 @@ Sonra `http://127.0.0.1:7777` aç, parol seç və **+ Layihə əlavə et** (layi
 | **Veb server** | nginx / Caddy: versiyanın məlum zəiflikləri, TLS, başlıqlar, yol keçidi, açıq admin API |
 | **Node.js və mühit** | runtime təhlükəsizlik relizləri və dəstəyin bitməsi; lockfile, install skriptləri, gözləmə müddəti, hər yerdə eyni Node.js versiyası |
 | **AI və MCP** | hazır prompt, `AGENTS.md` versiya qaydaları, agentinə görə qoşulma, hansı agentlərin qoşulduğu və **AI işləri**: agentin götürdüyü tapşırıqlar və DepGate-in nəyi təsdiqlədiyi |
-| **Tarixçə** | DepGate işlədikcə layihələr avtomatik yenidən skan olunur (standart hər 12 saat, «⋯» menyusunda dəyişmək olur); göstəricilər (açıq vacib işlər, orta düzəltmə müddəti, ən köhnə açıq iş, həftəlik yeni və həll olunan); hər skan əvvəlki ilə müqayisə olunur: nə yenidir, nə aradan qalxıb, lockfile dəyişib, yoxsa yeni advisory çıxıb, və **hansı paketlərin versiyası dəyişib** (yenilənib, köhnə versiyaya qayıdıb, əlavə olunub, silinib — əvvəl birbaşa olanlar); skanı kim edib (interfeys, əmr sətri, avtomatik skan və ya AI agent) və hər agent MCP ilə nəyi yoxlayıb |
+| **Tarixçə** | DepGate işlədikcə layihələr avtomatik yenidən skan olunur (standart hər 12 saat, «⋯» menyusunda dəyişmək olur); göstəricilər (açıq vacib işlər, orta düzəltmə müddəti, ən köhnə açıq iş, həftəlik yeni və həll olunan); hər skan əvvəlki ilə müqayisə olunur: nə yenidir, nə aradan qalxıb, lockfile dəyişib, yoxsa yeni advisory çıxıb, və **hansı paketlərin versiyası dəyişib** (yenilənib, köhnə versiyaya qayıdıb, əlavə olunub, silinib — əvvəl birbaşa olanlar); son 90 gündə `package.json` və ya lockfile-ı dəyişən **git commit-ləri** eyni xətt üzərində, hər birinin nəyi dəyişdiyi ilə, həmçinin hələ commit olunmamış lockfile dəyişiklikləri (birbaşa `.git`-dən oxunur, git proqramı lazım deyil); skanı kim edib (interfeys, əmr sətri, avtomatik skan və ya AI agent) və hər agent MCP ilə nəyi yoxlayıb |
 
 Hər səhifənin yuxarısında **Production / Dev** seçimi var: yalnız production-a çatanları (dependencies, dev olmayan Docker və server faylları) və ya yalnız inkişafı (devDependencies, dev Dockerfile, compose faylları və mərhələləri) görürsən; «Hamısı» hər birinin neçəsinin dev olduğunu göstərir. Zərərli paket hər görünüşdə qalır — devDependencies-də olsa belə sənin kompüterində və CI-da işləyir.
 
@@ -161,6 +161,7 @@ depgate --reset-password      # Docker: docker exec depgate depgate --reset-pass
 ## Təhlükəsizlik və məxfilik
 
 - Kompüterindən yalnız paket adları, versiyalar, CVE nömrələri, image adları və GitHub repo adları (reliz qeydləri üçün) çıxır — kod, yollar və `.env` faylları heç vaxt. Hesabatlar, tarixçə və qəbul edilmiş risklər data qovluğunda qalır. Açılanda və hər 6 saatdan bir DepGate GitHub-dan ən son reliz nömrəsini soruşur və yeni versiya varsa, bildiriş göstərir.
+- Git tarixçəsi layihənin kompüterindəki `.git` qovluğundan oxunur (commit mesajı, tarix və hər commit-dəki lockfile); git proqramı işlədilmir və heç nə göndərilmir.
 - Yalnız oxuyur: layihələrinə heç nə yazılmır; Docker-də ev qovluğun yalnız oxuma rejimində bağlanır və DepGate root olmadan işləyir.
 - İnterfeys `127.0.0.1`-də açılır (Docker-də port yalnız `127.0.0.1`-də açıqdır) və parolla qorunur (PBKDF2-SHA256); API sorğuları xüsusi başlıq tələb edir, `Host` başlığı yoxlanır, sərt CSP göndərilir.
 

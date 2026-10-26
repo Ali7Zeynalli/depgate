@@ -86,7 +86,9 @@ type Manager struct {
 	Roots     []string // folders the UI may browse; never empty
 	Depth     int
 	Container bool
-	Rescan    int // default hours between automatic scans (--rescan); 0 = off
+	gitMu     sync.Mutex
+	gitCache  map[string]gitCached // git history per project, see gitLog
+	Rescan    int                  // default hours between automatic scans (--rescan); 0 = off
 
 	mu       sync.Mutex
 	running  map[string]bool

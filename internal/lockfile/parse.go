@@ -162,21 +162,7 @@ func Parse(dir string) (*Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	var pkgs []Package
-	switch kind {
-	case "npm":
-		pkgs, err = parseNpm(data, man, member)
-	case "pnpm":
-		pkgs, err = parsePnpm(data, member)
-	case "yarn":
-		pkgs, err = parseYarnV1(data, man, member)
-	case "yarn-berry":
-		pkgs, err = parseYarnBerry(data, man, member)
-	case "bun":
-		pkgs, err = parseBun(data, member)
-	default:
-		err = fmt.Errorf("unknown lockfile kind %q", kind)
-	}
+	pkgs, err := ParseData(kind, data, man, member)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
@@ -185,6 +171,47 @@ func Parse(dir string) (*Result, error) {
 		res.Packages = []Package{}
 	}
 	return res, nil
+}
+
+// ParseData parses lockfile content of the given kind (as Detect names it) for
+// the workspace member at member ("" = the lockfile's own folder). Used for
+// lockfiles read from git history.
+func ParseData(kind string, data []byte, man *Manifest, member string) ([]Package, error) {
+	if man == nil {
+		man = &Manifest{}
+	}
+	switch kind {
+	case "npm":
+		return parseNpm(data, man, member)
+	case "pnpm":
+		return parsePnpm(data, member)
+	case "yarn":
+		return parseYarnV1(data, man, member)
+	case "yarn-berry":
+		return parseYarnBerry(data, man, member)
+	case "bun":
+		return parseBun(data, member)
+	}
+	return nil, fmt.Errorf("unknown lockfile kind %q", kind)
+}
+
+// KindOf returns the lockfile kind of a lockfile path by its name ("" unknown);
+// for yarn.lock, berry is told apart by its content.
+func KindOf(name string, data []byte) string {
+	switch filepath.Base(name) {
+	case "package-lock.json", "npm-shrinkwrap.json":
+		return "npm"
+	case "pnpm-lock.yaml":
+		return "pnpm"
+	case "bun.lock":
+		return "bun"
+	case "yarn.lock":
+		if strings.Contains(string(data[:min(len(data), 4096)]), "__metadata:") {
+			return "yarn-berry"
+		}
+		return "yarn"
+	}
+	return ""
 }
 
 func managerOf(kind string, man *Manifest) string {
