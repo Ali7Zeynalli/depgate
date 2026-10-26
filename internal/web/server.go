@@ -44,6 +44,7 @@ type Backend interface {
 	Accept(dirs []string, key, reason string, days int) error
 	Unaccept(dirs []string, key string) error
 	CheckUpdate(ctx context.Context) (*app.Update, error)
+	SetEnvMark(dir, file, env string) error
 }
 
 type Server struct {
@@ -178,6 +179,21 @@ func (s *Server) Handler() http.Handler {
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	})
+	mux.HandleFunc("POST /api/envmark", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Dir  string `json:"dir"`
+			File string `json:"file"`
+			Env  string `json:"env"`
+		}
+		if !readJSON(w, r, &req) {
+			return
+		}
+		if err := s.B.SetEnvMark(req.Dir, req.File, req.Env); err != nil {
+			writeErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, s.B.State())
 	})
 	mux.HandleFunc("POST /api/settings", func(w http.ResponseWriter, r *http.Request) {
 		var req struct {

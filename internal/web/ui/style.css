@@ -613,3 +613,11 @@ svg.tspark polyline { fill: none; stroke: var(--accent); stroke-width: 1.8; stro
 .witems { margin: 4px 0 6px 12px; font-size: 13px; display: flex; flex-direction: column; gap: 2px; }
 .witems .wdone { color: var(--good); }
 .workcard { grid-column: 1 / -1; }
+.envsw { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; flex-wrap: wrap; }
+.chip.envc { background: var(--line2); color: var(--quiet); border-color: var(--line); font-weight: 600; }
+.dfile.devfile { opacity: .92; }
+.dpath { display: inline-flex; align-items: baseline; gap: 0; min-width: 0; overflow-wrap: anywhere; }
+.envmark { display: inline-flex; align-items: center; gap: 6px; }
+.envsel { font: inherit; font-size: 12px; padding: 2px 6px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); }
+.dfolder { margin-bottom: 14px; }
+.dfname { margin: 4px 0 8px; font-size: 14px; }
