@@ -1,0 +1,3 @@
+{"schema_version":"1.2.0","result":{"name":"nodejs","releases":[
+ {"name":"24","codename":"Krypton","label":"24 (LTS)","releaseDate":"2025-05-06","isLts":true,"ltsFrom":"2025-10-28","isEol":false,"eolFrom":"2028-04-30","isMaintained":true,"latest":{"name":"24.11.0","date":"2025-10-28"}},
+ {"name":"18","codename":"Hydrogen","label":"18","releaseDate":"2022-04-19","isLts":true,"isEol":true,"eolFrom":"2025-04-30","isMaintained":false,"latest":{"name":"18.20.8","date":"2025-03-27"}}]}}
