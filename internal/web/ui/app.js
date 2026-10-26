@@ -277,6 +277,38 @@
     tabEnv: ["Node.js və mühit", "Node.js & setup"],
     tabAI: ["AI və MCP", "AI & MCP"],
     tabHistory: ["Tarixçə", "History"],
+    gAccepted: ["Risk qəbul edilib", "Risk accepted"],
+    help_accepted: ["Sənin bilərəkdən qəbul etdiyin risklər. Təcili sayğaca daxil deyil; müddət bitəndə və ya paketin versiyası dəyişəndə öz qrupuna qayıdır.", "Risks you chose to accept. They don't count as urgent; each goes back to its group when the period ends or the package version changes."],
+    tAccepted: ["Qəbul edilib", "Accepted"],
+    hByAuto: ["avtomatik", "automatic"],
+    accBtn: ["Riski qəbul et…", "Accept the risk…"],
+    accTitle: ["Riski qəbul et: {0}", "Accept the risk: {0}"],
+    accHelp: ["Bu tapıntı «Risk qəbul edilib» qrupuna keçəcək və təcili sayğaca daxil olmayacaq. Silinmir: müddət bitəndə və ya {0} başqa versiyaya keçəndə yenidən görünəcək. AI agent də bunu görür və toxunmur.", "The finding moves to “Risk accepted” and stops counting as urgent. It is not deleted: it comes back when the period ends or {0} changes version. AI agents see it too and leave it alone."],
+    accReason: ["Səbəb (məcburi)", "Reason (required)"],
+    accReasonPh: ["məs.: express 5-ə keçid aprelə planlaşdırılıb; açıq redirect istifadə olunmur", "e.g. the move to express 5 is planned for April; open redirects are not used"],
+    accFor: ["Müddət", "For"],
+    accDays: ["{0} gün", "{0} days"],
+    accWhere: ["{0} layihədə tətbiq olunacaq", "Applies in {0} projects"],
+    accSave: ["Qəbul et", "Accept"],
+    accDone: ["Risk qəbul edildi", "Risk accepted"],
+    accUndo: ["Geri al", "Undo"],
+    accUndone: ["Tapıntı öz qrupuna qaytarıldı", "The finding is back in its group"],
+    accInfo: ["Risk qəbul edilib — {0} tarixinədək. Səbəb: ", "Risk accepted until {0}. Reason: "],
+    accFrom: ["Əvvəlki qrup: {0} · qəbul tarixi {1}", "Was: {0} · accepted on {1}"],
+    accChip: ["qəbul edilib", "accepted"],
+    accNoMal: ["Zərərli paketin riski qəbul edilmir — onu dərhal sil.", "A malicious package's risk cannot be accepted — remove it now."],
+    rescanLbl: ["Avto-skan", "Auto scan"],
+    rescanOff: ["Avto-skan: söndürülüb", "Auto scan: off"],
+    rescanEvery: ["Avto-skan: hər {0} saat", "Auto scan: every {0} h"],
+    rescanSaved: ["Avto-skan yadda saxlandı", "Auto scan saved"],
+    updText: ["Yeni versiya var: DepGate {0} (səndə {1}).", "A new version is out: DepGate {0} (you have {1})."],
+    updHow: ["Necə yeniləmək", "How to update"],
+    updNotes: ["Nə dəyişib", "What's new"],
+    updLater: ["Sonra", "Later"],
+    updTitle: ["DepGate-i yenilə", "Update DepGate"],
+    updDocker: ["Docker ilə işləyirsən. depgate qovluğunda:", "You run it in Docker. In the depgate folder:"],
+    updBinary: ["Tək fayl: Releases səhifəsindən yeni faylı yüklə və köhnəsinin yerinə qoy (məlumatın qalır). Go ilə quraşdırmısansa:", "Single binary: download the new file from Releases and replace the old one (your data stays). Installed with Go:"],
+    updData: ["Layihə siyahın, hesabatlar, tarixçə və parol yerində qalır.", "Your project list, reports, history and password stay."],
     hChart: ["Təcili işlər — son skanlar", "Urgent items — recent scans"],
     hScans: ["Skanlar ({0})", "Scans ({0})"],
     hNone: ["Hələ tarixçə yoxdur — növbəti skandan sonra burada görünəcək.", "No history yet — it starts with the next scan."],
@@ -428,7 +460,7 @@
   // ---------- labels ----------
   const NEED = { now: ["needNow", "bad"], soon: ["needSoon", "warn"], plan: ["needPlan", ""], optional: ["needOptional", "good"], none: ["needNone", "good"] };
   const IMPACT = { no: ["impNo", "good"], maybe: ["impMaybe", "warn"], yes: ["impYes", "bad"], unknown: ["impUnknown", "warn"] };
-  const GROUPS = [["now_easy", "gNowEasy", true], ["now_code", "gNowCode", true], ["plan", "gPlan", false], ["optional", "gOptional", false], ["ok", "gOk", false]];
+  const GROUPS = [["now_easy", "gNowEasy", true], ["now_code", "gNowCode", true], ["plan", "gPlan", false], ["optional", "gOptional", false], ["accepted", "gAccepted", false], ["ok", "gOk", false]];
   const STRAT = { upgrade: "sUpgrade", relock: "sRelock", parent: "sParent", override: "sOverride", remove: "sRemove" };
   const strat = (s) => STRAT[s] ? t(STRAT[s]) : s;
   const pad = (n) => String(n).padStart(2, "0");
@@ -495,6 +527,8 @@
     $("#srcbtn").hidden = false;
     $("#scanall").disabled = st.busy;
     $("#scanall").textContent = st.busy ? t("scanning") : t("scanAll");
+    renderRescan(ps.length);
+    renderUpdate();
 
     const nav = $("#projects");
     nav.hidden = ps.length === 0;
@@ -631,7 +665,7 @@
     const envN = (nodeNow ? 1 : 0) + ctx.hygBad;
     const info = {
       overview: ["", false],
-      packages: [es.filter((e) => e.f.group !== "ok").length, urgent > 0],
+      packages: [es.filter((e) => e.f.group !== "ok" && e.f.group !== "accepted").length, urgent > 0],
       code: [hits, false],
       docker: [di.length, di.some((d) => d.severity === "high")],
       server: [ctx.server.issues.length, ctx.server.issues.some((d) => d.severity === "high")],
@@ -663,7 +697,7 @@
     const S = [];
     for (const e of ctx.entries) {
       const f = e.f;
-      if (f.group === "ok" || f.group === "optional") continue;
+      if (f.group === "ok" || f.group === "optional" || f.group === "accepted") continue;
       const bad = f.kind === "malware" || f.kind === "removed";
       const score = f.kind === "malware" ? 1000 : f.kind === "removed" ? 900 : (f.priority || 0) + (f.group === "plan" ? 0 : 200);
       S.push({
@@ -695,7 +729,7 @@
     const areas = el("div", { class: "areas" },
       area("packages", t("tabPackages"), x.urgent ? t("badgeUrgent", x.urgent) : "✓", x.urgent > 0,
         `${t("tEasy")}: ${n("now_easy")} · ${t("tCode")}: ${n("now_code")}`,
-        `${t("tPlan")}: ${n("plan")} · ${t("tOptional")}: ${n("optional")} · ${t("tOk")}: ${n("ok")}`),
+        `${t("tPlan")}: ${n("plan")} · ${t("tOptional")}: ${n("optional")} · ${t("tOk")}: ${n("ok")}` + (n("accepted") ? ` · ${t("tAccepted")}: ${n("accepted")}` : "")),
       area("code", t("tabCode"), x.hits ? t("areaPlaces", x.hits) : x.migs.length ? "" : "✓", false,
         x.migs.length ? x.migs.slice(0, 3).map((m) => m.e.f.pkg + " → " + m.ms[0].m.to).join(" · ") : t("codeNone"), ""),
       area("docker", "Docker", di.length ? t("dockerN", di.length) : files.length ? "✓" : "", di.some((d) => d.severity === "high"),
@@ -750,7 +784,7 @@
         el("span", { class: "c1" }, el("code", { class: "pk" }, f.pkg),
           el("span", { class: "quiet small" }, [f.direct ? t("direct") : t("transitive"), f.dev ? "dev" : "", e.where && e.where.length > 1 ? t("nProjects", e.where.length) : ""].filter(Boolean).join(" · "))),
         el("span", { class: "c2" }, f.current, f.target && f.target !== f.current ? [el("span", { class: "arr" }, " → "), el("b", null, f.target)] : null),
-        el("span", { class: "c3" }, sev ? el("span", { class: "chip sev-" + (bad ? "critical" : f.severity) }, sev) : null,
+        el("span", { class: "c3" }, f.accepted ? el("span", { class: "chip accepted" }, t("accChip")) : null, sev ? el("span", { class: "chip sev-" + (bad ? "critical" : f.severity) }, sev) : null,
           el("span", { class: "t" }, f.title || tr((f.why || [])[0]) || "")),
         el("span", { class: "c4 " + impClass(f.codeImpact) }, impText(f.codeImpact))),
       ctx.card(e));
@@ -801,6 +835,88 @@
         el("button", { onclick: () => goTab("history") }, t("hOpen")))));
   }
 
+  // ---------- accepted risk ----------
+  function acceptBlock(f, dirs) {
+    if (st.readOnly) return null;
+    const a = f.accepted;
+    if (a) {
+      return el("div", { class: "accbox" },
+        el("div", null, el("b", null, t("accInfo", fmtTime(a.until).slice(0, 10))), a.reason),
+        el("div", { class: "quiet small" }, t("accFrom", grpTitle(a.group), fmtTime(a.at).slice(0, 10))),
+        el("button", { class: "small", onclick: async () => {
+          try { setState(await api("POST", "api/accept", { dirs, key: f.key, remove: true })); toast(t("accUndone")); }
+          catch (e) { toast(t("error", e.message)); }
+        } }, t("accUndo")));
+    }
+    if (f.group === "ok") return null;
+    if (f.kind === "malware") return null;
+    return el("div", { class: "accrow" }, el("button", { class: "small ghost acc", onclick: () => openAccept(f, dirs) }, t("accBtn")));
+  }
+  function openAccept(f, dirs) {
+    const close = () => { ov.remove(); document.removeEventListener("keydown", esc); };
+    const esc = (e) => { if (e.key === "Escape") close(); };
+    const reason = el("textarea", { class: "accreason", rows: "3", maxlength: "500", placeholder: t("accReasonPh") });
+    const days = el("select", null, [30, 90, 180, 365].map((d) => el("option", { value: String(d), selected: d === 90 || undefined }, t("accDays", d))));
+    const save = el("button", { class: "primary", onclick: async () => {
+      if (!reason.value.trim()) { reason.focus(); return; }
+      save.disabled = true;
+      try { const s2 = await api("POST", "api/accept", { dirs, key: f.key, reason: reason.value, days: +days.value }); close(); setState(s2); toast(t("accDone")); }
+      catch (e) { save.disabled = false; toast(t("error", e.message)); }
+    } }, t("accSave"));
+    const dlg = el("div", { class: "modal", role: "dialog", "aria-modal": "true", "aria-label": t("accTitle", f.pkg) },
+      el("div", { class: "mhead" }, el("div", { class: "h3" }, t("accTitle", f.pkg + " " + f.current)), el("div", { class: "quiet" }, t("accHelp", f.pkg))),
+      el("div", { class: "pad accform" },
+        f.title ? el("div", { class: "quiet small" }, f.title) : null,
+        el("label", null, t("accReason"), reason),
+        el("label", { class: "inl" }, t("accFor"), days),
+        dirs.length > 1 ? el("div", { class: "quiet small" }, t("accWhere", dirs.length)) : null),
+      el("div", { class: "pfoot" }, el("span", { class: "grow" }), el("button", { onclick: close }, t("close")), save));
+    const ov = el("div", { class: "overlay", onclick: (e) => { if (e.target === ov) close(); } }, dlg);
+    document.body.append(ov); document.addEventListener("keydown", esc); reason.focus();
+  }
+
+  // ---------- automatic scan & new version ----------
+  function renderRescan(n) {
+    const sel = $("#rescan");
+    sel.hidden = st.readOnly || !n;
+    if (sel.hidden) return;
+    const cur = st.rescanHours || 0;
+    const opts = [0, 6, 12, 24, 48];
+    if (!opts.includes(cur)) opts.push(cur);
+    sel.setAttribute("aria-label", t("rescanLbl")); sel.title = t("rescanLbl");
+    sel.replaceChildren(...opts.map((h) => el("option", { value: String(h), selected: h === cur || undefined }, h ? t("rescanEvery", h) : t("rescanOff"))));
+  }
+  $("#rescan").addEventListener("change", async (e) => {
+    try { setState(await api("POST", "api/settings", { rescanHours: +e.target.value })); toast(t("rescanSaved")); }
+    catch (er) { toast(t("error", er.message)); }
+  });
+  function renderUpdate() {
+    const bar = $("#update"), u = st.update;
+    let later = ""; try { later = localStorage.getItem("depgate-upd-later") || ""; } catch {}
+    bar.hidden = !u || later === u.latest;
+    if (bar.hidden) return;
+    bar.replaceChildren(el("span", null, t("updText", u.latest, st.version)),
+      el("button", { class: "small", onclick: openUpdate }, t("updHow")),
+      safeURL(u.url) ? el("a", { href: u.url, target: "_blank", rel: "noopener noreferrer" }, t("updNotes")) : null,
+      el("span", { class: "grow" }),
+      el("button", { class: "small ghost", onclick: () => { try { localStorage.setItem("depgate-upd-later", u.latest); } catch {} renderUpdate(); } }, t("updLater")));
+  }
+  function openUpdate() {
+    const close = () => { ov.remove(); document.removeEventListener("keydown", esc); };
+    const esc = (e) => { if (e.key === "Escape") close(); };
+    const box = (c) => el("div", { class: "codebox" }, el("pre", null, c), copyBtn(c));
+    const dlg = el("div", { class: "modal", role: "dialog", "aria-modal": "true", "aria-label": t("updTitle") },
+      el("div", { class: "mhead" }, el("div", { class: "h3" }, t("updTitle")), el("div", { class: "quiet" }, t("updText", st.update.latest, st.version))),
+      el("div", { class: "pad accform" },
+        st.container ? [el("div", null, t("updDocker")), box("git pull && docker compose pull && docker compose up -d")]
+          : [el("div", null, t("updBinary")), box("go install github.com/Ali7Zeynalli/depgate@latest"),
+            safeURL(st.update.url) ? el("a", { href: st.update.url, target: "_blank", rel: "noopener noreferrer" }, "GitHub Releases →") : null],
+        el("div", { class: "quiet small" }, t("updData"))),
+      el("div", { class: "pfoot" }, el("span", { class: "grow" }), el("button", { class: "primary", onclick: close }, t("close"))));
+    const ov = el("div", { class: "overlay", onclick: (e) => { if (e.target === ov) close(); } }, dlg);
+    document.body.append(ov); document.addEventListener("keydown", esc);
+  }
+
   // ---------- history: scans compared, and what AI agents did ----------
   const hcache = new Map();
   function getHistory(dir) {
@@ -830,7 +946,7 @@
           isActive(a) ? el("span", { class: "chip ok" }, t("agActive")) : null),
         el("div", { class: "quiet small" }, [t("agSeen", fmtTime(a.last)), a.calls ? t("agCalls", a.calls) : "", a.checks ? t("agChecks", a.checks) : "", a.blocked ? t("agWarned", a.blocked) : "", a.scans ? t("agScans", a.scans) : ""].filter(Boolean).join(" · "))))));
   }
-  const byText = (s) => s.by === "mcp" ? (s.agent || t("hByMCP")) : s.by === "cli" ? t("hByCLI") : t("hByUI");
+  const byText = (s) => s.by === "mcp" ? (s.agent || t("hByMCP")) : s.by === "cli" ? t("hByCLI") : s.by === "auto" ? t("hByAuto") : t("hByUI");
   const urgentOf = (s) => (s.sum.now_easy || 0) + (s.sum.now_code || 0);
   function diffChips(d) {
     if (d.first) return [el("span", { class: "chip" }, t("hFirst"))];
@@ -1488,6 +1604,7 @@
 
     const kids = bare ? [el("div", { class: "rchips" }, [...title.querySelectorAll(".chip[title]")])] : [title];
     if (f.title && !bare) kids.push(el("div", { class: "ctext" }, f.title));
+    if (f.accepted) kids.push(acceptBlock(f, where ? where.map((w) => w.p.dir) : [p.dir]));
     kids.push(aboutBlock(f));
     if (f.advisories && f.advisories.length) kids.push(advBlock(f));
     kids.push(el("div", { class: "q" }, el("span", { class: "dot " + needClass(f.needUpdate) }), el("span", { class: "lbl" }, t("qNeed")), el("span", { class: "ans" }, needText(f.kind, f.needUpdate))));
@@ -1517,6 +1634,7 @@
         fx.snippet ? el("pre", null, (fx.file ? "// " + fx.file + "\n" : "") + fx.snippet) : null,
         note ? el("div", { class: "note" }, note) : null));
     }
+    if (!f.accepted) kids.push(acceptBlock(f, where ? where.map((w) => w.p.dir) : [p.dir]));
     const foot = el("div", { class: "cfoot" });
     foot.append(el("span", { class: "grow" }), copyBtn(where ? where.map((w) => agentTask(w.f, w.p.report)).join("\n\n---\n\n") : agentTask(f, p), t("agentBtn")));
     kids.push(foot);

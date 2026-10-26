@@ -40,6 +40,8 @@ const (
 	GroupPlan     Group = "plan"     // only a new major, or Node line change planned
 	GroupOptional Group = "optional" // newer patch/minor exists, nothing urgent
 	GroupOK       Group = "ok"
+	// GroupAccepted: the user accepted the risk for a while (reason and end date in Accepted)
+	GroupAccepted Group = "accepted"
 )
 
 type Report struct {
@@ -153,6 +155,7 @@ type Summary struct {
 	Plan     int `json:"plan"`
 	Optional int `json:"optional"`
 	OK       int `json:"ok"`
+	Accepted int `json:"accepted,omitempty"`
 	Malware  int `json:"malware"`
 	Critical int `json:"critical"`
 	High     int `json:"high"`
@@ -228,6 +231,47 @@ type Finding struct {
 	// what changes in the project's own code when moving to Target (and, for
 	// planning, to the newest major)
 	Migrate []Migration `json:"migrate,omitempty"`
+	// Accepted is set when the user accepted this risk; Group is then GroupAccepted.
+	Accepted *Accepted `json:"accepted,omitempty"`
+}
+
+// Accepted records a risk the user chose to live with until a date.
+type Accepted struct {
+	Reason string    `json:"reason"`
+	At     time.Time `json:"at"`
+	Until  time.Time `json:"until"`
+	Group  Group     `json:"group"` // the group DepGate gave it
+}
+
+// Summarize counts findings per group. Accepted findings count only as accepted.
+func Summarize(fs []Finding) Summary {
+	var s Summary
+	for _, f := range fs {
+		switch f.Group {
+		case GroupNowEasy:
+			s.NowEasy++
+		case GroupNowCode:
+			s.NowCode++
+		case GroupPlan:
+			s.Plan++
+		case GroupOptional:
+			s.Optional++
+		case GroupAccepted:
+			s.Accepted++
+			continue
+		default:
+			s.OK++
+		}
+		switch {
+		case f.Kind == "malware":
+			s.Malware++
+		case f.Kind == "vuln" && f.Severity == "critical":
+			s.Critical++
+		case f.Kind == "vuln" && f.Severity == "high":
+			s.High++
+		}
+	}
+	return s
 }
 
 // Migration describes the code changes for one move cur → To.

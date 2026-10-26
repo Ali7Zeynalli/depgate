@@ -64,13 +64,13 @@ Then open `http://127.0.0.1:7777`, choose a password and **+ Add project** (a pr
 | Section | What it shows |
 |---|---|
 | **Overview** | the few things to do first, in order |
-| **Packages** | one row per package: what it is, what was found, the weakness explained in plain words (CWE), the safest version and the command; malware, removed versions, packages that must update together |
+| **Packages** | one row per package: what it is, what was found, the weakness explained in plain words (CWE), the safest version and the command; malware, removed versions, packages that must update together; **accept a risk** with a reason until a date (it comes back by itself) |
 | **Code changes** | `file:line` places for Next.js, React, Express, NestJS, Prisma, Zod, Tailwind, ESLint, TanStack Query, React Router; codemods; breaking changes from release notes |
 | **Docker** | 25 security rules, Compose Specification errors, end-of-life and outdated images |
 | **Web server** | nginx / Caddy: known vulnerabilities of your version, TLS, headers, path traversal, exposed admin API |
 | **Node.js & setup** | runtime security releases and end of life; lockfile, install scripts, release cooldown |
 | **AI & MCP** | a ready prompt, `AGENTS.md` version rules, the MCP connection command, which agents are connected |
-| **History** | every scan compared with the one before: what is new, what is gone, whether the lockfile changed or a new advisory appeared; who ran it (UI, CLI or an AI agent) and what each agent checked over MCP |
+| **History** | projects are scanned again automatically (every 12 h by default, changeable at the top); every scan compared with the one before: what is new, what is gone, whether the lockfile changed or a new advisory appeared; who ran it (UI, CLI or an AI agent) and what each agent checked over MCP |
 
 Folders and monorepos get one merged page; a finding in several projects is shown once.
 
@@ -128,6 +128,8 @@ depgate --reset-password      # Docker: docker exec depgate depgate --reset-pass
 | `--data` · `DEPGATE_DATA` | project list, reports, scan history, password hash | `~/.config/depgate` · macOS `~/Library/Application Support/depgate` · Windows `%AppData%\depgate` |
 | `--offline` | no network, cache only | off |
 | `--cooldown` | skip target versions younger than N days | 3 |
+| `--rescan` · `DEPGATE_RESCAN_HOURS` | scan projects again when the last scan is older than N hours (0 = off; also in the UI) | 12 |
+| `DEPGATE_NO_UPDATE_CHECK=1` | don't check GitHub once a day for a newer DepGate | — |
 | `--print-token` · `DEPGATE_TOKEN` | API / MCP token | generated |
 | `DEPGATE_PASSWORD` | set the password up front | — |
 | `DEPGATE_GITHUB_TOKEN` | more GitHub requests for release notes | — |
@@ -138,7 +140,7 @@ More: `depgate --help`.
 
 ## Security and privacy
 
-- Only package names, versions, CVE ids and image names leave your computer — never code, paths or `.env` files.
+- Only package names, versions, CVE ids and image names leave your computer — never code, paths or `.env` files. Once a day DepGate asks GitHub for the newest release number and shows a notice if there is one.
 - Read-only: nothing is written into your projects; in Docker your home is mounted read-only and DepGate runs without root.
 - The UI listens on `127.0.0.1` only and is password-protected (PBKDF2-SHA256); API calls need a custom header, the `Host` header is checked, a strict CSP is sent.
 

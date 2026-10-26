@@ -48,6 +48,7 @@ type config struct {
 	ci        bool
 	failOn    string
 	cooldown  int
+	rescan    int
 	push      string
 	token     string
 	version   bool
@@ -102,6 +103,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	fs.BoolVar(&c.ci, "ci", false, "CI mode: scan once, print a summary, set the exit code")
 	fs.StringVar(&c.failOn, "fail-on", "high", "CI: fail at this severity or above (critical|high|moderate|low)")
 	fs.IntVar(&c.cooldown, "cooldown", 3, "never pick versions younger than N days as targets")
+	fs.IntVar(&c.rescan, "rescan", envInt("DEPGATE_RESCAN_HOURS", 12), "scan projects again when their last scan is older than N hours (0 = off; the UI can change it)")
 	fs.StringVar(&c.push, "push", "", "scan once and POST the report to this URL")
 	fs.StringVar(&c.token, "token", os.Getenv("DEPGATE_PUSH_TOKEN"), "bearer token for --push (or DEPGATE_PUSH_TOKEN)")
 	fs.BoolVar(&c.version, "version", false, "print the version")
@@ -286,7 +288,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 			roots = append(roots, abs)
 		}
 	}
-	m := &app.Manager{Store: st, Fetcher: fetcher, Opt: opt, Roots: roots, Depth: c.depth, Container: container}
+	m := &app.Manager{Store: st, Fetcher: fetcher, Opt: opt, Roots: roots, Depth: c.depth, Container: container, Rescan: c.rescan}
 	m.Start(ctx)
 	if initial != "" {
 		dirs, err := m.Add(initial)
@@ -632,4 +634,11 @@ func runMCP(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return 1
 	}
 	return 0
+}
+
+func envInt(k string, def int) int {
+	if v, err := strconv.Atoi(strings.TrimSpace(os.Getenv(k))); err == nil && v >= 0 {
+		return v
+	}
+	return def
 }

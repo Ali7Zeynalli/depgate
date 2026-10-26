@@ -45,6 +45,10 @@ type State struct {
 	Offline   bool            `json:"offline,omitempty"`
 	Projects  []ProjectState  `json:"projects"`
 	Container bool            `json:"container,omitempty"`
+	// RescanHours: projects are scanned again when their scan is this old (0 = off)
+	RescanHours int     `json:"rescanHours"`
+	Version     string  `json:"version,omitempty"`
+	Update      *Update `json:"update,omitempty"` // a newer release is out
 }
 
 // Entry is one folder in a Browse listing.
@@ -80,6 +84,7 @@ type Manager struct {
 	Roots     []string // folders the UI may browse; never empty
 	Depth     int
 	Container bool
+	Rescan    int // default hours between automatic scans (--rescan); 0 = off
 
 	mu       sync.Mutex
 	running  map[string]bool
@@ -89,6 +94,7 @@ type Manager struct {
 	sources  []report.Source
 	lastScan *time.Time
 	jobs     chan []string
+	update   *Update
 	once     sync.Once
 
 	ro *report.Report // read-only mode (--view)
@@ -112,6 +118,7 @@ func (m *Manager) start(ctx context.Context) {
 		m.running, m.queued, m.by = map[string]bool{}, map[string]bool{}, map[string]string{}
 		m.jobs = make(chan []string, 64)
 		go m.worker(ctx)
+		go m.autoLoop(ctx)
 	})
 }
 
@@ -255,7 +262,9 @@ func (m *Manager) State() State {
 		st.Sources = scan.Sources(nil)
 	}
 	running, queued := copyMap(m.running), copyMap(m.queued)
+	st.Update, st.Version = m.update, m.Opt.Version
 	m.mu.Unlock()
+	st.RescanHours = m.RescanHours()
 	st.Busy = len(running)+len(queued) > 0
 	explicit := map[string]string{}
 	for _, e := range m.Store.Projects() {

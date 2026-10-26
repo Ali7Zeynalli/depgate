@@ -35,7 +35,7 @@ var tools = map[string]tool{
 	"get_findings": {readOK: true,
 		desc: "The package findings of a project: what to update, to which version, why, whether it changes code, and the exact command.",
 		props: map[string]any{"project": projectProp,
-			"group":   map[string]any{"type": "string", "enum": []string{"now", "now_easy", "now_code", "plan", "optional", "ok", "malware", "all"}, "description": "Which findings (default: now = everything to do now)."},
+			"group":   map[string]any{"type": "string", "enum": []string{"now", "now_easy", "now_code", "plan", "optional", "ok", "malware", "accepted", "all"}, "description": "Which findings (default: now = everything to do now). accepted = risks the user accepted until a date: leave them alone."},
 			"package": map[string]any{"type": "string", "description": "Only this package."}},
 		run: runFindings},
 	"get_fix_plan": {readOK: true,
@@ -148,6 +148,9 @@ func status(t target, p *report.Project) string {
 		b.WriteString("\n")
 	}
 	fmt.Fprintf(&b, "\n## Counts\n- Malware: %d\n- Do now, no code change: %d\n- Do now, code change: %d\n- Plan: %d\n- Optional: %d\n- Nothing to do: %d\n", sm.Malware, sm.NowEasy, sm.NowCode, sm.Plan, sm.Optional, sm.OK)
+	if sm.Accepted > 0 {
+		fmt.Fprintf(&b, "- Risk accepted by the user (leave alone): %d — get_findings group=accepted\n", sm.Accepted)
+	}
 	var urgent []report.Finding
 	for _, f := range p.Findings {
 		if f.Group == report.GroupNowEasy || f.Group == report.GroupNowCode {
@@ -326,6 +329,9 @@ func en(ts []i18n.T) string {
 
 func finding(b *strings.Builder, f report.Finding) {
 	fmt.Fprintf(b, "### %s\n", oneLine(f))
+	if a := f.Accepted; a != nil {
+		fmt.Fprintf(b, "- ACCEPTED by the user until %s (reason: %s) — do not change it unless the user asks\n", a.Until.Format("2006-01-02"), untrusted(a.Reason, 200))
+	}
 	if f.About != "" {
 		fmt.Fprintf(b, "- Package: %s\n", untrusted(f.About, 200))
 	}
