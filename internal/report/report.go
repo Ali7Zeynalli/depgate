@@ -87,6 +87,17 @@ type Project struct {
 	Server      []DockerIssue `json:"server,omitempty"`      // nginx / Caddy config and version findings
 	ServerFiles []string      `json:"serverFiles,omitempty"` // nginx / Caddy configs that were checked
 	AIRules     *AIRules      `json:"aiRules,omitempty"`     // version-aware instructions for AI coding agents
+	// Versions are the installed packages of this scan; only the history uses
+	// them (to tell which versions changed), they are not saved in the report.
+	Versions []Version `json:"-"`
+}
+
+// Version is one installed package version.
+type Version struct {
+	Name    string
+	Version string
+	Direct  bool
+	Dev     bool
 }
 
 // Bundle is a family of packages released in lockstep; updating one without

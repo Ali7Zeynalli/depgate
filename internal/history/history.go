@@ -56,6 +56,25 @@ type Scan struct {
 	Node     string         `json:"node,omitempty"`
 	NodeNeed string         `json:"nodeNeed,omitempty"`
 	Items    []Item         `json:"items"`
+	Pkgs     *PkgDiff       `json:"pkgs,omitempty"` // package versions that changed since the scan before
+
+	vers []report.Version // this scan's packages, to compare with the next one
+}
+
+// PkgChange is one package whose installed version changed between two scans.
+type PkgChange struct {
+	Name   string `json:"n"`
+	Kind   string `json:"k"` // up | down | add | remove
+	From   string `json:"f,omitempty"`
+	To     string `json:"t,omitempty"`
+	Direct bool   `json:"d,omitempty"`
+	Dev    bool   `json:"dev,omitempty"`
+}
+
+// PkgDiff lists the version changes of one scan; More counts the ones left out.
+type PkgDiff struct {
+	Changes []PkgChange `json:"c"`
+	More    int         `json:"more,omitempty"`
 }
 
 // Diff is what changed from one scan to the next.
@@ -82,7 +101,7 @@ type Event struct {
 
 // FromProject makes the record of a scan. lock is the lockfile fingerprint ("" if none).
 func FromProject(p *report.Project, by, agent, lock string) Scan {
-	s := Scan{At: p.ScannedAt, By: by, Agent: agent, Lock: lock, Packages: p.Packages, Summary: p.Summary, Docker: len(p.Docker), Server: len(p.Server)}
+	s := Scan{At: p.ScannedAt, By: by, Agent: agent, Lock: lock, Packages: p.Packages, Summary: p.Summary, Docker: len(p.Docker), Server: len(p.Server), vers: p.Versions}
 	if s.At.IsZero() {
 		s.At = time.Now().UTC()
 	}
@@ -147,6 +166,10 @@ type Log struct {
 	mu  sync.Mutex
 }
 
+func (l *Log) versPath(project string) string {
+	return strings.TrimSuffix(l.scanPath(project), ".jsonl") + ".pkgs.json"
+}
+
 func (l *Log) scanPath(project string) string {
 	h := sha256.Sum256([]byte(filepath.Clean(project)))
 	return filepath.Join(l.Dir, "history", hex.EncodeToString(h[:])[:24]+".jsonl")
@@ -162,6 +185,20 @@ func (l *Log) AddScan(project string, s Scan) error {
 	p := l.scanPath(project)
 	if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
 		return err
+	}
+	if s.vers != nil {
+		// only the newest package list is kept; each scan stores what changed
+		vp := l.versPath(project)
+		if b, err := os.ReadFile(vp); err == nil {
+			var old []report.Version
+			if json.Unmarshal(b, &old) == nil {
+				s.Pkgs = DiffVersions(old, s.vers)
+			}
+		}
+		if b, err := json.Marshal(s.vers); err == nil {
+			_ = os.WriteFile(vp+".tmp", b, 0o600)
+			_ = os.Rename(vp+".tmp", vp)
+		}
 	}
 	if err := appendLine(p, s); err != nil {
 		return err
@@ -201,6 +238,7 @@ func (l *Log) Forget(project string) {
 		return
 	}
 	_ = os.Remove(l.scanPath(project))
+	_ = os.Remove(l.versPath(project))
 }
 
 // AddEvent appends an agent event and keeps the last few hundred.
@@ -250,6 +288,7 @@ func (l *Log) Clear(dir string, projects []string) error {
 	defer l.mu.Unlock()
 	for _, p := range projects {
 		_ = os.Remove(l.scanPath(p))
+		_ = os.Remove(l.versPath(p))
 	}
 	p := filepath.Join(l.Dir, "activity.jsonl")
 	var keep []Event
