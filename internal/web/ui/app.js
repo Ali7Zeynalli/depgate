@@ -823,7 +823,7 @@
   function renderFoot() {
     const a = (href, text) => el("a", { href, target: "_blank", rel: "noopener noreferrer" }, text);
     $("#appfoot").replaceChildren(
-      el("span", null, a(GH + "depgate", "DepGate"), st.version ? " " + st.version : "", " · MIT"),
+      el("span", null, a(GH + "depgate", "DepGate"), /^\d/.test(st.version || "") ? " " + st.version : "", " · MIT"),
       el("span", { class: "fsep" }, t("footMore")),
       el("span", null, a(GH + "dockgate", "DockGate"), " — ", t("footDock")),
       el("span", null, a(GH + "NovusGate", "NovusGate"), " — ", t("footNovus")));
