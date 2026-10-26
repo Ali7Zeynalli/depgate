@@ -1039,7 +1039,7 @@
         e.isProject && !e.lockfile ? el("span", { class: "chip warn" }, t("chipNoLock")) : null,
         e.added ? el("span", { class: "chip ok" }, t("chipAdded")) : null,
         e.isProject ? el("button", { class: "small", onclick: (ev) => add(e.path, ev.currentTarget) }, e.added ? t("rescan") : t("add")) : null))
-        : el("div", { class: "quiet pad" }, t("noSubfolders")));
+        : el("div", { class: "pad" }, el("div", { class: "quiet" }, t("noSubfolders")), l.hint ? el("div", { class: "warnbox" }, tr(l.hint)) : null));
     const foot = el("div", { class: "pfoot" },
       el("div", { class: "quiet" }, l.path ? t("selected", l.path) : t("pickRoot")),
       el("span", { class: "grow" }),

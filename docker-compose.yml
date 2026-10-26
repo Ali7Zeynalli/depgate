@@ -6,10 +6,13 @@
 #
 # Works the same on Linux, macOS and Windows (Docker Desktop).
 #
-# Your home folder is mounted read-only — on Linux and macOS at the SAME path,
-# so the UI shows your real paths (/home/you/..., /Users/you/...); on Windows
-# (no HOME variable) your user folder (C:\Users\you) appears as /host. You can
-# add a project from anywhere in it. DepGate only reads; it never writes there.
+# Your home folder is mounted read-only. DepGate only reads; it never writes there.
+#   Linux, macOS        your home at its real path (/home/you, /Users/you)
+#   Windows PowerShell  C:\Users\you, shown as /host
+#   Windows Git Bash    C:\Users\you, shown as /c/Users/you
+#   Windows WSL         your WSL home (/home/you) — Docker's advice for WSL is to
+#                       keep projects there; projects on the Windows side
+#                       (C:\Users\...)? run `docker compose up -d` from PowerShell.
 #
 # No user ids to set: the container starts as root only to see who owns your
 # home folder, gives that user the data volume, switches to it and drops every
@@ -24,9 +27,10 @@ services:
     ports:
       - "127.0.0.1:7777:7777"
     environment:
-      # Linux/macOS: your home at the same path; Windows: %USERPROFILE% at /host
       - HOME=${HOME:-/host}
       - DEPGATE_ROOTS=${HOME:-/host}
+      # set when started from WSL, so DepGate can explain where Windows files are
+      - DEPGATE_WSL=${WSL_DISTRO_NAME:-}
       # optional: run as this user instead of the owner of your home folder
       - DEPGATE_UID=${DEPGATE_UID:-}
       - DEPGATE_GID=${DEPGATE_GID:-}
@@ -35,8 +39,8 @@ services:
       # optional: GitHub token (no scopes needed) for release notes beyond 60 requests an hour
       - DEPGATE_GITHUB_TOKEN=${DEPGATE_GITHUB_TOKEN:-}
     volumes:
-      # your home, read-only (Linux/macOS: same path; Windows: /host)
-      - ${HOME:-${USERPROFILE}}:${HOME:-/host}:ro
+      # your home, read-only: %USERPROFILE% on Windows (any shell), else $HOME
+      - ${USERPROFILE:-${HOME}}:${HOME:-/host}:ro
       # project list, reports, password hash, cache — in a Docker volume
       - depgate-data:/data
       # alternative: share the data with a native `depgate` on this machine

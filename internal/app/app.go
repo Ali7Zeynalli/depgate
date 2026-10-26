@@ -63,6 +63,8 @@ type Listing struct {
 	Entries []Entry  `json:"entries"`
 	Project bool     `json:"project"`         // the folder itself has a package.json
 	Found   []string `json:"found,omitempty"` // projects Add would register for this folder
+	// Hint explains where projects may be when a root shows no folders
+	Hint *i18n.T `json:"hint,omitempty"`
 }
 
 type Crumb struct {
@@ -417,7 +419,27 @@ func (m *Manager) Browse(path string) (*Listing, error) {
 	_, err = os.Stat(filepath.Join(abs, "package.json"))
 	l.Project = err == nil
 	l.Crumbs, l.Parent = m.crumbs(abs)
+	if len(l.Entries) == 0 && len(l.Crumbs) == 1 {
+		l.Hint = m.emptyRootHint(abs)
+	}
 	return l, nil
+}
+
+// emptyRootHint says why a root has no folders and how to reach the projects.
+func (m *Manager) emptyRootHint(root string) *i18n.T {
+	var t i18n.T
+	switch {
+	case os.Getenv("DEPGATE_WSL") != "":
+		t = i18n.F("Docker WSL-dən (%s) işə salınıb, ona görə DepGate yalnız WSL ev qovluğunu (%s) görür. Layihələrin Windows tərəfindədirsə (C:\\Users\\...): bunu dayandır (docker compose down) və depgate qovluğunda PowerShell-dən docker compose up -d işlət — ya da Docker-siz depgate.exe istifadə et. Layihələri WSL-ə köçürmək də olar: Docker WSL-də işləməyi tövsiyə edir.",
+			"Docker was started from WSL (%s), so DepGate sees only your WSL home (%s). Projects on the Windows side (C:\\Users\\...)? Stop it (docker compose down) and run docker compose up -d from PowerShell in the depgate folder — or use depgate.exe without Docker. Moving the projects into WSL also works; Docker recommends it for WSL.", os.Getenv("DEPGATE_WSL"), root)
+	case m.Container:
+		t = i18n.F("DepGate yalnız Docker-in bağladığı qovluğu görür: %s. Layihələr başqa yerdədirsə, o qovluğu docker-compose.yml-də volumes bölməsinə əlavə et — ya da Docker-siz depgate faylını işlət.",
+			"DepGate sees only the folder Docker mounted: %s. Projects somewhere else? Add that folder under volumes in docker-compose.yml — or run the depgate binary without Docker.", root)
+	default:
+		t = i18n.F("Bu qovluqda alt qovluq yoxdur. Layihələr başqa yerdədirsə (başqa disk), DepGate-i --root <qovluq> ilə başlat.",
+			"No folders here. Projects somewhere else (another drive)? Start DepGate with --root <folder>.")
+	}
+	return &t
 }
 
 func (m *Manager) crumbs(abs string) ([]Crumb, string) {
