@@ -78,7 +78,12 @@ func TestServeDemo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m := &app.Manager{Store: st, Fetcher: func() sources.Fetcher { return f }, Opt: scan.Options{Version: "demo"}, Roots: []string{root}, Depth: 3}
+	// the screenshots show the version being released, as the real binary does
+	ver := "dev"
+	if b, err := os.ReadFile(filepath.Join("..", "..", "VERSION")); err == nil {
+		ver = strings.TrimSpace(string(b))
+	}
+	m := &app.Manager{Store: st, Fetcher: func() sources.Fetcher { return f }, Opt: scan.Options{Version: ver}, Roots: []string{root}, Depth: 3}
 	m.Start(context.Background())
 	port := 7795
 	if p := os.Getenv("DEPGATE_DEMO_PORT"); p != "" {
@@ -93,6 +98,6 @@ func TestServeDemo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ms := &mcp.Server{Store: st, Fetcher: func() sources.Fetcher { return f }, Opt: scan.Options{Version: "demo"}, Version: "demo", Roots: []string{root}}
+	ms := &mcp.Server{Store: st, Fetcher: func() sources.Fetcher { return f }, Opt: scan.Options{Version: ver}, Version: ver, Roots: []string{root}}
 	_ = http.Serve(ln, (&Server{Token: "demo-token-0123456789", B: m, Auth: au, MCP: ms.HTTPHandler()}).Handler())
 }
