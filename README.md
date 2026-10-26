@@ -24,9 +24,10 @@
 - ① **Do I need to update?** now · soon · plan · optional · not needed — malware and exploited CVEs first
 - ② **Will it affect my code?** no · maybe · yes — and if yes, **every place to change** (`file:line`) plus the codemod
 - 🎯 **To which version?** the *safest minimum*, not "latest"
-- 🤖 **Can my AI agent do it?** a ready prompt, version rules and an MCP server
+- 🤖 **Can my AI agent do it?** a ready prompt, version rules and an MCP server — Claude Code, Cursor, VS Code, Windsurf, Codex, Gemini
+- 📈 **What changed?** projects are rescanned on their own and every scan is compared with the one before
 
-It also checks Dockerfiles, docker-compose, nginx, Caddy and your Node.js runtime. It runs on your computer and **never changes your files**.
+It also checks Dockerfiles, docker-compose, nginx, Caddy and your Node.js runtime. It runs on your computer and **never changes your files** — it only shows and suggests.
 
 ![DepGate](docs/screenshot.png)
 
@@ -54,7 +55,7 @@ Then open `http://127.0.0.1:7777`, choose a password and **+ Add project** (a pr
 | Windows WSL | your WSL home — projects on the Windows side? start it from PowerShell |
 
 - Your home is mounted read-only; the container runs as its owner and drops root. Data lives in the `depgate-data` volume.
-- Update: `git pull && docker compose up -d` (it always fetches the newest image; the version is shown at the top of the page).
+- Update: `git pull && docker compose up -d` (it always fetches the newest image). DepGate shows a notice at the top when a new version is out, with the command.
 - macOS binary, first run: `xattr -d com.apple.quarantine ./depgate`. Windows SmartScreen: *More info → Run anyway*.
 - Verify downloads: `checksums.txt` and `gh attestation verify <file> -R Ali7Zeynalli/depgate`.
 </details>
@@ -63,18 +64,22 @@ Then open `http://127.0.0.1:7777`, choose a password and **+ Add project** (a pr
 
 | Section | What it shows |
 |---|---|
-| **Overview** | the few things to do first, in order |
-| **Packages** | one row per package: what it is, what was found, the weakness explained in plain words (CWE), the safest version and the command; malware, removed versions, packages that must update together; **accept a risk** with a reason until a date (it comes back by itself) |
+| **Overview** | the state at a glance (malware, do now, code changes, Docker & server, last change) and the first steps in order, each with its command |
+| **Packages** | one row per package, risk first: what it is, what was found, the weakness in plain words (CWE), the safest version, the command and numbered steps; malware, removed versions, packages that must update together; **accept a risk** with a reason until a date (it comes back by itself) |
 | **Code changes** | `file:line` places for Next.js, React, Express, NestJS, Prisma, Zod, Tailwind, ESLint, TanStack Query, React Router; codemods; breaking changes from release notes |
 | **Docker** | 25 security rules, Compose Specification errors, end-of-life and outdated images |
 | **Web server** | nginx / Caddy: known vulnerabilities of your version, TLS, headers, path traversal, exposed admin API |
 | **Node.js & setup** | runtime security releases and end of life; lockfile, install scripts, release cooldown |
-| **AI & MCP** | a ready prompt, `AGENTS.md` version rules, the MCP connection command, which agents are connected |
-| **History** | projects are scanned again automatically (every 12 h by default, changeable at the top); every scan compared with the one before: what is new, what is gone, whether the lockfile changed or a new advisory appeared; who ran it (UI, CLI or an AI agent) and what each agent checked over MCP |
+| **AI & MCP** | a ready prompt, `AGENTS.md` version rules, the setup for your agent, which agents are connected |
+| **History** | projects are scanned again automatically (every 12 h by default, changeable in the ⋯ menu); every scan compared with the one before: what is new, what is gone, whether the lockfile changed or a new advisory appeared; who ran it (UI, CLI or an AI agent) and what each agent checked over MCP |
 
-Folders and monorepos get one merged page; a finding in several projects is shown once.
+Folders and monorepos get one merged page; a finding in several projects is shown once. On a phone the page stacks into one column.
 
-![Code changes](docs/code-changes.png)
+| Packages | Code changes |
+|---|---|
+| <img src="docs/packages.png" alt="A package row opened: what was found and what to do" width="420"> | <img src="docs/code-changes.png" alt="Places in the code to change for an upgrade" width="420"> |
+| **History** | **AI agent setup** |
+| <img src="docs/history.png" alt="Scans compared and what AI agents did" width="420"> | <img src="docs/mcp.png" alt="MCP setup per agent" width="420"> |
 
 ## AI agents (MCP)
 

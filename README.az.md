@@ -24,9 +24,10 @@
 - ① **Yeniləmək lazımdır?** indi · tezliklə · planla · istəyə görə · lazım deyil — zərərli paketlər və istismar olunan CVE-lər birinci
 - ② **Koduma təsir edir?** xeyr · ola bilər · bəli — bəlidirsə, **dəyişməli hər yer** (`fayl:sətir`) və codemod
 - 🎯 **Hansı versiyaya?** «latest» yox, *ən təhlükəsiz minimum*
-- 🤖 **AI agentim edə bilər?** hazır prompt, versiya qaydaları və MCP server
+- 🤖 **AI agentim edə bilər?** hazır prompt, versiya qaydaları və MCP server — Claude Code, Cursor, VS Code, Windsurf, Codex, Gemini
+- 📈 **Nə dəyişib?** layihələr özü yenidən skan olunur, hər skan əvvəlki ilə müqayisə edilir
 
-Dockerfile, docker-compose, nginx, Caddy və Node.js runtime-ı da yoxlayır. Sənin kompüterində işləyir və **heç bir faylı dəyişmir**.
+Dockerfile, docker-compose, nginx, Caddy və Node.js runtime-ı da yoxlayır. Sənin kompüterində işləyir və **heç bir faylı dəyişmir** — yalnız göstərir və təklif edir.
 
 ![DepGate](docs/screenshot-az.png)
 
@@ -54,7 +55,7 @@ Sonra `http://127.0.0.1:7777` aç, parol seç və **+ Layihə əlavə et** (layi
 | Windows WSL | WSL ev qovluğunu — layihələr Windows tərəfindədirsə, PowerShell-dən işə sal |
 
 - Ev qovluğun yalnız oxuma rejimində bağlanır; konteyner onun sahibi kimi işləyir və root hüquqlarını buraxır. Data `depgate-data` volume-unda saxlanır.
-- Yeniləmə: `git pull && docker compose up -d` (həmişə ən yeni image-i çəkir; versiya səhifənin yuxarısında görünür).
+- Yeniləmə: `git pull && docker compose up -d` (həmişə ən yeni image-i çəkir). Yeni versiya çıxanda DepGate yuxarıda bildiriş və əmri göstərir.
 - macOS, ilk dəfə: `xattr -d com.apple.quarantine ./depgate`. Windows SmartScreen: *More info → Run anyway*.
 - Yükləməni yoxla: `checksums.txt` və `gh attestation verify <fayl> -R Ali7Zeynalli/depgate`.
 </details>
@@ -63,18 +64,22 @@ Sonra `http://127.0.0.1:7777` aç, parol seç və **+ Layihə əlavə et** (layi
 
 | Bölmə | Nə göstərir |
 |---|---|
-| **Ümumi** | əvvəlcə görüləcək bir neçə iş, sıra ilə |
-| **Paketlər** | hər paket bir sətir: nədir, nə tapılıb, zəiflik sadə dildə (CWE), ən təhlükəsiz versiya və əmr; zərərli paketlər, silinmiş versiyalar, birlikdə yenilənməli paketlər; səbəb və tarixlə **riski qəbul et** (müddət bitəndə özü qayıdır) |
+| **Ümumi** | vəziyyət bir baxışda (zərərli, indi et, kod dəyişikliyi, Docker və server, son dəyişiklik) və ilk addımlar sıra ilə, hər biri öz əmri ilə |
+| **Paketlər** | hər paket bir sətir, əvvəl risk: nədir, nə tapılıb, zəiflik sadə dildə (CWE), ən təhlükəsiz versiya, əmr və nömrəli addımlar; zərərli paketlər, silinmiş versiyalar, birlikdə yenilənməli paketlər; səbəb və tarixlə **riski qəbul et** (müddət bitəndə özü qayıdır) |
 | **Kod dəyişiklikləri** | Next.js, React, Express, NestJS, Prisma, Zod, Tailwind, ESLint, TanStack Query, React Router üçün `fayl:sətir` yerləri; codemod-lar; reliz qeydlərindən breaking changes |
 | **Docker** | 25 təhlükəsizlik qaydası, Compose Specification xətaları, dəstəyi bitmiş və köhnə image-lər |
 | **Veb server** | nginx / Caddy: versiyanın məlum zəiflikləri, TLS, başlıqlar, yol keçidi, açıq admin API |
 | **Node.js və mühit** | runtime təhlükəsizlik relizləri və dəstəyin bitməsi; lockfile, install skriptləri, gözləmə müddəti |
-| **AI və MCP** | hazır prompt, `AGENTS.md` versiya qaydaları, MCP qoşulma əmri, hansı agentlərin qoşulduğu |
-| **Tarixçə** | layihələr avtomatik yenidən skan olunur (standart hər 12 saat, yuxarıda dəyişmək olur); hər skan əvvəlki ilə müqayisə olunur: nə yenidir, nə aradan qalxıb, lockfile dəyişib, yoxsa yeni advisory çıxıb; skanı kim edib (interfeys, əmr sətri və ya AI agent) və hər agent MCP ilə nəyi yoxlayıb |
+| **AI və MCP** | hazır prompt, `AGENTS.md` versiya qaydaları, agentinə görə qoşulma, hansı agentlərin qoşulduğu |
+| **Tarixçə** | layihələr avtomatik yenidən skan olunur (standart hər 12 saat, «⋯» menyusunda dəyişmək olur); hər skan əvvəlki ilə müqayisə olunur: nə yenidir, nə aradan qalxıb, lockfile dəyişib, yoxsa yeni advisory çıxıb; skanı kim edib (interfeys, əmr sətri və ya AI agent) və hər agent MCP ilə nəyi yoxlayıb |
 
-Qovluqlar və monorepo-lar üçün birləşmiş səhifə var; bir neçə layihədə olan tapıntı bir dəfə göstərilir.
+Qovluqlar və monorepo-lar üçün birləşmiş səhifə var; bir neçə layihədə olan tapıntı bir dəfə göstərilir. Telefonda səhifə bir sütuna düzülür.
 
-![Kod dəyişiklikləri](docs/code-changes.png)
+| Paketlər | Kod dəyişiklikləri |
+|---|---|
+| <img src="docs/packages-az.png" alt="Açılmış paket sətri: nə tapılıb və nə etməli" width="420"> | <img src="docs/code-changes-az.png" alt="Yeniləmə üçün kodda dəyişməli yerlər" width="420"> |
+| **Tarixçə** | **AI agent qoşulması** |
+| <img src="docs/history-az.png" alt="Skanların müqayisəsi və AI agentlərin etdikləri" width="420"> | <img src="docs/mcp-az.png" alt="Agentə görə MCP qoşulması" width="420"> |
 
 ## AI agentlər (MCP)
 
