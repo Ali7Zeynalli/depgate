@@ -118,6 +118,8 @@ depgate --view report.json    # open a saved report
 depgate --reset-password      # Docker: docker exec depgate depgate --reset-password
 ```
 
+Risks you accept in the UI also count for `--ci`. For CI on another machine, download `depgate-accept.json` (**Packages → Risk accepted**) and commit it to the repository root: the UI, `--ci` and your whole team then accept the same risks, each with its reason and end date. Malware can never be accepted.
+
 <details>
 <summary>Flags and environment variables</summary>
 

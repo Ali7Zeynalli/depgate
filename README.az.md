@@ -118,6 +118,8 @@ depgate --view report.json    # saxlanmış hesabatı aç
 depgate --reset-password      # Docker: docker exec depgate depgate --reset-password
 ```
 
+İnterfeysdə qəbul etdiyin risklər `--ci`-da da nəzərə alınır. Başqa maşındakı CI üçün `depgate-accept.json`-u yüklə (**Paketlər → Risk qəbul edilib**) və repo-nun kök qovluğuna əlavə et: interfeys, `--ci` və bütün komanda eyni riskləri səbəbi və bitmə tarixi ilə qəbul edəcək. Zərərli paketin riski heç vaxt qəbul edilmir.
+
 <details>
 <summary>Flag-lar və env dəyişənləri</summary>
 
