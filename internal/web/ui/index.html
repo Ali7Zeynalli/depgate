@@ -13,13 +13,18 @@
   <div class="meta" id="meta">…</div>
   <div class="actions">
     <button id="lang" class="ghost lang" title="Language">AZ</button>
-    <button id="theme" class="ghost" title="Theme" aria-label="Theme"><span class="ticon" aria-hidden="true"></span></button>
-    <button id="srcbtn" class="ghost small" hidden>Sources</button>
-    <button id="scanall" hidden>Scan all</button>
-    <select id="rescan" class="rescan" hidden aria-label="Automatic scan"></select>
-    <button id="addproj" class="primary" hidden>+ Add project</button>
-    <button id="pwbtn" class="ghost" hidden title="Change password" aria-label="Change password">🔑</button>
-    <button id="logout" class="ghost small" hidden>Sign out</button>
+    <button id="addproj" hidden>+ Add project</button>
+    <button id="scanall" class="primary" hidden>Scan all</button>
+    <div class="menuwrap">
+      <button id="more" class="ghost more" aria-haspopup="true" aria-expanded="false" aria-label="More"><span class="dots" aria-hidden="true"></span></button>
+      <div id="moremenu" class="menu" hidden>
+        <label class="mrow" id="rescanrow" hidden><span id="rescanlbl">Auto scan</span><select id="rescan" class="rescan" aria-label="Automatic scan"></select></label>
+        <button id="srcbtn" class="mitem" hidden>Sources</button>
+        <button id="theme" class="mitem"><span class="ticon" aria-hidden="true"></span><span id="themelbl">Theme</span></button>
+        <button id="pwbtn" class="mitem" hidden>Change password</button>
+        <button id="logout" class="mitem" hidden>Sign out</button>
+      </div>
+    </div>
   </div>
 </header>
 <div id="banner" class="banner" hidden></div>
