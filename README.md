@@ -64,16 +64,16 @@ Then open `http://127.0.0.1:7777`, choose a password and **+ Add project** (a pr
 
 | Section | What it shows |
 |---|---|
-| **Overview** | the state at a glance (malware, do now, code changes, Docker & server, last change) and the first steps in order, with the command where there is one |
-| **Packages** | one row per package, risk first: what it is, what was found, the weakness in plain words (CWE), the safest version, the command and numbered steps; malware, removed versions, packages that must update together; **accept a risk** with a reason until a date (it comes back by itself) |
+| **Overview** | the state at a glance (malware, do now, code changes, Docker & server, last change) and the first steps in order, with the command where there is one; indicators: time to fix, oldest open finding, this week |
+| **Packages** | one row per package, risk first: what it is, what was found, the weakness in plain words (CWE), the safest version, **which version fixes what**, the command and numbered steps; filters for exploited (KEV), EPSS, no fix, direct / transitive; malware, removed versions, packages that must update together; **accept a risk** with a reason until a date (it comes back by itself) |
 | **Code changes** | `file:line` places for Next.js, React, Express, NestJS, Prisma, Zod, Tailwind, ESLint, TanStack Query, React Router; codemods; breaking changes from release notes |
-| **Docker** | 37 Dockerfile and compose rules (security mistakes and Compose Specification errors), end-of-life and outdated images |
+| **Docker** | Dockerfiles and compose files anywhere in the project or repository (`docker/`, `deploy/`, `infra/`…, and the files a compose file builds from or includes): 37 rules for security mistakes and Compose Specification errors, end-of-life and outdated images |
 | **Web server** | nginx / Caddy: known vulnerabilities of your version, TLS, headers, path traversal, exposed admin API |
 | **Node.js & setup** | runtime security releases and end of life; lockfile, install scripts, release cooldown, the same Node.js version everywhere |
 | **AI & MCP** | a ready prompt, `AGENTS.md` version rules, the setup for your agent, which agents are connected |
-| **History** | while DepGate runs, projects are scanned again automatically (every 12 h by default, changeable in the ⋯ menu); every scan compared with the one before: what is new, what is gone, whether the lockfile changed or a new advisory appeared; who ran it (UI, command line, automatic scan or an AI agent) and what each agent checked over MCP |
+| **History** | while DepGate runs, projects are scanned again automatically (every 12 h by default, changeable in the ⋯ menu); indicators (open important findings, mean time to fix, oldest open finding, new and fixed per week); every scan compared with the one before: what is new, what is gone, whether the lockfile changed or a new advisory appeared; who ran it (UI, command line, automatic scan or an AI agent) and what each agent checked over MCP |
 
-Folders and monorepos get one merged page; a finding in several projects is shown once. On a phone the page stacks into one column.
+Folders and monorepos get one merged page with a table of their projects (trend, oldest open finding, time to fix); a finding in several projects is shown once. The page updates by itself (every 20 s and when you come back to it; ⟳ refreshes at once). On a phone it stacks into one column.
 
 | Packages | Code changes |
 |---|---|
@@ -140,7 +140,7 @@ Risks you accept in the UI also count for `--ci`. For CI on another machine, dow
 | `--data` · `DEPGATE_DATA` | project list, reports, scan history, password hash | `~/.config/depgate` · macOS `~/Library/Application Support/depgate` · Windows `%AppData%\depgate` |
 | `--offline` | no network, cache only | off |
 | `--cooldown` | skip target versions younger than N days | 3 |
-| `--depth` | how deep to look for projects below a folder | 3 |
+| `--depth` | how deep to look for projects below a folder | 6 |
 | `--addr` · `DEPGATE_ADDR` | listen address | `127.0.0.1` (`0.0.0.0` in the container) |
 | `--push URL` · `--token` / `DEPGATE_PUSH_TOKEN` | scan once and POST the JSON report to a URL | — |
 | `--rescan` · `DEPGATE_RESCAN_HOURS` | scan projects again when the last scan is older than N hours (0 = off; also in the UI) | 12 |

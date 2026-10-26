@@ -14,7 +14,7 @@
   };
   const h0 = parseHash();
   let st = null, current = h0.dir, pollT = null;
-  const state = { q: "", sev: "", dev: true, tab: h0.tab, grp: "", open: new Set(), shut: new Set() };
+  const state = { q: "", sev: "", dev: true, flt: new Set(), tab: h0.tab, grp: "", open: new Set(), shut: new Set() };
 
   // ---------- language ----------
   const D = {
@@ -74,7 +74,7 @@
     tOptional: ["İstəyə görə", "Optional"],
     tOk: ["Lazım deyil", "Nothing to do"],
     search: ["Paket axtar…", "Search packages…"],
-    allSev: ["Bütün severity", "All severities"],
+    allSev: ["Bütün risk dərəcələri", "All severities"],
     warningsN: ["Xəbərdarlıqlar ({0})", "Warnings ({0})"],
     gNowEasy: ["İndi et — kod dəyişmir", "Do now — no code change"],
     gNowCode: ["İndi et — kod dəyişir", "Do now — code change"],
@@ -305,7 +305,7 @@
     hUrgent: ["Təcili diqqət", "Needs attention"],
     hPlan: ["Planlaşdır", "Plan ahead"],
     hOk: ["Qaydasındadır", "All good"],
-    hTasks: ["{0} təcili iş", "{0} urgent tasks"],
+    hTasks: ["{0} vacib iş", "{0} important tasks"],
     hNoTasks: ["təcili iş yoxdur", "nothing urgent"],
     hClean: ["{0}/{1} paket təmiz", "{0}/{1} packages clean"],
     tileMal: ["Zərərli", "Malicious"],
@@ -313,6 +313,7 @@
     tileNow: ["İndi et", "Do now"],
     tileNowSub: ["{0} sadə · {1} kod dəyişir", "{0} simple · {1} code change"],
     tileCode: ["Kodda dəyişiklik", "Code changes"],
+    tileCodeLater: ["indi yox · növbəti major-da {0} paket", "none now · {0} packages at the next major"],
     tileCodeSub: ["yer · {0} paket", "places · {0} packages"],
     tileDs: ["Docker və server", "Docker & server"],
     tileDsSub: ["{0} yüksək · {1} orta · {2} aşağı", "{0} high · {1} medium · {2} low"],
@@ -321,6 +322,28 @@
     tileAdv: ["yeni advisory", "new advisories"],
     pkgAllOk: ["Paketlərdə iş yoxdur", "Nothing to do in packages"],
     nodeN: ["{0} layihə · {1} yenilənməli", "{0} projects · {1} to update"],
+    kTitle: ["Göstəricilər", "Indicators"],
+    kOpen: ["Açıq vacib işlər", "Open important"],
+    kOpenSub: ["zərərli, kritik/yüksək, «indi et»", "malware, critical/high, do now"],
+    kMttr: ["Orta düzəltmə müddəti", "Mean time to fix"],
+    kMttrSub: ["son 90 gündə düzəliş: {0}", "fixes in 90 days: {0}"],
+    kMttrNone: ["hələ düzəliş yoxdur", "nothing fixed yet"],
+    kOldest: ["Ən köhnə açıq iş", "Oldest open"],
+    kNothingOpen: ["açıq vacib iş yoxdur", "nothing important open"],
+    kWeek: ["Bu həftə", "Last 7 days"],
+    kWeekSub: ["yeni / həll olunub", "new / fixed"],
+    kAccSoon: ["Qəbul edilmiş risk bitir", "Accepted risks ending"],
+    kAccSoonSub: ["14 gün ərzində", "within 14 days"],
+    kLast: ["Son skan", "Last scan"],
+    kLastSub: ["avto-skan «⋯» menyusunda", "auto scan in the ⋯ menu"],
+    kWeeks: ["Həftəlik: yeni və həll olunan", "Per week: new and fixed"],
+    kNew: ["yeni", "new"],
+    kFixed: ["həll olunub", "fixed"],
+    kDays: ["{0} gün", "{0} days"],
+    kHours: ["{0} saat", "{0} h"],
+    kLessHour: ["< 1 saat", "< 1 h"],
+    colTrend: ["Son skanlar", "Recent scans"],
+    colOldest: ["Ən köhnə açıq", "Oldest open"],
     histN: ["Son {0} skan", "Last {0} scans"],
     histMove: ["Təcili işlər: {0} → {1}", "Urgent: {0} → {1}"],
     gAccepted: ["Risk qəbul edilib", "Risk accepted"],
@@ -353,6 +376,20 @@
     metaAuto: ["avto-skan hər {0} saat", "auto scan every {0} h"],
     metaAutoOff: ["avto-skan söndürülüb", "auto scan off"],
     more: ["Daha çox", "More"],
+    refresh: ["Yenilə (yeni nəticələri göstər)", "Refresh (show the latest results)"],
+    refreshed: ["Yeniləndi", "Refreshed"],
+    filters: ["Süzgəc", "Filter"],
+    fKev: ["Real hücumda (KEV)", "Exploited (KEV)"],
+    fEpss: ["EPSS ≥ 10%", "EPSS ≥ 10%"],
+    fNoFix: ["Düzəlişi yoxdur", "No fix"],
+    nAdv: ["{0} zəiflik", "{0} advisories"],
+    ladderTitle: ["Hansı versiya nəyi düzəldir", "Which version fixes what"],
+    ladderFixes: ["{0} zəifliyi düzəldir", "fixes {0}"],
+    ladderSum: ["cəmi {0}/{1}", "{0}/{1} in total"],
+    ladderTarget: ["tövsiyə olunan", "suggested"],
+    ladderNone: ["{0} zəifliyin düzəlişi yoxdur", "{0} without a fix"],
+    ladderNoneHelp: ["heç bir versiyada düzəlməyib — paketi əvəz etməyi və ya riski qəbul etməyi düşün", "no version fixes it — consider another package or accepting the risk"],
+    addSkipped: ["{0} package.json asılılığı olmadığı üçün keçildi: {1}", "{0} package.json without dependencies left out: {1}"],
     rescanOff: ["Avto-skan: söndürülüb", "Auto scan: off"],
     rescanEvery: ["Avto-skan: hər {0} saat", "Auto scan: every {0} h"],
     rescanSaved: ["Avto-skan yadda saxlandı", "Auto scan saved"],
@@ -465,6 +502,7 @@
   function applyStatic() {
     document.documentElement.lang = lang;
     $("#themelbl").textContent = t("theme");
+    $("#refresh").title = t("refresh"); $("#refresh").setAttribute("aria-label", t("refresh"));
     $("#more").setAttribute("aria-label", t("more")); $("#more").title = t("more");
     $("#rescanlbl").textContent = t("rescanLbl");
     $("#lang").textContent = lang === "az" ? "EN" : "AZ";
@@ -495,7 +533,7 @@
 
   function toast(msg) {
     const x = $("#toast"); x.textContent = msg; x.classList.add("on");
-    clearTimeout(toast.t); toast.t = setTimeout(() => x.classList.remove("on"), 1800);
+    clearTimeout(toast.t); toast.t = setTimeout(() => x.classList.remove("on"), Math.min(6000, 1800 + Math.max(0, String(msg).length - 40) * 40));
   }
   async function copy(text) {
     try { await navigator.clipboard.writeText(text); toast(t("copied")); }
@@ -538,11 +576,26 @@
     if (!r.ok) throw new Error((data && (lang === "az" && data.error_az || data.error)) || "HTTP " + r.status);
     return data;
   }
-  async function load() { setState(await api("GET", "api/state")); }
+  // the page follows the server by itself: automatic scans, scans an AI agent ran,
+  // another tab — it only redraws when something really changed
+  let lastRaw = "";
+  async function load(force) {
+    const s = await api("GET", "api/state");
+    if (!force && JSON.stringify(s) === lastRaw) { if (s.busy) { clearTimeout(pollT); pollT = setTimeout(() => load().catch(() => {}), 1200); } return; }
+    setState(s);
+  }
+  const typing = () => { const a = document.activeElement; return a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA" || a.tagName === "SELECT") && !a.closest(".menu"); };
+  const quietRefresh = () => {
+    if (!st || document.visibilityState !== "visible" || document.body.classList.contains("locked") || typing() || document.querySelector(".overlay")) return;
+    load().catch(() => {});
+  };
+  setInterval(quietRefresh, 20000);
+  window.addEventListener("focus", quietRefresh);
+  document.addEventListener("visibilitychange", quietRefresh);
   const FOLDER = "folder:";
   const currentGroup = () => current.startsWith(FOLDER) ? groupsOf(st.projects).find((g) => FOLDER + g.dir === current && g.items.length > 1) : null;
   function setState(s) {
-    st = s;
+    st = s; lastRaw = JSON.stringify(s);
     if (!currentGroup() && !st.projects.some((p) => p.dir === current)) current = st.projects.length ? st.projects[0].dir : "";
     render();
     clearTimeout(pollT);
@@ -576,6 +629,10 @@
   }
 
   $("#scanall").addEventListener("click", () => scan([]));
+  $("#refresh").addEventListener("click", async () => {
+    hcache.clear();
+    try { await load(true); toast(t("refreshed")); } catch (e) { toast(t("error", e.message)); }
+  });
   $("#addproj").addEventListener("click", () => openPicker(""));
 
   // "⋯" menu: the less used actions
@@ -601,6 +658,7 @@
       !st.readOnly && ps.length ? (st.rescanHours ? t("metaAuto", st.rescanHours) : t("metaAutoOff")) : null,
       st.offline ? t("offline") : null, st.readOnly ? t("readOnly") : null].filter(Boolean).join(" · ");
     $("#scanall").hidden = st.readOnly || ps.length === 0;
+    $("#refresh").hidden = st.readOnly;
     $("#addproj").hidden = st.readOnly;
     $("#srcbtn").hidden = false;
     $("#scanall").disabled = st.busy;
@@ -750,7 +808,7 @@
   function projectCtx(p) {
     const r = p.report;
     return {
-      reps: [p], dir: p.dir, g: null,
+      reps: [p], dir: p.dir, g: null, hkey: "only:" + p.dir,
       entries: (r.findings || []).map((f) => ({ f, where: null, rep: r })),
       card: (e) => card(e.f, r, null, null, true),
       bulk: (es) => { const c = bulkCommand(es.map((e) => e.f), r.manager); return c ? el("div", { class: "bulk" }, el("code", null, c), copyBtn(c)) : null; },
@@ -812,10 +870,10 @@
     const tiles = [
       tile(x.mal.length ? "bad" : "zero", t("tileMal"), x.mal.length, x.mal.length ? malNames.slice(0, 2).join(", ") : t("tileNone"), "packages", x.mal.length ? { grp: x.mal[0].f.group, open: keyOf(x.mal[0].f) } : null),
       tile(x.urgent ? "hi" : "zero", t("tileNow"), x.urgent, t("tileNowSub", x.n("now_easy"), x.n("now_code")), "packages", { grp: x.n("now_easy") ? "now_easy" : "now_code" }),
-      tile(x.hits ? "code" : "zero", t("tileCode"), x.hits, t("tileCodeSub", x.migs.length), "code"),
+      tile(x.hits ? "code" : "zero", t("tileCode"), x.hits, x.hits ? t("tileCodeSub", x.migs.length) : x.migs.length ? t("tileCodeLater", x.migs.length) : t("tileNone"), "code"),
       tile(x.high ? "warn" : x.ds.length ? "warn" : "zero", t("tileDs"), x.ds.length, x.ds.length ? t("tileDsSub", x.high, x.medium, x.low) : t("tileNone"), ctx.docker.issues.length || !ctx.server.issues.length ? "docker" : "server"),
     ];
-    if (!st.readOnly) tiles.push(slot(ctx.dir, (h) => {
+    if (!st.readOnly) tiles.push(slot(ctx.hkey, (h) => {
       const ds = h.projects.map((p) => p.scans.find((s) => !s.diff.first && (s.diff.new.length || s.diff.fixed.length || s.diff.changed.length))).filter(Boolean);
       if (!ds.length) return tile("zero", t("tileHist"), "—", t("tileHistNone"), "history");
       const nw = ds.reduce((a, s) => a + s.diff.new.length, 0), fx = ds.reduce((a, s) => a + s.diff.fixed.length, 0);
@@ -924,19 +982,27 @@
         : ctx.nodes.length ? t("nodeN", ctx.nodes.length, ctx.nodes.filter((z) => z.n.need === "now").length) : t("noNode")),
       el("span", { class: "quiet small" }, t("hygiene") + ": " + (ctx.hygBad ? t("hygBad", ctx.hygBad) : t("hygOk"))));
     // last scans
-    const hist = ctx.reps.length === 1 && !st.readOnly ? slot(ctx.dir, (h) => {
-      const scans = (h.projects[0] || { scans: [] }).scans.slice(0, 10).reverse();
-      if (scans.length < 2) return null;
-      const W = 300, H = 64, P = 6, max = Math.max(1, ...scans.map(urgentOf));
-      const X = (i) => P + i * (W - 2 * P) / (scans.length - 1), Y = (v) => H - P - v * (H - 2 * P - 10) / max;
-      const last = scans[scans.length - 1];
-      return el("button", { class: "card ocard", onclick: () => goTab("history") },
-        el("span", { class: "oh" }, el("span", { class: "h3" }, t("histN", scans.length)), el("span", { class: "quiet small" }, t("hOpen"))),
-        sv("svg", { viewBox: `0 0 ${W} ${H}`, class: "spark", role: "img", "aria-label": t("hChart") + ": " + scans.map(urgentOf).join(", ") },
+    const hist = !st.readOnly ? slot(ctx.hkey, (h) => {
+      const k = h.kpi;
+      const scans = ctx.reps.length === 1 ? (h.projects[0] || { scans: [] }).scans.slice(0, 10).reverse() : [];
+      if (!k || !k.lastScan) return null;
+      let spark = null;
+      if (scans.length >= 2) {
+        const W = 300, H = 56, P = 6, max = Math.max(1, ...scans.map(urgentOf));
+        const X = (i) => P + i * (W - 2 * P) / (scans.length - 1), Y = (v) => H - P - v * (H - 2 * P - 8) / max;
+        const last = scans[scans.length - 1];
+        spark = sv("svg", { viewBox: `0 0 ${W} ${H}`, class: "spark", role: "img", "aria-label": t("hChart") + ": " + scans.map(urgentOf).join(", ") },
           sv("line", { x1: P, x2: W - P, y1: Y(0), y2: Y(0), class: "base" }),
           sv("polyline", { points: scans.map((s, i) => X(i) + "," + Y(urgentOf(s))).join(" "), class: "ln" }),
-          sv("circle", { cx: X(scans.length - 1), cy: Y(urgentOf(last)), r: 4, class: "pt" })),
-        el("span", { class: "quiet small" }, t("histMove", urgentOf(scans[0]), urgentOf(last))));
+          sv("circle", { cx: X(scans.length - 1), cy: Y(urgentOf(last)), r: 4, class: "pt" }));
+      }
+      const line = (l, v) => el("span", { class: "kl" }, el("span", { class: "quiet" }, l), el("b", null, v));
+      return el("button", { class: "card ocard", onclick: () => goTab("history") },
+        el("span", { class: "oh" }, el("span", { class: "h3" }, t("kTitle")), el("span", { class: "quiet small" }, t("hOpen"))),
+        spark,
+        line(t("kMttr"), k.fixedN ? fmtDur(k.mttrHours) : "—"),
+        line(t("kOldest"), k.oldestPkg ? t("kDays", k.oldestDays) + " · " + k.oldestPkg : "—"),
+        line(t("kWeek"), "+" + k.weekNew + " / −" + k.weekFixed));
     }) : null;
     return [el("div", { class: "ovgrid" }, first, el("div", { class: "ovside" }, pk, ds, node, hist)), ctx.extra,
       ctx.errors.length ? el("details", { class: "errs" }, el("summary", null, t("warningsN", ctx.errors.length)), el("ul", null, ctx.errors.map((e) => el("li", null, e)))) : null];
@@ -946,8 +1012,13 @@
     const toolbar = el("div", { class: "toolbar" },
       el("input", { type: "search", placeholder: t("search"), "aria-label": t("search"), value: state.q, oninput: (e) => { state.q = e.target.value; rerender(); } }),
       el("select", { "aria-label": t("allSev"), onchange: (e) => { state.sev = e.target.value; rerender(); } },
-        ...[["", t("allSev")], ["critical", "critical"], ["high", "high+"], ["moderate", "moderate+"]].map(([v, l]) => el("option", { value: v, selected: state.sev === v }, l))),
+        ...[["", t("allSev")], ["critical", sevName("critical")], ["high", sevName("high") + "+"], ["moderate", sevName("moderate") + "+"]].map(([v, l]) => el("option", { value: v, selected: state.sev === v }, l))),
       el("label", null, el("input", { type: "checkbox", checked: state.dev, onchange: (e) => { state.dev = e.target.checked; rerender(); } }), "devDependencies"));
+    const flts = el("div", { class: "fltrow", role: "group", "aria-label": t("filters") });
+    const drawFlts = () => flts.replaceChildren(el("span", { class: "quiet small" }, t("filters") + ":"),
+      ...[["kev", t("fKev")], ["epss", t("fEpss")], ["nofix", t("fNoFix")], ["direct", t("direct")], ["transitive", t("transitive")]].map(([k, l]) =>
+        el("button", { class: "flt" + (state.flt.has(k) ? " on" : ""), "aria-pressed": String(state.flt.has(k)), onclick: () => { state.flt.has(k) ? state.flt.delete(k) : state.flt.add(k); drawFlts(); rerender(); } }, l)));
+    drawFlts();
     function rerender() {
       const vis = ctx.entries.filter((e) => visible(e.f));
       const opts = GROUPS.filter(([g]) => ctx.entries.some((e) => e.f.group === g)).map(([g, l]) => [g, t(l), vis.filter((e) => e.f.group === g).length]);
@@ -972,7 +1043,7 @@
       list.replaceChildren(...[accBar, ...out].filter(Boolean));
     }
     rerender();
-    return [chips, toolbar, help, list];
+    return [chips, toolbar, flts, help, list];
   }
   // risk of a finding, as a word and a colour
   function riskOf(f) {
@@ -1008,7 +1079,7 @@
       el("summary", null,
         el("span", { class: "c0" }, el("span", { class: "risk " + rc }, rl)),
         el("span", { class: "c1" }, el("code", { class: "pk" }, f.pkg),
-          el("span", { class: "quiet small" }, [f.direct ? t("direct") : t("transitive"), f.dev ? "dev" : "", e.where && e.where.length > 1 ? t("nProjects", e.where.length) : "", f.priority && (f.kind === "vuln" || f.kind === "malware") ? "P" + f.priority : ""].filter(Boolean).join(" · "))),
+          el("span", { class: "quiet small" }, [f.direct ? t("direct") : t("transitive"), f.dev ? "dev" : "", e.where && e.where.length > 1 ? t("nProjects", e.where.length) : "", (f.advisories || []).length > 1 ? t("nAdv", f.advisories.length) : "", f.priority && (f.kind === "vuln" || f.kind === "malware") ? "P" + f.priority : ""].filter(Boolean).join(" · "))),
         el("span", { class: "c2" }, f.current, f.target && f.target !== f.current ? [el("span", { class: "arr" }, " → "), el("b", null, f.target)] : null),
         el("span", { class: "c3" }, f.accepted ? el("span", { class: "chip accepted" }, t("accChip")) : null,
           el("span", { class: "t" }, f.title || tr((f.why || [])[0]) || ""), kev ? el("span", { class: "chip sev-critical" }, t("tagKev")) : null),
@@ -1056,7 +1127,7 @@
       c(t("aiBtn"), t("aiHelp"), el("button", { class: "primary", onclick: () => openPrompt(scanned, ctx.dir, ctx.g) }, t("aiOpen"))),
       c(t("rulesBtn"), t("rulesHelp"), el("button", { onclick: () => openRules(scanned, ctx.dir, ctx.g) }, t("rulesOpen"))),
       st.readOnly ? null : c(t("mcpBtn"), t("mcpHelp"), el("button", { onclick: () => openMCP(ctx.dir) }, t("mcpOpen"))),
-      st.readOnly ? null : slot(ctx.dir, (h) => el("div", { class: "card aicard" }, el("div", { class: "h3" }, t("agTitle")),
+      st.readOnly ? null : slot(ctx.hkey, (h) => el("div", { class: "card aicard" }, el("div", { class: "h3" }, t("agTitle")),
         agentList(h.agents.slice(0, 3)),
         el("button", { onclick: () => goTab("history") }, t("hOpen")))));
   }
@@ -1169,7 +1240,8 @@
     const key = (st.lastScan || "") + "|" + st.busy;
     const c = hcache.get(dir);
     if (c && c.key === key && Date.now() - c.at < 10000) return c.p;
-    const p = api("GET", "api/history?dir=" + encodeURIComponent(dir));
+    const only = dir.startsWith("only:");
+    const p = api("GET", "api/history?dir=" + encodeURIComponent(only ? dir.slice(5) : dir) + (only ? "&only=1" : ""));
     hcache.set(dir, { key, at: Date.now(), p });
     p.catch(() => hcache.delete(dir));
     return p;
@@ -1260,9 +1332,41 @@
       e.verdict && VERD[e.verdict] ? el("span", { class: "chip " + VERD[e.verdict][1] }, t(VERD[e.verdict][0])) : null,
       e.project && e.project !== dir ? el("span", { class: "quiet small" }, relTo(e.project, dir) || baseName(e.project)) : null)));
   }
+  const fmtDur = (h) => h < 1 ? t("kLessHour") : h < 48 ? t("kHours", Math.round(h)) : t("kDays", Math.round(h / 24));
+  function kpiStrip(k, dir) {
+    const card = (cls, l, v, sub) => el("div", { class: "stile kpi " + cls }, el("span", { class: "sl" }, el("span", { class: "sdot", "aria-hidden": "true" }), l), el("span", { class: "sv" }, v), el("span", { class: "ss" }, sub));
+    return el("div", { class: "stiles" },
+      card(k.openUrgent ? "hi" : "good", t("kOpen"), k.openUrgent, t("kOpenSub")),
+      card(k.fixedN ? "code" : "zero", t("kMttr"), k.fixedN ? fmtDur(k.mttrHours) : "—", k.fixedN ? t("kMttrSub", k.fixedN) : t("kMttrNone")),
+      card(k.oldestDays >= 14 ? "bad" : k.oldestPkg ? "warn" : "good", t("kOldest"), k.oldestPkg ? t("kDays", k.oldestDays) : "—",
+        k.oldestPkg ? k.oldestPkg + (k.oldestSev ? " · " + (k.oldestSev === "malware" ? t("tagMal") : sevName(k.oldestSev)) : "") + (k.oldestDir && k.oldestDir !== dir ? " · " + (relTo(k.oldestDir, dir) || baseName(k.oldestDir)) : "") : t("kNothingOpen")),
+      card(k.weekNew > k.weekFixed ? "hi" : "good", t("kWeek"), "+" + k.weekNew + " / −" + k.weekFixed, t("kWeekSub")),
+      k.acceptedSoon ? card("warn", t("kAccSoon"), k.acceptedSoon, t("kAccSoonSub")) : card("zero", t("kLast"), k.lastScan ? fmtTime(k.lastScan).slice(11) : "—", k.lastScan ? fmtTime(k.lastScan).slice(0, 10) : t("kLastSub")));
+  }
+  // new and fixed per week, two bars each, one axis
+  function weekChart(weeks) {
+    if (!weeks || !weeks.length || !weeks.some((w) => w.new || w.fixed)) return null;
+    const W = 640, H = 150, P = 22, B = 14, max = Math.max(1, ...weeks.flatMap((w) => [w.new, w.fixed]));
+    const step = (W - 2 * P) / weeks.length, Y = (v) => H - P - v * (H - 2 * P - 8) / max;
+    const lab = (d) => { const x = new Date(d); return pad(x.getDate()) + "." + pad(x.getMonth() + 1); };
+    const svg = sv("svg", { viewBox: `0 0 ${W} ${H}`, class: "wchart", role: "img", "aria-label": t("kWeeks") + ": " + weeks.map((w) => lab(w.start) + " +" + w.new + "/−" + w.fixed).join(", ") },
+      sv("line", { x1: P, x2: W - P, y1: Y(0), y2: Y(0), class: "base" }));
+    weeks.forEach((w, i) => {
+      const x = P + i * step + step / 2;
+      for (const [v, cls, dx] of [[w.new, "nb", -B - 1], [w.fixed, "fb", 1]]) {
+        const g = sv("g", { class: "bar " + cls });
+        g.append(sv("rect", { x: x + dx, y: Y(v), width: B, height: Math.max(0, Y(0) - Y(v)), rx: 3 }), sv("title", {}, lab(w.start) + ": " + (cls === "nb" ? t("kNew") : t("kFixed")) + " " + v));
+        svg.append(g);
+        if (v) svg.append(sv("text", { x: x + dx + B / 2, y: Y(v) - 4, "text-anchor": "middle", class: "bl" }, String(v)));
+      }
+      svg.append(sv("text", { x, y: H - 6, "text-anchor": "middle", class: "wl" }, lab(w.start)));
+    });
+    return el("div", { class: "card" }, el("div", { class: "oh wh" }, el("span", { class: "h3" }, t("kWeeks")),
+      el("span", { class: "lg" }, el("span", null, el("i", { class: "hi" }), t("kNew")), el("span", null, el("i", { class: "good" }), t("kFixed")))), svg);
+  }
   function historyTab(ctx) {
     if (st.readOnly) return el("div", { class: "empty" }, t("readOnly"));
-    return slot(ctx.dir, (h) => {
+    return slot(ctx.hkey, (h) => {
       const multi = h.projects.length > 1;
       const any = h.projects.some((p) => p.scans.length);
       const projs = h.projects.filter((p) => p.scans.length).map((p) => {
@@ -1271,13 +1375,15 @@
           el("div", { class: "card hlist" }, el("div", { class: "h3" }, t("hScans", p.scans.length)), timeline(p)));
       });
       return [el("div", { class: "ghelp" }, t("hLocal")),
+        any ? kpiStrip(h.kpi, ctx.dir) : null,
+        any ? weekChart(h.kpi.weeks) : null,
         el("div", { class: "areas two" },
           el("div", { class: "card" }, el("div", { class: "h3" }, t("agTitle")), agentList(h.agents)),
           el("div", { class: "card" }, el("div", { class: "h3" }, t("actTitle")), activity(h.events, ctx.dir))),
         any ? projs : el("div", { class: "empty" }, t("hNone")),
         any || h.events.length ? el("div", { class: "hfoot" }, el("button", { class: "small ghost danger", onclick: async () => {
           if (!confirm(t("hClearConfirm", baseName(ctx.dir)))) return;
-          try { await api("POST", "api/history/clear", { dir: ctx.dir }); hcache.delete(ctx.dir); toast(t("hCleared")); render(); }
+          try { await api("POST", "api/history/clear", { dir: ctx.dir }); hcache.clear(); toast(t("hCleared")); render(); }
           catch (e) { toast(t("error", e.message)); }
         } }, t("hClear"))) : null];
     }, true);
@@ -1345,7 +1451,8 @@
 
     const rows = el("div", { class: "card ptable" }, el("div", { class: "h3" }, t("folderProjects")),
       el("table", null,
-        el("thead", null, el("tr", null, el("th", null, t("colProject")), el("th", null, t("tEasy")), el("th", null, t("tCode")), el("th", null, t("tPlan")), el("th", null, t("tOptional")), el("th", null, "Node"))),
+        el("thead", null, el("tr", null, el("th", null, t("colProject")), el("th", null, t("tEasy")), el("th", null, t("tCode")), el("th", null, t("tPlan")), el("th", null, t("tOptional")), el("th", null, "Node"),
+          st.readOnly ? null : [el("th", null, t("colTrend")), el("th", null, t("colOldest")), el("th", null, t("kMttr"))])),
         el("tbody", null, ps.map((p) => {
           const s = (p.report && p.report.summary) || {};
           const num = (v, bad) => el("td", { class: "num" + (v && bad ? " bad" : "") }, p.report ? v || 0 : "—");
@@ -1353,8 +1460,27 @@
           return el("tr", { class: "clickable", onclick: () => select(p.dir) },
             el("td", null, el("div", null, s.malware ? el("span", { class: "chip sev-critical" }, t("malicious")) : null, " ", relName(p, g)), p.name !== baseName(p.dir) ? el("div", { class: "quiet small" }, p.name) : null),
             num(s.now_easy, true), num(s.now_code, true), num(s.plan), num(s.optional),
-            el("td", { class: nd && nd.need === "now" ? "bad" : "" }, nd ? (nd.version || nd.line || "?") + (nd.securityFix && nd.securityFix !== nd.version ? " → " + nd.securityFix : "") : "—"));
+            el("td", { class: nd && nd.need === "now" ? "bad" : "" }, nd ? (nd.version || nd.line || "?") + (nd.securityFix && nd.securityFix !== nd.version ? " → " + nd.securityFix : "") : "—"),
+            st.readOnly ? null : [el("td", { class: "kt", "data-dir": p.dir }, "…"), el("td", { class: "ko", "data-dir": p.dir }, "…"), el("td", { class: "km", "data-dir": p.dir }, "…")]);
         }))));
+    // trend, oldest open and time to fix per project, from the history
+    if (!st.readOnly) getHistory(g.dir).then((h) => {
+      for (const ph of h.projects) {
+        const cell = (c) => [...rows.querySelectorAll("td." + c)].find((x) => x.dataset.dir === ph.dir);
+        const k = ph.kpi, tr = (k.trend || []).slice(-12);
+        const kt = cell("kt"), ko = cell("ko"), km = cell("km");
+        if (kt) {
+          if (tr.length >= 2) {
+            const W = 90, H = 24, max = Math.max(1, ...tr.map((x) => x.urgent));
+            const X = (i) => 2 + i * (W - 4) / (tr.length - 1), Y = (v) => H - 3 - v * (H - 6) / max;
+            kt.replaceChildren(sv("svg", { viewBox: `0 0 ${W} ${H}`, class: "tspark", role: "img", "aria-label": t("hChart") + ": " + tr.map((x) => x.urgent).join(", ") },
+              sv("polyline", { points: tr.map((x, i) => X(i) + "," + Y(x.urgent)).join(" ") })));
+          } else kt.textContent = "—";
+        }
+        if (ko) { ko.textContent = k.oldestPkg ? t("kDays", k.oldestDays) + " · " + k.oldestPkg : "—"; ko.className = "ko" + (k.oldestDays >= 14 ? " bad" : ""); }
+        if (km) km.textContent = k.fixedN ? fmtDur(k.mttrHours) : "—";
+      }
+    }).catch(() => {});
 
     const dk = new Map(), dfiles = new Set();
     for (const p of scanned) {
@@ -1380,7 +1506,7 @@
     };
     const dIssues = [...dk.values()].sort((a, b) => ({ high: 0, medium: 1, low: 2 }[a.severity] - { high: 0, medium: 1, low: 2 }[b.severity]) || a.abs.localeCompare(b.abs) || a.line - b.line);
     const ctx = {
-      reps: scanned, dir: g.dir, g,
+      reps: scanned, dir: g.dir, g, hkey: g.dir,
       entries: mergeFindings(scanned).map((e) => ({ f: e.f, where: e.where, rep: e.where[0].p.report })),
       card: (e) => card(e.f, e.rep, e.where, g, true),
       bulk: (es) => {
@@ -1586,7 +1712,8 @@
         const first = (r.added || [])[0];
         if (first) current = first;
         setState(r.state);
-        toast((r.added || []).length > 1 ? t("addedN", r.added.length) : t("added1"));
+        const sk = r.skipped || [];
+        toast(((r.added || []).length > 1 ? t("addedN", r.added.length) : t("added1")) + (sk.length ? " · " + t("addSkipped", sk.length, sk.slice(0, 3).map((d) => relTo(d, dir) || baseName(d)).join(", ")) : ""));
       } catch (e) { toast(t("error", e.message)); if (btn) { btn.disabled = false; btn.textContent = t("add"); } }
     };
     const crumbs = el("div", { class: "crumbs" },
@@ -1781,6 +1908,11 @@
     if (!state.dev && f.dev) return false;
     if (state.q && !f.pkg.toLowerCase().includes(state.q.toLowerCase())) return false;
     if (state.sev && (f.kind !== "vuln" && f.kind !== "malware" || (SEVR[f.severity] || 0) < SEVR[state.sev])) return false;
+    const advs = f.advisories || [];
+    if (state.flt.has("kev") && !advs.some((a) => a.kev)) return false;
+    if (state.flt.has("epss") && !advs.some((a) => (a.epss || 0) >= 0.1)) return false;
+    if (state.flt.has("nofix") && !(f.kind === "vuln" && (!f.target || f.target === f.current || advs.some((a) => !a.fixed)))) return false;
+    if (state.flt.has("direct") !== state.flt.has("transitive") && f.direct !== state.flt.has("direct")) return false;
     return true;
   }
 
@@ -1850,6 +1982,8 @@
     if (f.why && f.why.length) L.push(el("ul", { class: "why" }, list(f.why)));
     R.push(el("div", { class: "q" }, el("span", { class: "dot " + impClass(f.codeImpact) }), el("span", { class: "lbl" }, t("qImpact")), el("span", { class: "ans" }, impText(f.codeImpact))));
     if (f.impactWhy && f.impactWhy.length) R.push(el("ul", { class: "why" }, list(f.impactWhy)));
+    const lad = ladder(f);
+    if (lad) R.push(lad);
     const migs = where ? where.flatMap((w) => (w.f.migrate || []).map((m) => [m, where.length > 1 ? relName(w.p, g) : ""])) : (f.migrate || []).map((m) => [m, ""]);
     if (bare && migs.length) {
       const now = migs.filter(([m]) => !m.plan), hits = now.reduce((a, [m]) => a + (m.hits || 0), 0);
@@ -1888,6 +2022,38 @@
       el("div", { class: "ccol" }, el("div", { class: "clbl" }, t("colWhat")), L),
       el("div", { class: "ccol do" }, el("div", { class: "clbl" }, t("colDo")), R)));
     return el("div", { class: cls }, kids);
+  }
+
+  // which version fixes what: "16.3.3 fixes 2, 16.3.8 fixes 9 …" and where the suggested target lands
+  function cmpVer(a, b) {
+    const sp = (v) => { const [m, pre] = String(v).replace(/^v/, "").split("-", 2); return [m.split(".").map((x) => parseInt(x, 10) || 0), pre]; };
+    const [ma, pa] = sp(a), [mb, pb] = sp(b);
+    for (let i = 0; i < 3; i++) if ((ma[i] || 0) !== (mb[i] || 0)) return (ma[i] || 0) - (mb[i] || 0);
+    return pa === pb ? 0 : pa === undefined ? 1 : pb === undefined ? -1 : pa < pb ? -1 : 1;
+  }
+  function ladder(f) {
+    const advs = f.advisories || [];
+    if (advs.length < 2) return null;
+    const by = new Map(), none = [];
+    for (const a of advs) { if (a.fixed) { if (!by.has(a.fixed)) by.set(a.fixed, []); by.get(a.fixed).push(a); } else none.push(a); }
+    const steps = [...by.keys()].sort(cmpVer);
+    if (steps.length < 2 && !none.length) return null;
+    let sum = 0;
+    const SEVK = { critical: "bad", high: "hi", moderate: "warn", medium: "warn", low: "low" };
+    const rows = steps.map((v) => {
+      const as = by.get(v); sum += as.length;
+      const sev = {};
+      for (const a of as) sev[a.severity] = (sev[a.severity] || 0) + 1;
+      const isT = f.target && cmpVer(f.target, v) === 0;
+      return el("div", { class: "lrow" + (isT ? " target" : "") },
+        el("code", null, f.pkg + "@" + v),
+        el("span", null, t("ladderFixes", as.length)),
+        el("span", { class: "lsev" }, Object.entries(sev).map(([k, n]) => el("span", { class: "risk " + (SEVK[k] || "low") }, n + " " + sevName(k)))),
+        el("span", { class: "quiet small" }, t("ladderSum", sum, advs.length)),
+        isT ? el("span", { class: "chip ok" }, t("ladderTarget")) : null);
+    });
+    return el("div", { class: "ladder" }, el("div", { class: "h4" }, t("ladderTitle")), rows,
+      none.length ? el("div", { class: "lrow none" }, el("span", { class: "risk bad" }, t("ladderNone", none.length)), el("span", { class: "quiet small" }, t("ladderNoneHelp"))) : null);
   }
 
   // what the package is and how it got into the project
@@ -1988,7 +2154,7 @@
     const canPw = on && authState && !authState.noAuth && !authState.fromEnv;
     $("#logout").hidden = !on || !authState || authState.noAuth;
     $("#pwbtn").hidden = !canPw;
-    if (!on) { $("#srcbtn").hidden = true; $("#scanall").hidden = true; $("#addproj").hidden = true; $("#projects").hidden = true; $("#banner").hidden = true; $("#meta").textContent = ""; }
+    if (!on) { $("#srcbtn").hidden = true; $("#scanall").hidden = true; $("#refresh").hidden = true; $("#addproj").hidden = true; $("#projects").hidden = true; $("#banner").hidden = true; $("#meta").textContent = ""; }
   }
   function field(type, label, ac, hint) {
     const id = "f" + Math.random().toString(36).slice(2);

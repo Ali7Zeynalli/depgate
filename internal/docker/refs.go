@@ -63,39 +63,87 @@ type foundFile struct {
 	compose   bool
 }
 
-// discover finds Dockerfiles and compose files in dir and repoRoot.
+// discover finds the Dockerfiles and compose files of a project: in its folder
+// and the repository root, their sub-folders (docker/, deploy/, infra/ …, but
+// not other projects), and the files a compose file builds from or includes.
 func discover(dir, repoRoot string) []foundFile {
-	dirs := []string{dir}
+	absDir, _ := filepath.Abs(dir)
+	roots := []string{absDir}
 	if repoRoot != "" {
-		a, errA := filepath.Abs(dir)
-		b, errB := filepath.Abs(repoRoot)
-		if errA == nil && errB == nil && a != b {
-			dirs = append(dirs, repoRoot)
+		if b, err := filepath.Abs(repoRoot); err == nil && b != absDir {
+			roots = append(roots, b)
 		}
 	}
 	var out []foundFile
 	seen := map[string]bool{}
-	for _, d := range dirs {
-		ents, err := os.ReadDir(d)
+	add := func(p string, compose bool) {
+		abs, err := filepath.Abs(p)
+		if err != nil || seen[abs] {
+			return
+		}
+		if st, err := os.Stat(abs); err != nil || !st.Mode().IsRegular() {
+			return
+		}
+		seen[abs] = true
+		rel, err := filepath.Rel(absDir, abs)
 		if err != nil {
+			rel = abs
+		}
+		out = append(out, foundFile{abs, filepath.ToSlash(rel), compose})
+	}
+	// the project folder and the repository root, with their sub-folders
+	// (docker/, deploy/, infra/ …), but not other projects: their files are theirs
+	for _, root := range roots {
+		var walk func(d string, depth int)
+		walk = func(d string, depth int) {
+			ents, err := os.ReadDir(d)
+			if err != nil {
+				return
+			}
+			for _, e := range ents {
+				name, p := e.Name(), filepath.Join(d, e.Name())
+				if e.IsDir() {
+					if depth >= walkDepth || walkSkip[name] || strings.HasPrefix(name, ".") && name != ".docker" && name != ".devcontainer" {
+						continue
+					}
+					if p == absDir || isProjectDir(p) {
+						continue
+					}
+					walk(p, depth+1)
+					continue
+				}
+				if !e.Type().IsRegular() {
+					continue
+				}
+				switch {
+				case isDockerfile(name):
+					add(p, false)
+				case isCompose(name):
+					add(p, true)
+				}
+			}
+		}
+		walk(root, 0)
+	}
+	// files a compose file points to: build context / dockerfile, include, extends
+	for i := 0; i < len(out); i++ {
+		if !out[i].compose {
 			continue
 		}
-		for _, e := range ents {
-			name := e.Name()
-			if !e.Type().IsRegular() || !isDockerfile(name) && !isCompose(name) {
+		b, err := os.ReadFile(out[i].path)
+		if err != nil || len(b) > maxFileSize {
+			continue
+		}
+		cdir := filepath.Dir(out[i].path)
+		for _, ref := range composeRefs(string(b)) {
+			if strings.Contains(ref.path, "$") || strings.Contains(ref.path, "://") || strings.HasPrefix(ref.path, "git@") {
 				continue
 			}
-			p := filepath.Join(d, name)
-			abs, _ := filepath.Abs(p)
-			if seen[abs] {
-				continue
+			p := ref.path
+			if !filepath.IsAbs(p) {
+				p = filepath.Join(cdir, p)
 			}
-			seen[abs] = true
-			rel, err := filepath.Rel(dir, p)
-			if err != nil {
-				rel = p
-			}
-			out = append(out, foundFile{p, filepath.ToSlash(rel), isCompose(name)})
+			add(p, ref.compose)
 		}
 	}
 	return out

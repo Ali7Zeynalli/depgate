@@ -2,6 +2,7 @@ package docker
 
 import (
 	"path"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -279,4 +280,66 @@ func (c *composeCtx) environment(svc string, v *yNode) {
 			}
 		}
 	}
+}
+
+type composeRef struct {
+	path    string
+	compose bool // another compose file (include, extends) rather than a Dockerfile
+}
+
+// composeRefs lists the files a compose file points to: each service's build
+// context + dockerfile, top-level include entries and extends.file.
+func composeRefs(src string) []composeRef {
+	root, err := parseYAML(src)
+	if err != nil || root == nil || root.Kind != yMap {
+		return nil
+	}
+	var out []composeRef
+	for _, it := range items(root.get("include")) {
+		switch it.Kind {
+		case yScalar:
+			out = append(out, composeRef{it.Value, true})
+		case yMap:
+			p := it.get("path")
+			if p.Kind == yScalar {
+				out = append(out, composeRef{p.Value, true})
+			}
+			for _, x := range items(p) {
+				out = append(out, composeRef{x.str(), true})
+			}
+		}
+	}
+	if svcs := root.get("services"); svcs != nil && svcs.Kind == yMap {
+		for _, e := range svcs.Keys {
+			s := e.Val
+			if f := s.get("extends").get("file").str(); f != "" {
+				out = append(out, composeRef{f, true})
+			}
+			b := s.get("build")
+			ctx, df := "", "Dockerfile"
+			switch {
+			case b == nil:
+				continue
+			case b.Kind == yScalar:
+				ctx = b.Value
+			case b.Kind == yMap:
+				ctx = b.get("context").str()
+				if d := b.get("dockerfile").str(); d != "" {
+					df = d
+				}
+				if b.get("dockerfile_inline") != nil {
+					continue
+				}
+			}
+			if ctx == "" {
+				ctx = "."
+			}
+			if filepath.IsAbs(df) {
+				out = append(out, composeRef{df, false})
+			} else {
+				out = append(out, composeRef{filepath.Join(ctx, df), false})
+			}
+		}
+	}
+	return out
 }

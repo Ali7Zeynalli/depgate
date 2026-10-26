@@ -110,7 +110,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	fs.StringVar(&c.addr, "addr", envOr("DEPGATE_ADDR", defAddr), "listen address (0.0.0.0 in a container)")
 	fs.BoolVar(&c.noOpen, "no-open", container, "do not open the browser")
 	fs.BoolVar(&c.offline, "offline", false, "never use the network, cache only")
-	fs.IntVar(&c.depth, "depth", 3, "project discovery depth")
+	fs.IntVar(&c.depth, "depth", 6, "how many folders deep to look for projects")
 	fs.BoolVar(&c.jsonOut, "json", false, "scan once and print the JSON report to stdout")
 	fs.BoolVar(&c.ci, "ci", false, "CI mode: scan once, print a summary, set the exit code")
 	fs.StringVar(&c.failOn, "fail-on", "high", "CI: fail at this severity or above (critical|high|moderate|low)")
@@ -308,7 +308,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	m := &app.Manager{Store: st, Fetcher: fetcher, Opt: opt, Roots: roots, Depth: c.depth, Container: container, Rescan: c.rescan}
 	m.Start(ctx)
 	if initial != "" {
-		dirs, err := m.Add(initial)
+		dirs, _, err := m.Add(initial)
 		if err != nil {
 			fmt.Fprintln(stderr, "depgate:", err)
 		} else {

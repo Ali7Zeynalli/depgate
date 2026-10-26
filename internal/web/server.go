@@ -4,7 +4,9 @@
 package web
 
 import (
+	"bytes"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/subtle"
 	"embed"
 	"encoding/hex"
@@ -31,10 +33,10 @@ var uiFS embed.FS
 type Backend interface {
 	State() app.State
 	Scan(dirs []string) error
-	Add(path string) ([]string, error)
+	Add(path string) ([]string, []string, error)
 	Remove(dir string) error
 	Browse(path string) (*app.Listing, error)
-	History(dir string) (*app.History, error)
+	History(dir string, only bool) (*app.History, error)
 	ClearHistory(dir string) error
 	SetRescanHours(h int) error
 	Accept(dirs []string, key, reason string, days int) error
@@ -92,8 +94,7 @@ func (s *Server) hostOK(h string) bool {
 
 // Handler returns the HTTP handler.
 func (s *Server) Handler() http.Handler {
-	sub, _ := fs.Sub(uiFS, "ui")
-	static := http.FileServer(http.FS(sub))
+	static := uiHandler()
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/state", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, http.StatusOK, s.B.State()) })
 	mux.HandleFunc("POST /api/scan", func(w http.ResponseWriter, r *http.Request) {
@@ -116,12 +117,12 @@ func (s *Server) Handler() http.Handler {
 		if !readJSON(w, r, &req) {
 			return
 		}
-		dirs, err := s.B.Add(req.Path)
+		dirs, skipped, err := s.B.Add(req.Path)
 		if err != nil {
 			writeErr(w, err)
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"added": dirs, "state": s.B.State()})
+		writeJSON(w, http.StatusOK, map[string]any{"added": dirs, "skipped": skipped, "state": s.B.State()})
 	})
 	mux.HandleFunc("POST /api/projects/remove", func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
@@ -151,7 +152,7 @@ func (s *Server) Handler() http.Handler {
 		writeJSON(w, http.StatusOK, l)
 	})
 	mux.HandleFunc("GET /api/history", func(w http.ResponseWriter, r *http.Request) {
-		h, err := s.B.History(r.URL.Query().Get("dir"))
+		h, err := s.B.History(r.URL.Query().Get("dir"), r.URL.Query().Get("only") == "1")
 		if err != nil {
 			writeErr(w, err)
 			return
@@ -453,4 +454,27 @@ func NewToken() string {
 	b := make([]byte, 16)
 	_, _ = rand.Read(b)
 	return hex.EncodeToString(b)
+}
+
+// uiHandler serves the embedded UI. The page names its script and stylesheet
+// with a content hash (app.js?v=…), and nothing is cached without asking the
+// server, so a new DepGate never shows an old page and no hard refresh is needed.
+func uiHandler() http.Handler {
+	sub, _ := fs.Sub(uiFS, "ui")
+	files := http.FileServer(http.FS(sub))
+	idx, _ := fs.ReadFile(sub, "index.html")
+	for _, name := range []string{"app.js", "style.css"} {
+		b, _ := fs.ReadFile(sub, name)
+		h := sha256.Sum256(b)
+		idx = bytes.Replace(idx, []byte(`"`+name+`"`), []byte(`"`+name+"?v="+hex.EncodeToString(h[:6])+`"`), 1)
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-cache")
+		if r.URL.Path == "/" || r.URL.Path == "/index.html" {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			_, _ = w.Write(idx)
+			return
+		}
+		files.ServeHTTP(w, r)
+	})
 }

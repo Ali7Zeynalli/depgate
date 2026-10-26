@@ -25,15 +25,15 @@ func (f *fakeBackend) Scan(d []string) error {
 	f.scanned = d
 	return nil
 }
-func (f *fakeBackend) Add(p string) ([]string, error) {
+func (f *fakeBackend) Add(p string) ([]string, []string, error) {
 	if p == "/etc" {
-		return nil, app.ErrOutside
+		return nil, nil, app.ErrOutside
 	}
 	f.added = p
-	return []string{p}, nil
+	return []string{p}, nil, nil
 }
 func (f *fakeBackend) Remove(string) error { return app.ErrReadOnly }
-func (f *fakeBackend) History(d string) (*app.History, error) {
+func (f *fakeBackend) History(d string, _ bool) (*app.History, error) {
 	return &app.History{Dir: d, Projects: []app.ProjectHistory{}}, nil
 }
 func (f *fakeBackend) ClearHistory(string) error                  { return app.ErrReadOnly }

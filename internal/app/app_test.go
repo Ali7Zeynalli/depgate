@@ -95,14 +95,14 @@ func TestBrowse(t *testing.T) {
 
 func TestAddScanRemember(t *testing.T) {
 	m, root := setup(t)
-	dirs, err := m.Add(filepath.Join(root, "mono"))
+	dirs, _, err := m.Add(filepath.Join(root, "mono"))
 	if err != nil || len(dirs) != 2 {
 		t.Fatalf("add mono: %v %v", dirs, err)
 	}
-	if _, err := m.Add(filepath.Join(root, "shop")); err != nil {
+	if _, _, err := m.Add(filepath.Join(root, "shop")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := m.Add(filepath.Join(root, "notes")); err == nil {
+	if _, _, err := m.Add(filepath.Join(root, "notes")); err == nil {
 		t.Fatal("folder without package.json accepted")
 	}
 	st := waitIdle(t, m)

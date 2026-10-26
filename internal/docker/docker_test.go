@@ -343,7 +343,7 @@ func TestMonorepo(t *testing.T) {
 	})
 	dir := filepath.Join(root, "apps", "api")
 	is, files := Scan(dir, root)
-	want := []string{"../../docker-compose.yml", "Dockerfile", "Dockerfile.dev", "compose.prod.yaml", "docker-compose.x.yml", "web.Dockerfile"}
+	want := []string{"../../docker-compose.yml", "Dockerfile", "Dockerfile.dev", "compose.prod.yaml", "docker-compose.x.yml", "sub/Dockerfile", "web.Dockerfile"}
 	if strings.Join(files, ",") != strings.Join(want, ",") {
 		t.Fatalf("files = %v, want %v", files, want)
 	}
@@ -361,7 +361,7 @@ func TestMonorepo(t *testing.T) {
 	}
 	// same dir passed twice is not duplicated
 	_, files2 := Scan(dir, dir)
-	if len(files2) != 5 {
+	if len(files2) != 6 {
 		t.Fatalf("files2 = %v", files2)
 	}
 }
@@ -507,5 +507,35 @@ func TestGarbageDoesNotPanic(t *testing.T) {
 			checkCompose("c.yml", s)
 			checkDockerfile(&dfCtx{file: "Dockerfile", path: filepath.Join(t.TempDir(), "Dockerfile"), src: s})
 		}()
+	}
+}
+
+func TestDockerFilesInOtherFolders(t *testing.T) {
+	root := t.TempDir()
+	writeFiles(t, root, map[string]string{
+		"frontend/package.json":            `{"dependencies":{"next":"14.0.0"}}`,
+		"backend/package.json":             `{"dependencies":{"express":"4.0.0"}}`,
+		"backend/Containerfile":            "FROM node:22\n",
+		"backend/Dockerfile":               "FROM node:22\n",
+		"docker/docker-compose.yml":        "include:\n  - ../ops/compose.db.yml\nservices:\n  web:\n    build:\n      context: ../frontend\n      dockerfile: ../docker/frontend.Dockerfile\n  api:\n    build: ../backend\n",
+		"docker/frontend.Dockerfile":       "FROM node:22\nUSER root\n",
+		"ops/compose.db.yml":               "services:\n  db:\n    image: postgres:16\n",
+		"infra/k8s/images/Dockerfile":      "FROM node:22\n",
+		"frontend/node_modules/Dockerfile": "FROM x\n",
+	})
+	_, files := Scan(filepath.Join(root, "frontend"), root)
+	got := strings.Join(files, ",")
+	for _, want := range []string{"../docker/docker-compose.yml", "../docker/frontend.Dockerfile", "../ops/compose.db.yml", "../infra/k8s/images/Dockerfile"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %s in %v", want, files)
+		}
+	}
+	// the backend project's own Dockerfile is referenced by the compose file; Containerfile only belongs to backend
+	if strings.Contains(got, "Containerfile") || strings.Contains(got, "node_modules") {
+		t.Errorf("other project / node_modules: %v", files)
+	}
+	_, bfiles := Scan(filepath.Join(root, "backend"), root)
+	if b := strings.Join(bfiles, ","); !strings.Contains(b, "Containerfile") || !strings.Contains(b, "Dockerfile") {
+		t.Errorf("backend files %v", bfiles)
 	}
 }
