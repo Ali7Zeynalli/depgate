@@ -169,6 +169,10 @@
     removedChip: ["npm-dən silinib", "removed from npm"],
     nodeAll: ["Node.js (layihələr üzrə)", "Node.js (per project)"],
     hygAll: ["Gigiyena (layihələr üzrə)", "Hygiene (per project)"],
+    tileCodeNone: ["indi yox", "none now"],
+    tileCodeZero: ["{0} paket major dəyişir, yer tapılmadı — qeydlərə bax", "{0} packages change major, no places found — see the notes"],
+    tileCodeZero1: ["1 paket major dəyişir, yer tapılmadı — qeydlərə bax", "1 package changes major, no places found — see the notes"],
+    tileCodeMore: ["+{0} növbəti major-da", "+{0} at the next major"],
     inProjects: ["layihələr: {0}", "projects: {0}"],
     aiBtn: ["AI üçün prompt", "AI prompt"],
     aiTitle: ["AI üçün tapşırıq (prompt)", "Task for an AI agent (prompt)"],
@@ -332,8 +336,11 @@
     tileNow: ["İndi et", "Do now"],
     tileNowSub: ["{0} sadə · {1} kod dəyişir", "{0} simple · {1} code change"],
     tileCode: ["Kodda dəyişiklik", "Code changes"],
-    tileCodeLater: ["indi yox · növbəti major-da {0} paket", "none now · {0} packages at the next major"],
+    tileCodeLater: ["növbəti major-da {0} paket", "{0} packages at the next major"],
+    tileCodeLater1: ["növbəti major-da 1 paket", "1 package at the next major"],
     tileCodeSub: ["yer · {0} paket", "places · {0} packages"],
+    tileCodeSub1: ["yer · 1 paket", "places · 1 package"],
+    inProjects: ["layihələrdə {0}", "{0} in projects"],
     tileDs: ["Docker və server", "Docker & server"],
     tileDsSub: ["{0} yüksək · {1} orta · {2} aşağı", "{0} high · {1} medium · {2} low"],
     tileHist: ["Son dəyişiklik", "Last change"],
@@ -343,7 +350,7 @@
     nodeN: ["{0} layihə · {1} yenilənməli", "{0} projects · {1} to update"],
     kTitle: ["Göstəricilər", "Indicators"],
     kOpen: ["Açıq vacib işlər", "Open important"],
-    kOpenSub: ["zərərli, kritik/yüksək, «indi et»", "malware, critical/high, do now"],
+    kOpenSub: ["zərərli, kritik/yüksək, «indi et», Node.js", "malware, critical/high, do now, Node.js"],
     kMttr: ["Orta düzəltmə müddəti", "Mean time to fix"],
     kMttrSub: ["son 90 gündə düzəliş: {0}", "fixes in 90 days: {0}"],
     kMttrNone: ["hələ düzəliş yoxdur", "nothing fixed yet"],
@@ -854,26 +861,44 @@
   const realCmd = (fx) => fx && fx.command && (fx.strategy !== "override" || fx.command.includes("npm pkg set ")) ? fx.command.split("   #")[0] : "";
   const cmdOf = (f) => realCmd(f.fix);
 
+  // singular wording when there is one ("1 package"), when the text has a "…1" variant
+  const tn = (k, n) => (n === 1 && D[k + "1"] ? t(k + "1") : t(k, n));
   // the numbers every section starts from
   function factsOf(ctx) {
     const es = ctx.entries;
     const n = (grp) => es.filter((e) => e.f.group === grp).length;
     const migs = es.map((e) => ({ e, ms: ctx.migs(e) })).filter((x) => x.ms.length);
-    const hits = migs.reduce((a, x) => a + x.ms.reduce((b, y) => b + (y.m.hits || 0), 0), 0);
+    // "now" = the upgrade this scan suggests; "plan" = a later major — counted apart
+    const sumHits = (plan) => migs.reduce((a, x) => a + x.ms.filter((y) => !!y.m.plan === plan).reduce((b, y) => b + (y.m.hits || 0), 0), 0);
+    const hits = sumHits(false), hitsLater = sumHits(true);
+    const pkgsNow = migs.filter((x) => x.ms.some((y) => !y.m.plan && y.m.hits)).length;
+    const pkgsNowZero = migs.filter((x) => x.ms.some((y) => !y.m.plan) && !x.ms.some((y) => !y.m.plan && y.m.hits)).length;
+    const pkgsLater = migs.filter((x) => x.ms.some((y) => y.m.plan)).length;
     const ds = [...ctx.docker.issues, ...ctx.server.issues];
     const sev = (s) => ds.filter((d) => d.severity === s).length;
     const mal = es.filter((e) => e.f.kind === "malware");
     const nodeNow = ctx.nodes.some((x) => x.n.need === "now");
+    // a folder shows a finding once; "in projects" counts every project that has it (like the side list and History)
+    const occ = (e) => (e.where ? e.where.length : 1);
+    const inProj = (grp) => es.filter((e) => e.f.group === grp).reduce((a, e) => a + occ(e), 0);
     const total = ctx.reps.reduce((a, p) => a + ((p.report && p.report.packages) || 0), 0);
-    const flagged = new Set(es.filter((e) => !["ok", "optional", "accepted"].includes(e.f.group)).map((e) => e.f.pkg)).size;
-    return { n, migs, hits, ds, high: sev("high"), medium: sev("medium"), low: sev("low"), mal, nodeNow,
-      urgent: n("now_easy") + n("now_code"), total, clean: Math.max(0, total - flagged) };
+    const flagged = new Set(es.filter((e) => !["ok", "optional", "accepted"].includes(e.f.group))
+      .flatMap((e) => (e.where || [{ p: { dir: "" } }]).map((w) => w.p.dir + "|" + e.f.pkg))).size;
+    // the same rule as History's "Open important": malware, removed, critical/high, do now; a Node.js security release; high Docker/server findings
+    const important = es.filter((e) => e.f.group !== "accepted" && e.f.group !== "ok" &&
+      (e.f.kind === "malware" || e.f.kind === "removed" || e.f.severity === "critical" || e.f.severity === "high" || e.f.group === "now_easy" || e.f.group === "now_code"))
+      .reduce((a, e) => a + occ(e), 0);
+    const nodeTasks = ctx.nodes.filter((x) => x.n.need === "now").length;
+    return { n, inProj, migs, hits, hitsLater, pkgsNow, pkgsNowZero, pkgsLater, ds, high: sev("high"), medium: sev("medium"), low: sev("low"), mal, nodeNow,
+      malProj: mal.reduce((a, e) => a + occ(e), 0),
+      urgent: n("now_easy") + n("now_code"), urgentProj: inProj("now_easy") + inProj("now_code"),
+      tasks: important + nodeTasks + sev("high"), total, clean: Math.max(0, total - flagged) };
   }
 
   // the state of a project (or folder) at a glance: a ring of clean packages and one word
   function healthCard(ctx) {
     const x = factsOf(ctx);
-    const tasks = x.urgent + (x.nodeNow ? 1 : 0) + x.high;
+    const tasks = x.tasks;
     const lvl = x.mal.length ? "bad" : x.urgent || x.nodeNow ? "hi" : x.n("plan") || x.high ? "warn" : "good";
     const label = { bad: "hMal", hi: "hUrgent", warn: "hPlan", good: "hOk" }[lvl];
     const share = x.total ? x.clean / x.total : 1, C = 2 * Math.PI * 18;
@@ -892,14 +917,16 @@
       el("span", { class: "sv" }, value), el("span", { class: "ss" }, sub));
     const malNames = [...new Set(x.mal.map((e) => e.f.pkg + " " + e.f.current))];
     const tiles = [
-      tile(x.mal.length ? "bad" : "zero", t("tileMal"), x.mal.length, x.mal.length ? malNames.slice(0, 2).join(", ") : t("tileNone"), "packages", x.mal.length ? { grp: x.mal[0].f.group, open: keyOf(x.mal[0].f) } : null),
-      tile(x.urgent ? "hi" : "zero", t("tileNow"), x.urgent, t("tileNowSub", x.n("now_easy"), x.n("now_code")), "packages", { grp: x.n("now_easy") ? "now_easy" : "now_code" }),
-      tile(x.hits ? "code" : "zero", t("tileCode"), x.hits, x.hits ? t("tileCodeSub", x.migs.length) : x.migs.length ? t("tileCodeLater", x.migs.length) : t("tileNone"), "code"),
+      tile(x.mal.length ? "bad" : "zero", t("tileMal"), x.mal.length, x.mal.length ? malNames.slice(0, 2).join(", ") + (x.malProj > x.mal.length ? " · " + t("inProjects", x.malProj) : "") : t("tileNone"), "packages", x.mal.length ? { grp: x.mal[0].f.group, open: keyOf(x.mal[0].f) } : null),
+      tile(x.urgent ? "hi" : "zero", t("tileNow"), x.urgent, t("tileNowSub", x.n("now_easy"), x.n("now_code")) + (x.urgentProj > x.urgent ? " · " + t("inProjects", x.urgentProj) : ""), "packages", { grp: x.n("now_easy") ? "now_easy" : "now_code" }),
+      tile(x.hits ? "code" : "zero", t("tileCode"), x.hits,
+        [x.hits ? tn("tileCodeSub", x.pkgsNow) : x.pkgsNowZero ? tn("tileCodeZero", x.pkgsNowZero) : x.pkgsLater ? t("tileCodeNone") : t("tileNone"),
+          x.hitsLater ? t("tileCodeMore", x.hitsLater) : x.pkgsLater && !x.hits ? tn("tileCodeLater", x.pkgsLater) : ""].filter(Boolean).join(" · "), "code"),
       tile(x.high ? "warn" : x.ds.length ? "warn" : "zero", t("tileDs"), x.ds.length, x.ds.length ? t("tileDsSub", x.high, x.medium, x.low) : t("tileNone"), ctx.docker.issues.length || !ctx.server.issues.length ? "docker" : "server"),
     ];
     if (!st.readOnly) tiles.push(slot(ctx.hkey, (h) => {
       const ds = h.projects.map((p) => p.scans.find((s) => !s.diff.first && (s.diff.new.length || s.diff.fixed.length || s.diff.changed.length))).filter(Boolean);
-      if (!ds.length) return tile("zero", t("tileHist"), "—", t("tileHistNone"), "history");
+      if (!ds.length) return h.projects.some((p) => p.scans.length > 1) ? tile("zero", t("tileHist"), "0", t("hSame"), "history") : tile("zero", t("tileHist"), "—", t("tileHistNone"), "history");
       const nw = ds.reduce((a, s) => a + s.diff.new.length, 0), fx = ds.reduce((a, s) => a + s.diff.fixed.length, 0);
       const d = nw - fx, lock = ds.some((s) => s.diff.lockChanged);
       return tile(d > 0 ? "hi" : d < 0 ? "good" : "zero", t("tileHist"), (d > 0 ? "+" : d < 0 ? "−" : "") + Math.abs(d),
