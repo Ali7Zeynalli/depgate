@@ -448,6 +448,14 @@
     hByMCP: ["AI agent", "AI agent"],
     hCounts: ["təcili {0} · planla {1} · zərərli {2} · Docker/server {3}", "urgent {0} · plan {1} · malware {2} · Docker/server {3}"],
     hNewL: ["Yeni", "New"],
+    gitN: ["{0} git commit-i (90 gün)", "{0} git commits (90 days)"],
+    hTimelineHelp: ["DepGate skanları və package.json / lockfile-ı dəyişən git commit-ləri bir xətt üzərində, yenidən köhnəyə.", "DepGate's scans and the git commits that changed package.json or the lockfile on one line, newest first."],
+    gitUncommitted: ["commit olunmayıb", "not committed"],
+    gitFirst: ["lockfile əlavə olunub", "lockfile added"],
+    gitManifest: ["package.json dəyişib, versiyalar eyni", "package.json changed, versions the same"],
+    gitNote_shallow: ["Git tarixçəsi burada bitir (shallow clone).", "The git history ends here (shallow clone)."],
+    "gitNote_no-git": ["Git repository deyil — yalnız DepGate skanları göstərilir.", "Not a git repository — only DepGate's scans are shown."],
+    gitNote_error: ["Git tarixçəsi oxuna bilmədi — yalnız DepGate skanları göstərilir.", "The git history could not be read — only DepGate's scans are shown."],
     envLbl: ["Mühit:", "Environment:"],
     envAll: ["Hamısı", "All"],
     envProd: ["Production", "Production"],
@@ -1478,13 +1486,18 @@
     svg.append(sv("text", { x: W - P, y: Math.max(12, Y(urgentOf(last)) - 8), "text-anchor": "end", class: "lab" }, String(urgentOf(last))));
     return el("div", { class: "card" }, el("div", { class: "h3" }, t("hChart")), svg);
   }
+  // scans and git commits on one line, newest first
   function timeline(ph) {
+    const rows = [...ph.scans.map((s, i) => ({ at: s.at, s, i })), ...(((ph.git || {}).changes) || []).map((g) => ({ at: g.at, g }))]
+      .sort((a, b) => new Date(b.at) - new Date(a.at));
     const out = [];
-    let same = 0;
+    let same = 0, first = true;
     const flush = () => { if (same) out.push(el("div", { class: "hrow same quiet small" }, t("hSameN", same))); same = 0; };
-    ph.scans.forEach((s, i) => {
+    for (const row of rows) {
+      if (row.g) { flush(); out.push(gitRow(row.g, first)); first = false; continue; }
+      const s = row.s, i = row.i;
       const d = s.diff, pk = (s.pkgs && s.pkgs.c) || [], changed = d.first || d.new.length || d.fixed.length || d.changed.length || pk.length;
-      if (!changed && i > 0) { same++; return; }
+      if (!changed && i > 0) { same++; continue; }
       flush();
       const head = el("summary", null,
         el("span", { class: "ht" }, fmtTime(s.at)),
@@ -1492,11 +1505,25 @@
         el("span", { class: "hc quiet small" }, t("hCounts", urgentOf(s), s.sum.plan || 0, s.sum.malware || 0, (s.docker || 0) + (s.server || 0))),
         el("span", { class: "hd" }, diffChips(d), pkgChips(s.pkgs)));
       const body = [itemList(t("hNewL"), "bad", d.new), itemList(t("hFixedL"), "good", d.fixed), itemList(t("hChangedL"), "warn", d.changed), pkgList(s.pkgs)].filter(Boolean);
-      out.push(body.length ? el("details", { class: "hrow", open: i === 0 || undefined }, head, el("div", { class: "hbody" }, body))
+      out.push(body.length ? el("details", { class: "hrow", open: first || undefined }, head, el("div", { class: "hbody" }, body))
         : el("div", { class: "hrow flat" }, [...head.childNodes]));
-    });
+      first = false;
+    }
     flush();
-    return out;
+    const note = ph.git && ph.git.note && ph.git.note !== "no-lockfile" ? el("div", { class: "quiet small gnote" }, t("gitNote_" + ph.git.note)) : null;
+    return [out, note];
+  }
+  const gitCount = (p) => { const n = ((p.git || {}).changes || []).filter((g) => !g.uncommitted).length; return n ? el("span", { class: "quiet small" }, " · " + t("gitN", n)) : null; };
+  function gitRow(g, open) {
+    const head = el("summary", null,
+      el("span", { class: "ht" }, fmtTime(g.at)),
+      g.uncommitted ? el("span", { class: "chip warn" }, t("gitUncommitted")) : el("span", { class: "chip git" }, "git ", el("code", null, g.hash.slice(0, 7))),
+      g.subject ? el("span", { class: "gsubj" }, g.subject) : null,
+      el("span", { class: "hd" }, g.first ? el("span", { class: "chip" }, t("gitFirst")) : null,
+        g.manifest ? el("span", { class: "quiet small" }, t("gitManifest")) : pkgChips(g.pkgs)));
+    const body = g.first ? null : pkgList(g.pkgs);
+    return body ? el("details", { class: "hrow gitrow", open: open || undefined }, head, el("div", { class: "hbody" }, body))
+      : el("div", { class: "hrow flat gitrow" }, [...head.childNodes]);
   }
   const VERD = { ok: ["vOk", "ok"], caution: ["vCaution", "warn"], block: ["vBlock", "sev-critical"] };
   function activity(evs, dir) {
@@ -1581,7 +1608,7 @@
       const projs = h.projects.filter((p) => p.scans.length).map((p) => {
         const name = multi ? relTo(p.dir, ctx.dir) || t("folderRoot") : null;
         return el("div", null, name ? el("div", { class: "h3 hproj" }, name) : null, chart(p.scans),
-          el("div", { class: "card hlist" }, el("div", { class: "h3" }, t("hScans", p.scans.length)), timeline(p)));
+          el("div", { class: "card hlist" }, el("div", { class: "h3" }, t("hScans", p.scans.length), gitCount(p)), el("div", { class: "quiet small" }, t("hTimelineHelp")), timeline(p)));
       });
       return [el("div", { class: "ghelp" }, t("hLocal")),
         any ? kpiStrip(h.kpi, ctx.dir) : null,

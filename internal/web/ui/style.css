@@ -621,3 +621,7 @@ svg.tspark polyline { fill: none; stroke: var(--accent); stroke-width: 1.8; stro
 .envsel { font: inherit; font-size: 12px; padding: 2px 6px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); }
 .dfolder { margin-bottom: 14px; }
 .dfname { margin: 4px 0 8px; font-size: 14px; }
+.chip.git { background: var(--line2); color: var(--ink); }
+.chip.git code { font-size: 11px; background: none; padding: 0; }
+.gsubj { font-weight: 600; overflow-wrap: anywhere; }
+.gnote { margin-top: 8px; }

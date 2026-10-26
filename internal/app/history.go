@@ -25,6 +25,9 @@ type ProjectHistory struct {
 	Name  string     `json:"name"`
 	KPI   KPI        `json:"kpi"`
 	Scans []ScanView `json:"scans"`
+	// Git: commits that changed the lockfile or package.json (last 90 days) and
+	// uncommitted lockfile changes, shown in the same timeline as the scans
+	Git *history.GitLog `json:"git,omitempty"`
 }
 
 // KPI sums up how a project is doing over time, from its scan history.
@@ -100,6 +103,7 @@ func (m *Manager) History(dir string, only bool) (*History, error) {
 			v.Items = nil // the diff says what matters; keeps the answer small
 			ph.Scans = append(ph.Scans, v)
 		}
+		ph.Git = m.gitLog(e.Dir)
 		h.Projects = append(h.Projects, ph)
 	}
 	h.KPI = sumKPI(h.Projects)
@@ -359,4 +363,39 @@ func (m *Manager) acceptedSoon(dir string) int {
 		}
 	}
 	return n
+}
+
+// gitDays and gitCommits bound how far back the git history is read.
+const (
+	gitDays    = 90
+	gitCommits = 300
+)
+
+type gitCached struct {
+	sig string
+	log history.GitLog
+}
+
+// gitLog reads the project's git history, again only when a commit, a checkout
+// or the lockfile changed since the last time.
+func (m *Manager) gitLog(dir string) *history.GitLog {
+	p := m.Store.Report(dir)
+	if p == nil {
+		return nil
+	}
+	sig := history.GitSignature(dir, p.Lockfile)
+	m.gitMu.Lock()
+	c, ok := m.gitCache[dir]
+	m.gitMu.Unlock()
+	if ok && c.sig == sig {
+		return &c.log
+	}
+	l := history.ReadGitLog(dir, p.Lockfile, time.Now().AddDate(0, 0, -gitDays), gitCommits)
+	m.gitMu.Lock()
+	if m.gitCache == nil {
+		m.gitCache = map[string]gitCached{}
+	}
+	m.gitCache[dir] = gitCached{sig, l}
+	m.gitMu.Unlock()
+	return &l
 }
