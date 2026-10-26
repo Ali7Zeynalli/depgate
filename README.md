@@ -54,7 +54,7 @@ Then open `http://127.0.0.1:7777`, choose a password and **+ Add project** (a pr
 | Windows WSL | your WSL home — projects on the Windows side? start it from PowerShell |
 
 - Your home is mounted read-only; the container runs as its owner and drops root. Data lives in the `depgate-data` volume.
-- Update: `git pull && docker compose pull && docker compose up -d`.
+- Update: `git pull && docker compose up -d` (it always fetches the newest image; the version is shown at the top of the page).
 - macOS binary, first run: `xattr -d com.apple.quarantine ./depgate`. Windows SmartScreen: *More info → Run anyway*.
 - Verify downloads: `checksums.txt` and `gh attestation verify <file> -R Ali7Zeynalli/depgate`.
 </details>
@@ -78,7 +78,7 @@ Folders and monorepos get one merged page; a finding in several projects is show
 
 ## AI agents (MCP)
 
-The agent asks DepGate itself — and checks every package **before** it installs it (`check_package`). The **AI & MCP → Connection command** button gives you the command with path and token filled in:
+The agent asks DepGate itself — and checks every package **before** it installs it (`check_package`). The **AI & MCP → Connection command** button shows the setup for your agent — Claude Code, Cursor, VS Code, Windsurf, Codex CLI, Gemini CLI or any stdio client — with path and token filled in:
 
 ```bash
 cd ~/projects/shop && claude mcp add --transport http depgate -s local \

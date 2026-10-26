@@ -54,7 +54,7 @@ Sonra `http://127.0.0.1:7777` aç, parol seç və **+ Layihə əlavə et** (layi
 | Windows WSL | WSL ev qovluğunu — layihələr Windows tərəfindədirsə, PowerShell-dən işə sal |
 
 - Ev qovluğun yalnız oxuma rejimində bağlanır; konteyner onun sahibi kimi işləyir və root hüquqlarını buraxır. Data `depgate-data` volume-unda saxlanır.
-- Yeniləmə: `git pull && docker compose pull && docker compose up -d`.
+- Yeniləmə: `git pull && docker compose up -d` (həmişə ən yeni image-i çəkir; versiya səhifənin yuxarısında görünür).
 - macOS, ilk dəfə: `xattr -d com.apple.quarantine ./depgate`. Windows SmartScreen: *More info → Run anyway*.
 - Yükləməni yoxla: `checksums.txt` və `gh attestation verify <fayl> -R Ali7Zeynalli/depgate`.
 </details>
@@ -78,7 +78,7 @@ Qovluqlar və monorepo-lar üçün birləşmiş səhifə var; bir neçə layihə
 
 ## AI agentlər (MCP)
 
-Agent DepGate-dən özü soruşur və hər paketi **quraşdırmadan əvvəl** yoxlayır (`check_package`). **AI və MCP → Qoşulma əmri** düyməsi yolu və tokeni doldurulmuş əmri verir:
+Agent DepGate-dən özü soruşur və hər paketi **quraşdırmadan əvvəl** yoxlayır (`check_package`). **AI və MCP → Qoşulma əmri** düyməsi agentinə görə qoşulmanı göstərir — Claude Code, Cursor, VS Code, Windsurf, Codex CLI, Gemini CLI və ya istənilən stdio klienti — yol və token artıq doldurulub:
 
 ```bash
 cd ~/projects/shop && claude mcp add --transport http depgate -s local \

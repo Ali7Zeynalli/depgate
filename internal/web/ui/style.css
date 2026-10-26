@@ -393,3 +393,21 @@ details.hrow[open] > summary::before { content: "▾"; }
 .card.since { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin-bottom: 12px; }
 .hfoot { display: flex; justify-content: flex-end; margin-top: 8px; }
 .hfoot button { font-size: 12.5px; }
+
+/* MCP setup dialog */
+.mcpscroll { overflow: auto; display: flex; flex-direction: column; gap: 10px; }
+.fchips.small .fchip { padding: 3px 10px; font-size: 12.5px; }
+.mcpbody { display: flex; flex-direction: column; gap: 12px; }
+.mstep2 { display: flex; gap: 12px; align-items: flex-start; }
+.mstep2 .num { flex: none; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; background: var(--accent-bg); color: var(--accent); }
+.mstep2 .grow { min-width: 0; }
+.mstep2 code.file { font-weight: 600; overflow-wrap: anywhere; }
+.codebox { position: relative; margin-top: 6px; }
+.codebox pre { margin: 0; padding: 10px 12px; padding-right: 76px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 260px; overflow: auto; }
+.codebox button { position: absolute; top: 6px; right: 6px; }
+.mok { padding: 8px 10px; border-radius: 8px; background: var(--good-bg); font-size: 13px; }
+.mtools > summary { cursor: pointer; color: var(--accent); font-size: 13px; }
+.mtools .tl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin-top: 8px; }
+.mtools .tl > div { display: contents; }
+.mono { font-family: var(--mono); overflow-wrap: anywhere; }
+@media (max-width: 600px) { .mtools .tl { grid-template-columns: 1fr; } }
