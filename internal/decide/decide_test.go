@@ -284,6 +284,18 @@ func TestTransitiveOverride(t *testing.T) {
 	if !strings.Contains(x.Fix.Snippet, `"zlib2": "1.1.0"`) {
 		t.Fatalf("snippet %s", x.Fix.Snippet)
 	}
+	if x.Fix.Command != "npm pkg set overrides.zlib2=1.1.0 && npm install" {
+		t.Fatalf("command %q", x.Fix.Command)
+	}
+	if fx := overrideFix("yarn", "zlib2", "1.1.0", ""); fx.Command != "npm pkg set resolutions.zlib2=1.1.0 && yarn install" {
+		t.Fatalf("yarn: %q", fx.Command)
+	}
+	if fx := overrideFix("pnpm", "@a/b", "2.0.0", "../.."); fx.Command != "cd ../.. && npm pkg set pnpm.overrides.@a/b=2.0.0 && pnpm install" || fx.File != "../../package.json" {
+		t.Fatalf("pnpm: %q", fx.Command)
+	}
+	if fx := overrideFix("npm", "lodash.merge", "4.6.2", ""); fx.Command != "npm install" {
+		t.Fatalf("dotted name: %q", fx.Command)
+	}
 }
 
 func TestMalwareRevert(t *testing.T) {

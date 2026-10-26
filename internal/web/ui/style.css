@@ -24,6 +24,7 @@
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 var(--sans); }
 button { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); padding: 6px 12px; }
 button:hover { border-color: var(--quiet); }
@@ -600,3 +601,4 @@ svg.wchart .wl { font: 11px var(--sans); fill: var(--quiet); }
 svg.tspark { width: 90px; height: 24px; display: block; }
 svg.tspark polyline { fill: none; stroke: var(--accent); stroke-width: 1.8; stroke-linejoin: round; }
 .ptable td.ko.bad { color: var(--bad); font-weight: 600; }
+.codenote { font-size: 13px; margin: 0 0 12px; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--warn); background: var(--warn-bg); color: var(--ink); }

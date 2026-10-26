@@ -5,6 +5,7 @@ package web
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
@@ -21,6 +22,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Ali7Zeynalli/depgate/internal/app"
 	"github.com/Ali7Zeynalli/depgate/internal/auth"
@@ -41,6 +43,7 @@ type Backend interface {
 	SetRescanHours(h int) error
 	Accept(dirs []string, key, reason string, days int) error
 	Unaccept(dirs []string, key string) error
+	CheckUpdate(ctx context.Context) (*app.Update, error)
 }
 
 type Server struct {
@@ -217,6 +220,16 @@ func (s *Server) Handler() http.Handler {
 			return
 		}
 		writeJSON(w, http.StatusOK, s.B.State())
+	})
+	mux.HandleFunc("POST /api/update/check", func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
+		defer cancel()
+		u, err := s.B.CheckUpdate(ctx)
+		if err != nil {
+			writeErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"update": u, "state": s.B.State()})
 	})
 	mux.HandleFunc("GET /api/mcp", func(w http.ResponseWriter, r *http.Request) {
 		// what the "AI agent (MCP)" dialog needs to build a connection for this server

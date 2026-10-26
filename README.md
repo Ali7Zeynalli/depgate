@@ -55,7 +55,7 @@ Then open `http://127.0.0.1:7777`, choose a password and **+ Add project** (a pr
 | Windows WSL | your WSL home — projects on the Windows side? start it from PowerShell |
 
 - Your home is mounted read-only; the container runs as its owner and drops root. Data lives in the `depgate-data` volume.
-- Update: `git pull && docker compose up -d` (it always fetches the newest image). DepGate shows a notice at the top when a new version is out, with the command.
+- Update: `git pull && docker compose up -d` (it always fetches the newest image). DepGate shows a notice at the top when a new version is out, with the command (it checks at start and every 6 h; **⋯ → Check for updates** checks now).
 - macOS binary, first run: `xattr -d com.apple.quarantine ./depgate`. Windows SmartScreen: *More info → Run anyway*.
 - Verify downloads: `checksums.txt` and `gh attestation verify <file> -R Ali7Zeynalli/depgate`.
 </details>
@@ -65,7 +65,7 @@ Then open `http://127.0.0.1:7777`, choose a password and **+ Add project** (a pr
 | Section | What it shows |
 |---|---|
 | **Overview** | the state at a glance (malware, do now, code changes, Docker & server, last change) and the first steps in order, with the command where there is one; indicators: time to fix, oldest open finding, this week |
-| **Packages** | one row per package, risk first: what it is, what was found, the weakness in plain words (CWE), the safest version, **which version fixes what**, the command and numbered steps; filters for exploited (KEV), EPSS, no fix, direct / transitive; malware, removed versions, packages that must update together; **accept a risk** with a reason until a date (it comes back by itself) |
+| **Packages** | one row per package, risk first: what it is, what was found, the weakness in plain words (CWE), the safest version, **which version fixes what**, the command and numbered steps; filters for exploited (KEV), EPSS, no fix, direct / transitive; malware, removed versions, packages that must update together; **accept a risk** with a reason until a date (it comes back by itself); **Commands** gives every `package.json` / lockfile command of a project or folder as one script to review (malware first, then do now, overrides written with `npm pkg set`, plan and optional commented out) |
 | **Code changes** | `file:line` places for Next.js, React, Express, NestJS, Prisma, Zod, Tailwind, ESLint, TanStack Query, React Router; codemods; breaking changes from release notes |
 | **Docker** | Dockerfiles and compose files anywhere in the project or repository (`docker/`, `deploy/`, `infra/`…, and the files a compose file builds from or includes): 37 rules for security mistakes and Compose Specification errors, end-of-life and outdated images |
 | **Web server** | nginx / Caddy: known vulnerabilities of your version, TLS, headers, path traversal, exposed admin API |
@@ -144,7 +144,7 @@ Risks you accept in the UI also count for `--ci`. For CI on another machine, dow
 | `--addr` · `DEPGATE_ADDR` | listen address | `127.0.0.1` (`0.0.0.0` in the container) |
 | `--push URL` · `--token` / `DEPGATE_PUSH_TOKEN` | scan once and POST the JSON report to a URL | — |
 | `--rescan` · `DEPGATE_RESCAN_HOURS` | scan projects again when the last scan is older than N hours (0 = off; also in the UI) | 12 |
-| `DEPGATE_NO_UPDATE_CHECK=1` | don't check GitHub once a day for a newer DepGate | — |
+| `DEPGATE_NO_UPDATE_CHECK=1` | don't check GitHub for a newer DepGate (at start and every 6 h) | — |
 | `--print-token` · `DEPGATE_TOKEN` | API / MCP token | generated |
 | `DEPGATE_PASSWORD` | set the password up front | — |
 | `DEPGATE_GITHUB_TOKEN` | more GitHub requests for release notes | — |
@@ -155,11 +155,11 @@ More: `depgate --help`.
 
 ## Security and privacy
 
-- Only package names, versions, CVE ids, image names and GitHub repository names (for release notes) leave your computer — never code, paths or `.env` files. Reports, history and accepted risks stay in the data folder. Once a day DepGate asks GitHub for the newest release number and shows a notice if there is one.
+- Only package names, versions, CVE ids, image names and GitHub repository names (for release notes) leave your computer — never code, paths or `.env` files. Reports, history and accepted risks stay in the data folder. At start and every 6 hours DepGate asks GitHub for the newest release number and shows a notice if there is one.
 - Read-only: nothing is written into your projects; in Docker your home is mounted read-only and DepGate runs without root.
 - The UI listens on `127.0.0.1` (in Docker the port is published on `127.0.0.1` only) and is password-protected (PBKDF2-SHA256); API calls need a custom header, the `Host` header is checked, a strict CSP is sent.
 
-**Limits:** npm only (npm, pnpm, yarn, bun) · code places are found by text patterns, so review them · no CVE scan inside container images (use Trivy) · it reads the folders of the computer it runs on.
+**Limits:** npm only (npm, pnpm, yarn, bun) · code places are found by text patterns, so they are approximate — analyse your own code · no CVE scan inside container images (use Trivy) · it reads the folders of the computer it runs on.
 
 ## Development
 

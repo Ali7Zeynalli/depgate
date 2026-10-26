@@ -49,14 +49,13 @@ func TestUpdateCheck(t *testing.T) {
 		want bool
 	}{{"0.9.0", true}, {"0.10.0", false}, {"0.11.1", false}, {"dev", false}} {
 		m := &Manager{Opt: scan.Options{Version: c.ver}}
-		m.checkUpdate(context.Background())
+		_ = m.checkUpdate(context.Background())
 		if (m.update != nil) != c.want || c.want && m.update.Latest != "0.10.0" {
 			t.Fatalf("%s: %+v", c.ver, m.update)
 		}
 	}
 	m := &Manager{Opt: scan.Options{Version: "0.9.0", Offline: true}}
-	m.checkUpdate(context.Background())
-	if m.update != nil {
+	if m.checkUpdate(context.Background()) == nil || m.update != nil {
 		t.Fatal("offline must not check")
 	}
 }

@@ -55,7 +55,7 @@ Sonra `http://127.0.0.1:7777` aç, parol seç və **+ Layihə əlavə et** (layi
 | Windows WSL | WSL ev qovluğunu — layihələr Windows tərəfindədirsə, PowerShell-dən işə sal |
 
 - Ev qovluğun yalnız oxuma rejimində bağlanır; konteyner onun sahibi kimi işləyir və root hüquqlarını buraxır. Data `depgate-data` volume-unda saxlanır.
-- Yeniləmə: `git pull && docker compose up -d` (həmişə ən yeni image-i çəkir). Yeni versiya çıxanda DepGate yuxarıda bildiriş və əmri göstərir.
+- Yeniləmə: `git pull && docker compose up -d` (həmişə ən yeni image-i çəkir). Yeni versiya çıxanda DepGate yuxarıda bildiriş və əmri göstərir (açılanda və hər 6 saatdan bir yoxlayır; **⋯ → Yeniləməni yoxla** dərhal yoxlayır).
 - macOS, ilk dəfə: `xattr -d com.apple.quarantine ./depgate`. Windows SmartScreen: *More info → Run anyway*.
 - Yükləməni yoxla: `checksums.txt` və `gh attestation verify <fayl> -R Ali7Zeynalli/depgate`.
 </details>
@@ -65,7 +65,7 @@ Sonra `http://127.0.0.1:7777` aç, parol seç və **+ Layihə əlavə et** (layi
 | Bölmə | Nə göstərir |
 |---|---|
 | **Ümumi** | vəziyyət bir baxışda (zərərli, indi et, kod dəyişikliyi, Docker və server, son dəyişiklik) və ilk addımlar sıra ilə, əmri olanda elə orada; göstəricilər: düzəltmə müddəti, ən köhnə açıq iş, bu həftə |
-| **Paketlər** | hər paket bir sətir, əvvəl risk: nədir, nə tapılıb, zəiflik sadə dildə (CWE), ən təhlükəsiz versiya, **hansı versiya nəyi düzəldir**, əmr və nömrəli addımlar; süzgəclər: real hücumda (KEV), EPSS, düzəlişi yoxdur, birbaşa / dolayı; zərərli paketlər, silinmiş versiyalar, birlikdə yenilənməli paketlər; səbəb və tarixlə **riski qəbul et** (müddət bitəndə özü qayıdır) |
+| **Paketlər** | hər paket bir sətir, əvvəl risk: nədir, nə tapılıb, zəiflik sadə dildə (CWE), ən təhlükəsiz versiya, **hansı versiya nəyi düzəldir**, əmr və nömrəli addımlar; süzgəclər: real hücumda (KEV), EPSS, düzəlişi yoxdur, birbaşa / dolayı; zərərli paketlər, silinmiş versiyalar, birlikdə yenilənməli paketlər; səbəb və tarixlə **riski qəbul et** (müddət bitəndə özü qayıdır); **Əmrlər** düyməsi layihənin və ya qovluğun bütün `package.json` / lockfile əmrlərini yoxlamaq üçün bir skript kimi verir (əvvəl zərərli, sonra «indi et», override-lar `npm pkg set` ilə, «planla» və «istəyə görə» şərhdə) |
 | **Kod dəyişiklikləri** | Next.js, React, Express, NestJS, Prisma, Zod, Tailwind, ESLint, TanStack Query, React Router üçün `fayl:sətir` yerləri; codemod-lar; reliz qeydlərindən breaking changes |
 | **Docker** | layihədə və ya repo-da harada olursa olsun Dockerfile və compose faylları (`docker/`, `deploy/`, `infra/`… və compose-un build etdiyi və ya daxil etdiyi fayllar): təhlükəsizlik səhvləri və Compose Specification xətaları üçün 37 qayda, dəstəyi bitmiş və köhnə image-lər |
 | **Veb server** | nginx / Caddy: versiyanın məlum zəiflikləri, TLS, başlıqlar, yol keçidi, açıq admin API |
@@ -144,7 +144,7 @@ depgate --reset-password      # Docker: docker exec depgate depgate --reset-pass
 | `--addr` · `DEPGATE_ADDR` | dinləmə ünvanı | `127.0.0.1` (konteynerdə `0.0.0.0`) |
 | `--push URL` · `--token` / `DEPGATE_PUSH_TOKEN` | bir dəfə skan et və JSON hesabatı URL-ə POST et | — |
 | `--rescan` · `DEPGATE_RESCAN_HOURS` | son skan N saatdan köhnədirsə, yenidən skan et (0 = söndür; interfeysdə də) | 12 |
-| `DEPGATE_NO_UPDATE_CHECK=1` | gündə bir dəfə GitHub-da yeni versiyanı yoxlama | — |
+| `DEPGATE_NO_UPDATE_CHECK=1` | GitHub-da yeni versiyanı yoxlama (açılanda və hər 6 saatdan bir) | — |
 | `--print-token` · `DEPGATE_TOKEN` | API / MCP tokeni | avtomatik |
 | `DEPGATE_PASSWORD` | parolu əvvəlcədən təyin et | — |
 | `DEPGATE_GITHUB_TOKEN` | reliz qeydləri üçün daha çox GitHub sorğusu | — |
@@ -155,11 +155,11 @@ depgate --reset-password      # Docker: docker exec depgate depgate --reset-pass
 
 ## Təhlükəsizlik və məxfilik
 
-- Kompüterindən yalnız paket adları, versiyalar, CVE nömrələri, image adları və GitHub repo adları (reliz qeydləri üçün) çıxır — kod, yollar və `.env` faylları heç vaxt. Hesabatlar, tarixçə və qəbul edilmiş risklər data qovluğunda qalır. Gündə bir dəfə DepGate GitHub-dan ən son reliz nömrəsini soruşur və yeni versiya varsa, bildiriş göstərir.
+- Kompüterindən yalnız paket adları, versiyalar, CVE nömrələri, image adları və GitHub repo adları (reliz qeydləri üçün) çıxır — kod, yollar və `.env` faylları heç vaxt. Hesabatlar, tarixçə və qəbul edilmiş risklər data qovluğunda qalır. Açılanda və hər 6 saatdan bir DepGate GitHub-dan ən son reliz nömrəsini soruşur və yeni versiya varsa, bildiriş göstərir.
 - Yalnız oxuyur: layihələrinə heç nə yazılmır; Docker-də ev qovluğun yalnız oxuma rejimində bağlanır və DepGate root olmadan işləyir.
 - İnterfeys `127.0.0.1`-də açılır (Docker-də port yalnız `127.0.0.1`-də açıqdır) və parolla qorunur (PBKDF2-SHA256); API sorğuları xüsusi başlıq tələb edir, `Host` başlığı yoxlanır, sərt CSP göndərilir.
 
-**Hədlər:** yalnız npm (npm, pnpm, yarn, bun) · kod yerləri mətn nümunələri ilə tapılır, ona görə yoxla · image-lərin içindəki CVE-lər skan olunmur (Trivy istifadə et) · işlədiyi kompüterin qovluqlarını oxuyur.
+**Hədlər:** yalnız npm (npm, pnpm, yarn, bun) · kod yerləri mətn nümunələri ilə tapılır, ona görə təxminidir — öz kodunu analiz et · image-lərin içindəki CVE-lər skan olunmur (Trivy istifadə et) · işlədiyi kompüterin qovluqlarını oxuyur.
 
 ## İnkişaf
 

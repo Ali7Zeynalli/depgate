@@ -3,6 +3,8 @@ package decide
 import (
 	"context"
 	"encoding/json"
+	"path"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"sort"
@@ -294,7 +296,7 @@ func vulnFinding(ctx context.Context, d *Data, it *instance, in Input, g *graph,
 			}
 		}
 		if !it.pkg.Direct {
-			f.Fix = overrideFix(in.Mgr, name, f.Target)
+			f.Fix = overrideFix(in.Mgr, name, f.Target, lockRoot(in))
 			if f.Target == "" {
 				f.Fix.Note = i18n.F("Zərərli paketi gətirən valideyni (%s) sil və ya dəyiş", "Remove or replace the parent that pulls in the malicious package (%s)", f.Chain[0])
 			}
@@ -421,7 +423,7 @@ func transitiveFix(ctx context.Context, d *Data, f *report.Finding, it *instance
 		}
 	}
 	// 3. override
-	f.Fix = overrideFix(mgr, name, target.String())
+	f.Fix = overrideFix(mgr, name, target.String(), lockRoot(in))
 	f.Impact = report.ImpactMaybe
 	f.ImpactWhy = append(f.ImpactWhy, i18n.F("Override: %s rəsmən %s istəmir — build və testlə yoxla; valideyn yenilənəndə override-ı sil", "Override: %s does not officially ask for %s — verify with build and tests; remove the override once the parent updates", strings.Join(parents, ", "), target))
 	return errs
@@ -720,7 +722,20 @@ func removeCmd(mgr, name string) string {
 	}
 }
 
-func overrideFix(mgr, name, ver string) *report.Fix {
+// lockRoot is the workspace root when the lockfile lives in a parent folder
+// ("../.."): overrides only count in the root package.json there.
+func lockRoot(in Input) string {
+	if in.Lock == nil {
+		return ""
+	}
+	dir := filepath.ToSlash(filepath.Dir(in.Lock.File))
+	if dir == ".." || strings.HasPrefix(dir, "../") {
+		return dir
+	}
+	return ""
+}
+
+func overrideFix(mgr, name, ver, root string) *report.Fix {
 	if ver == "" {
 		ver = "<clean-version>"
 	}
@@ -733,20 +748,30 @@ func overrideFix(mgr, name, ver string) *report.Fix {
 		b, _ := json.MarshalIndent(map[string]any{key: v}, "", "  ")
 		return string(b)
 	}
-	fx := &report.Fix{Strategy: "override", File: "package.json", Note: i18n.F("Müvəqqəti həll: valideyn paket düzəldilmiş versiyanı tələb edəndə override-ı sil", "Temporary fix: remove the override once the parent package requires the fixed version")}
+	fx := &report.Fix{Strategy: "override", File: path.Join(root, "package.json"), Note: i18n.F("Müvəqqəti həll: valideyn paket düzəldilmiş versiyanı tələb edəndə override-ı sil", "Temporary fix: remove the override once the parent package requires the fixed version")}
+	key, install := "overrides", "npm install"
 	switch mgr {
 	case "pnpm":
 		fx.Snippet = block("pnpm", "overrides")
-		fx.Command = "pnpm install"
+		key, install = "pnpm.overrides", "pnpm install"
 	case "yarn", "yarn1":
 		fx.Snippet = block("resolutions", "")
-		fx.Command = "yarn install"
+		key, install = "resolutions", "yarn install"
 	case "bun":
 		fx.Snippet = block("overrides", "")
-		fx.Command = "bun install"
+		install = "bun install"
 	default:
 		fx.Snippet = block("overrides", "")
-		fx.Command = "npm install"
+	}
+	fx.Command = install
+	// One command that writes the override into package.json and updates the
+	// lockfile (npm pkg set works for every manager); a name with a dot would
+	// be read as a path, so then only the snippet is given.
+	if !strings.Contains(name, ".") && ver != "<clean-version>" {
+		fx.Command = "npm pkg set " + key + "." + name + "=" + ver + " && " + install
+	}
+	if root != "" {
+		fx.Command = "cd " + root + " && " + fx.Command
 	}
 	return fx
 }
