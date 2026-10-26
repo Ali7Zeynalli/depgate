@@ -8,7 +8,9 @@ import (
 )
 
 func TestDiffVersions(t *testing.T) {
-	v := func(n, ver string, direct bool) report.Version { return report.Version{Name: n, Version: ver, Direct: direct} }
+	v := func(n, ver string, direct bool) report.Version {
+		return report.Version{Name: n, Version: ver, Direct: direct}
+	}
 	old := []report.Version{v("next", "14.2.3", true), v("lodash", "4.17.21", true), v("follow-redirects", "1.15.6", false), v("moment", "2.29.4", true), v("ms", "2.1.2", false), v("ms", "2.1.3", false)}
 	cur := []report.Version{v("next", "14.2.25", true), v("lodash", "4.17.20", true), v("follow-redirects", "1.15.9", false), v("left-pad", "1.3.0", false), v("ms", "2.1.3", false)}
 	d := DiffVersions(old, cur)
