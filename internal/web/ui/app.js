@@ -448,6 +448,9 @@
     hByMCP: ["AI agent", "AI agent"],
     hCounts: ["təcili {0} · planla {1} · zərərli {2} · Docker/server {3}", "urgent {0} · plan {1} · malware {2} · Docker/server {3}"],
     hNewL: ["Yeni", "New"],
+    footMore: ["Eyni müəllifdən:", "More from the author:"],
+    footDock: ["Docker idarəetmə paneli (lokal və SSH ilə serverlər)", "Docker control panel (local and remote hosts over SSH)"],
+    footNovus: ["WireGuard üzərində öz VPN şəbəkən", "your own private VPN network on WireGuard"],
     dashTitle: ["Ümumi panel", "Dashboard"],
     dashSub: ["bütün layihələr", "all projects"],
     dashDs: ["Docker və server (yüksək)", "Docker & server (high)"],
@@ -805,6 +808,7 @@
     else if (st.errors && st.errors.length) { ban.hidden = false; ban.className = "banner warn"; ban.textContent = t("sourcesFailed", st.errors.join(" · ")); }
     else ban.hidden = true;
 
+    renderFoot();
     const main = $("#main");
     if (!ps.length) { main.replaceChildren(welcome()); return; }
     if (current === DASH) { main.replaceChildren(dashboardView(ps)); return; }
@@ -814,6 +818,16 @@
     main.replaceChildren(projectView(p));
   }
 
+  // ---------- footer: the version and the author's other open-source projects (plain links, nothing is loaded) ----------
+  const GH = "https://github.com/Ali7Zeynalli/";
+  function renderFoot() {
+    const a = (href, text) => el("a", { href, target: "_blank", rel: "noopener noreferrer" }, text);
+    $("#appfoot").replaceChildren(
+      el("span", null, a(GH + "depgate", "DepGate"), st.version ? " " + st.version : "", " · MIT"),
+      el("span", { class: "fsep" }, t("footMore")),
+      el("span", null, a(GH + "dockgate", "DockGate"), " — ", t("footDock")),
+      el("span", null, a(GH + "NovusGate", "NovusGate"), " — ", t("footNovus")));
+  }
   // ---------- sidebar: projects nested under the folder they were added from ----------
   const baseName = (d) => d.replace(/[\\/]+$/, "").split(/[\\/]/).pop() || d;
   const relTo = (dir, group) => dir === group ? "" : dir.slice(group.length).replace(/^[\\/]+/, "");

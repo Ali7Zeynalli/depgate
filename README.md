@@ -64,6 +64,7 @@ Then open `http://127.0.0.1:7777`, choose a password and **+ Add project** (a pr
 
 | Section | What it shows |
 |---|---|
+| **Dashboard** | every project on one page — the start page once you have more than one: totals (malware, do now, code changes, Docker & server, Node.js), how each project is doing, **the 10 most important things to do** anywhere, **updates needed in several projects** with all their commands, indicators, weekly chart, AI work, and a sortable table of every project with its trend, oldest open finding and time to fix |
 | **Overview** | the state at a glance (malware, do now, code changes, Docker & server, last change) and the first steps in order, with the command where there is one; indicators: time to fix, oldest open finding, this week |
 | **Packages** | one row per package, risk first: what it is, what was found, the weakness in plain words (CWE), the safest version, **which version fixes what**, the command and numbered steps; filters for exploited (KEV), EPSS, no fix, direct / transitive; malware, removed versions, packages that must update together; **accept a risk** with a reason until a date (it comes back by itself); **Commands** gives every `package.json` / lockfile command of a project or folder as one script to review (malware first, then do now, overrides written with `npm pkg set`, plan and optional commented out) |
 | **Code changes** | `file:line` places for Next.js, React, Express, NestJS, Prisma, Zod, Tailwind, ESLint, TanStack Query, React Router; codemods; breaking changes from release notes |
@@ -82,6 +83,8 @@ Folders and monorepos get one merged page with a table of their projects (trend,
 | <img src="docs/packages.png" alt="A package row opened: what was found and what to do" width="420"> | <img src="docs/code-changes.png" alt="Places in the code to change for an upgrade" width="420"> |
 | **History** | **AI & MCP** |
 | <img src="docs/history.png" alt="Scans and git commits on one timeline, AI work and indicators" width="420"> | <img src="docs/mcp.png" alt="AI work: the tasks an agent took on and what DepGate verified" width="420"> |
+
+<p align="center"><img src="docs/dashboard.png" alt="Dashboard: every project on one page" width="860"></p>
 
 ## AI agents (MCP)
 
@@ -170,5 +173,7 @@ More: `depgate --help`.
 ## Development
 
 `go test ./... && go vet ./...` — standard library only. See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
+
+**More from the author:** [DockGate](https://github.com/Ali7Zeynalli/dockgate) — a self-hosted Docker control panel for your local daemon and remote hosts over SSH · [NovusGate](https://github.com/Ali7Zeynalli/NovusGate) — your own private VPN network on WireGuard, managed from one dashboard.
 
 If DepGate saves you a bad afternoon, a ⭐ helps others find it. — [MIT](LICENSE)
