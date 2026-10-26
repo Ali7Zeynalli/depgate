@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Ali7Zeynalli/depgate/internal/history"
 	"github.com/Ali7Zeynalli/depgate/internal/report"
 )
 
@@ -34,6 +35,8 @@ type Entry struct {
 
 type Store struct {
 	Dir string
+	// History keeps every scan and what AI agents did (history/, activity.jsonl).
+	History *history.Log
 
 	mu       sync.Mutex
 	projects []Entry
@@ -44,7 +47,7 @@ func Open(dir string) (*Store, error) {
 	if err := os.MkdirAll(filepath.Join(dir, "reports"), 0o700); err != nil {
 		return nil, err
 	}
-	s := &Store{Dir: dir}
+	s := &Store{Dir: dir, History: &history.Log{Dir: dir}}
 	b, err := os.ReadFile(filepath.Join(dir, "projects.json"))
 	switch {
 	case err == nil:
@@ -185,6 +188,7 @@ func (s *Store) Remove(dir string) error {
 	}
 	s.projects = out
 	_ = os.Remove(s.reportPath(dir))
+	s.History.Forget(dir)
 	return s.saveLocked()
 }
 
@@ -207,6 +211,12 @@ func (s *Store) SaveReport(p *report.Project) error {
 		return err
 	}
 	return writeAtomic(s.reportPath(p.Dir), b)
+}
+
+// RecordScan adds a scan to the project's history. by is who asked for it
+// (ui, cli, mcp), agent the MCP client when known.
+func (s *Store) RecordScan(p *report.Project, by, agent string) {
+	_ = s.History.AddScan(p.Dir, history.FromProject(p, by, agent, history.LockFingerprint(p.Dir, p.Lockfile)))
 }
 
 // Report loads the last scan of dir (nil when never scanned).

@@ -32,6 +32,8 @@ type Backend interface {
 	Add(path string) ([]string, error)
 	Remove(dir string) error
 	Browse(path string) (*app.Listing, error)
+	History(dir string) (*app.History, error)
+	ClearHistory(dir string) error
 }
 
 type Server struct {
@@ -142,6 +144,31 @@ func (s *Server) Handler() http.Handler {
 			return
 		}
 		writeJSON(w, http.StatusOK, l)
+	})
+	mux.HandleFunc("GET /api/history", func(w http.ResponseWriter, r *http.Request) {
+		h, err := s.B.History(r.URL.Query().Get("dir"))
+		if err != nil {
+			writeErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, h)
+	})
+	mux.HandleFunc("POST /api/history/clear", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Dir string `json:"dir"`
+		}
+		if !readJSON(w, r, &req) {
+			return
+		}
+		if req.Dir == "" {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "dir is required"})
+			return
+		}
+		if err := s.B.ClearHistory(req.Dir); err != nil {
+			writeErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 	})
 	mux.HandleFunc("GET /api/mcp", func(w http.ResponseWriter, r *http.Request) {
 		// what the "AI agent (MCP)" dialog needs to build a connection for this server

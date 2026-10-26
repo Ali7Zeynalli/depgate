@@ -69,7 +69,8 @@ Then open `http://127.0.0.1:7777`, choose a password and **+ Add project** (a pr
 | **Docker** | 25 security rules, Compose Specification errors, end-of-life and outdated images |
 | **Web server** | nginx / Caddy: known vulnerabilities of your version, TLS, headers, path traversal, exposed admin API |
 | **Node.js & setup** | runtime security releases and end of life; lockfile, install scripts, release cooldown |
-| **AI & MCP** | a ready prompt, `AGENTS.md` version rules, the MCP connection command |
+| **AI & MCP** | a ready prompt, `AGENTS.md` version rules, the MCP connection command, which agents are connected |
+| **History** | every scan compared with the one before: what is new, what is gone, whether the lockfile changed or a new advisory appeared; who ran it (UI, CLI or an AI agent) and what each agent checked over MCP |
 
 Folders and monorepos get one merged page; a finding in several projects is shown once.
 
@@ -94,6 +95,7 @@ cd ~/projects/shop && claude mcp add --transport http depgate -s local \
 | `get_findings` · `get_code_changes` | findings with target and command · `file:line` places for one package |
 | `get_docker_issues` | Docker, compose, image, nginx and Caddy findings |
 | `get_ai_rules` · `project_status` · `scan_project` · `list_projects` | version rules · summary · rescan · all projects |
+| `get_history` | what changed between recent scans — to confirm a fix worked |
 
 - Windows PowerShell: `cd $HOME\projects\shop; claude mcp add --transport http depgate -s local "http://127.0.0.1:7777/mcp?project=$PWD" --header "Authorization: Bearer $(depgate --print-token)"`
 - Token in Docker: `docker exec depgate depgate --print-token`.
@@ -123,7 +125,7 @@ depgate --reset-password      # Docker: docker exec depgate depgate --reset-pass
 |---|---|---|
 | `--port` | UI port | 7777 |
 | `--root` · `DEPGATE_ROOTS` | folders the UI may browse | your home |
-| `--data` · `DEPGATE_DATA` | project list, reports, password hash | `~/.config/depgate` · macOS `~/Library/Application Support/depgate` · Windows `%AppData%\depgate` |
+| `--data` · `DEPGATE_DATA` | project list, reports, scan history, password hash | `~/.config/depgate` · macOS `~/Library/Application Support/depgate` · Windows `%AppData%\depgate` |
 | `--offline` | no network, cache only | off |
 | `--cooldown` | skip target versions younger than N days | 3 |
 | `--print-token` · `DEPGATE_TOKEN` | API / MCP token | generated |

@@ -2,8 +2,8 @@
 (() => {
   const $ = (s, r = document) => r.querySelector(s);
   const H = { "X-DepGate": "1" };
-  const TABS = ["overview", "packages", "code", "docker", "server", "env", "ai"];
-  const TABL = { overview: "tabOverview", packages: "tabPackages", code: "tabCode", docker: "tabDocker", server: "tabServer", env: "tabEnv", ai: "tabAI" };
+  const TABS = ["overview", "packages", "code", "docker", "server", "env", "ai", "history"];
+  const TABL = { overview: "tabOverview", packages: "tabPackages", code: "tabCode", docker: "tabDocker", server: "tabServer", env: "tabEnv", ai: "tabAI", history: "tabHistory" };
   // location.hash = encodeURIComponent(project or folder) + "@" + tab ("@" never appears encoded)
   const parseHash = () => {
     const h = location.hash.slice(1), i = h.lastIndexOf("@");
@@ -242,6 +242,45 @@
     tabDocker: ["Docker", "Docker"],
     tabEnv: ["Node.js və mühit", "Node.js & setup"],
     tabAI: ["AI və MCP", "AI & MCP"],
+    tabHistory: ["Tarixçə", "History"],
+    hChart: ["Təcili işlər — son skanlar", "Urgent items — recent scans"],
+    hScans: ["Skanlar ({0})", "Scans ({0})"],
+    hNone: ["Hələ tarixçə yoxdur — növbəti skandan sonra burada görünəcək.", "No history yet — it starts with the next scan."],
+    hFirst: ["ilk skan", "first scan"],
+    hSame: ["dəyişiklik yoxdur", "no change"],
+    hNew: ["+{0} yeni", "+{0} new"],
+    hFixed: ["{0} aradan qalxıb", "{0} gone"],
+    hChanged: ["{0} dəyişib", "{0} changed"],
+    hLock: ["lockfile dəyişib", "lockfile changed"],
+    hAdv: ["lockfile eynidir — yeni advisory çıxıb", "lockfile unchanged — new advisories"],
+    hByUI: ["interfeys", "UI"],
+    hByCLI: ["əmr sətri", "command line"],
+    hByMCP: ["AI agent", "AI agent"],
+    hCounts: ["təcili {0} · planla {1} · zərərli {2} · Docker/server {3}", "urgent {0} · plan {1} · malware {2} · Docker/server {3}"],
+    hNewL: ["Yeni", "New"],
+    hFixedL: ["Aradan qalxıb", "Gone"],
+    hChangedL: ["Dəyişib", "Changed"],
+    hSameN: ["{0} skan dəyişikliksiz", "{0} scans without changes"],
+    hClear: ["Tarixçəni təmizlə", "Clear history"],
+    hClearConfirm: ["«{0}» üçün skan tarixçəsi və agent fəaliyyəti silinsin? Hesabatlar qalır.", "Delete the scan history and agent activity of “{0}”? Reports stay."],
+    hCleared: ["Tarixçə təmizləndi", "History cleared"],
+    hLocal: ["Tarixçə yalnız bu kompüterdə saxlanır: hər layihə üçün son 200 skan (90 gün) və agentlərin son 500 əməliyyatı.", "History stays on this computer: the last 200 scans per project (90 days) and the last 500 agent actions."],
+    agTitle: ["Qoşulan AI agentlər", "Connected AI agents"],
+    agNone: ["Hələ heç bir agent qoşulmayıb. Qoşmaq üçün: AI və MCP → Qoşulma əmri.", "No agent has connected yet. To connect one: AI & MCP → Connection command."],
+    agActive: ["aktiv", "active"],
+    agSeen: ["son dəfə {0}", "last seen {0}"],
+    agCalls: ["sorğu: {0}", "calls: {0}"],
+    agChecks: ["paket yoxlaması: {0}", "package checks: {0}"],
+    agWarned: ["xəbərdarlıq: {0}", "flagged: {0}"],
+    agScans: ["skan: {0}", "scans: {0}"],
+    actTitle: ["Agent fəaliyyəti", "Agent activity"],
+    actNone: ["Agent fəaliyyəti yoxdur.", "No agent activity yet."],
+    vOk: ["təhlükəsiz", "ok"],
+    vCaution: ["ehtiyatla", "caution"],
+    vBlock: ["quraşdırma", "do not install"],
+    evConnect: ["qoşuldu", "connected"],
+    sinceTitle: ["Son dəyişiklik", "Last change"],
+    hOpen: ["Tarixçə →", "History →"],
     firstTitle: ["Əvvəlcə bunları et", "Do these first"],
     firstHelp: ["Prioritetə görə sıralanıb; hər addım öz bölməsinə aparır.", "Sorted by priority; each step opens its section."],
     firstNone: ["Təcili iş yoxdur.", "Nothing urgent."],
@@ -564,6 +603,7 @@
       server: [ctx.server.issues.length, ctx.server.issues.some((d) => d.severity === "high")],
       env: [envN, nodeNow],
       ai: ["", false],
+      history: ["", false],
     };
     const hasServer = ctx.server.files.length > 0 || ctx.server.issues.length > 0;
     const tabs = TABS.filter((k) => k !== "server" || hasServer);
@@ -580,7 +620,7 @@
     }, info[k][1] ? el("span", { class: "alert", "aria-hidden": "true" }) : null, t(TABL[k]), info[k][0] ? el("span", { class: "n" }, info[k][0]) : null)));
     const body = tab === "packages" ? packagesTab(ctx) : tab === "code" ? codeTab(migs) : tab === "docker" ? dockerTab(ctx.docker)
       : tab === "server" ? dockerTab(ctx.server, "server")
-      : tab === "env" ? ctx.env() : tab === "ai" ? aiTab(ctx) : overviewTab(ctx, { n, urgent, hits, migs, nodeNow });
+      : tab === "env" ? ctx.env() : tab === "ai" ? aiTab(ctx) : tab === "history" ? historyTab(ctx) : overviewTab(ctx, { n, urgent, hits, migs, nodeNow });
     return el("div", null, bar, el("div", { class: "tabbody", role: "tabpanel", "aria-label": t(TABL[tab]) }, body));
   }
 
@@ -631,7 +671,7 @@
       area("env", t("tabEnv"), x.nodeNow ? t("needNow") : "✓", x.nodeNow,
         ctx.nodes.length === 1 ? (ctx.nodes[0].label ? ctx.nodes[0].label + ": " : "") + nodeLine(ctx.nodes[0].n) : ctx.nodes.length ? t("nodeAll") : t("noNode"),
         t("hygiene") + ": " + (ctx.hygBad ? t("hygBad", ctx.hygBad) : t("hygOk"))));
-    return [first, areas, ctx.extra,
+    return [first, sinceCard(ctx), areas, ctx.extra,
       ctx.errors.length ? el("details", { class: "errs" }, el("summary", null, t("warningsN", ctx.errors.length)), el("ul", null, ctx.errors.map((e) => el("li", null, e)))) : null];
   }
   function packagesTab(ctx) {
@@ -721,7 +761,147 @@
     return el("div", { class: "areas" },
       c(t("aiBtn"), t("aiHelp"), el("button", { class: "primary", onclick: () => openPrompt(scanned, ctx.dir, ctx.g) }, t("aiOpen"))),
       c(t("rulesBtn"), t("rulesHelp"), el("button", { onclick: () => openRules(scanned, ctx.dir, ctx.g) }, t("rulesOpen"))),
-      st.readOnly ? null : c(t("mcpBtn"), t("mcpHelp"), el("button", { onclick: () => openMCP(ctx.dir) }, t("mcpOpen"))));
+      st.readOnly ? null : c(t("mcpBtn"), t("mcpHelp"), el("button", { onclick: () => openMCP(ctx.dir) }, t("mcpOpen"))),
+      st.readOnly ? null : slot(ctx.dir, (h) => el("div", { class: "card aicard" }, el("div", { class: "h3" }, t("agTitle")),
+        agentList(h.agents.slice(0, 3)),
+        el("button", { onclick: () => goTab("history") }, t("hOpen")))));
+  }
+
+  // ---------- history: scans compared, and what AI agents did ----------
+  const hcache = new Map();
+  function getHistory(dir) {
+    const key = (st.lastScan || "") + "|" + st.busy;
+    const c = hcache.get(dir);
+    if (c && c.key === key && Date.now() - c.at < 10000) return c.p;
+    const p = api("GET", "api/history?dir=" + encodeURIComponent(dir));
+    hcache.set(dir, { key, at: Date.now(), p });
+    p.catch(() => hcache.delete(dir));
+    return p;
+  }
+  // slot shows what build(history) returns once the history has loaded
+  function slot(dir, build, loading) {
+    const box = el("div", { class: "hslot" }, loading ? el("div", { class: "quiet small" }, t("loading")) : null);
+    if (st.readOnly) return null;
+    getHistory(dir).then((h) => { const x = build(h); box.replaceChildren(...[x].flat(Infinity).filter(Boolean)); if (!box.childNodes.length) box.remove(); })
+      .catch((e) => { if (loading) box.replaceChildren(el("div", { class: "empty" }, t("error", e.message))); else box.remove(); });
+    return box;
+  }
+  const isActive = (a) => Date.now() - new Date(a.last) < 10 * 60 * 1000;
+  function agentList(as) {
+    if (!as.length) return el("div", { class: "quiet small" }, t("agNone"));
+    return el("div", { class: "agents" }, as.map((a) => el("div", { class: "agent" },
+      el("span", { class: "dot" + (isActive(a) ? " on" : ""), "aria-hidden": "true" }),
+      el("div", { class: "grow" },
+        el("div", null, el("b", null, a.name), " ", el("span", { class: "quiet small" }, a.via === "stdio" ? "stdio" : "HTTP"),
+          isActive(a) ? el("span", { class: "chip ok" }, t("agActive")) : null),
+        el("div", { class: "quiet small" }, [t("agSeen", fmtTime(a.last)), a.calls ? t("agCalls", a.calls) : "", a.checks ? t("agChecks", a.checks) : "", a.blocked ? t("agWarned", a.blocked) : "", a.scans ? t("agScans", a.scans) : ""].filter(Boolean).join(" · "))))));
+  }
+  const byText = (s) => s.by === "mcp" ? (s.agent || t("hByMCP")) : s.by === "cli" ? t("hByCLI") : t("hByUI");
+  const urgentOf = (s) => (s.sum.now_easy || 0) + (s.sum.now_code || 0);
+  function diffChips(d) {
+    if (d.first) return [el("span", { class: "chip" }, t("hFirst"))];
+    if (!d.new.length && !d.fixed.length && !d.changed.length) return [el("span", { class: "quiet small" }, t("hSame"))];
+    return [d.new.length ? el("span", { class: "chip sev-high" }, t("hNew", d.new.length)) : null,
+      d.fixed.length ? el("span", { class: "chip ok" }, t("hFixed", d.fixed.length)) : null,
+      d.changed.length ? el("span", { class: "chip warn" }, t("hChanged", d.changed.length)) : null,
+      d.lockChanged ? el("span", { class: "quiet small" }, t("hLock")) : d.new.length ? el("span", { class: "quiet small" }, t("hAdv")) : null];
+  }
+  const itemText = (it) => (it.t === "docker" || it.t === "server" ? it.p : it.p + (it.v ? "@" + it.v : "")) +
+    (it.to ? " → " + it.to : "") + (it.n ? " — " + it.n : "");
+  function itemList(label, cls, its) {
+    if (!its.length) return null;
+    return el("div", { class: "hitems" }, el("div", { class: "lbl " + cls }, label + " (" + its.length + ")"),
+      its.map((it) => el("div", { class: "hit" }, it.s ? el("span", { class: "chip " + (SEVC[it.s] || "sev-" + it.s) }, it.s) : el("span", { class: "chip" }, it.t), " ", itemText(it))));
+  }
+  function chart(scans) {
+    const xs = scans.slice(0, 30).reverse(); // oldest → newest
+    if (xs.length < 2) return null;
+    const W = 900, Hh = 120, P = 14, max = Math.max(1, ...xs.map(urgentOf));
+    const X = (i) => P + i * (W - 2 * P) / (xs.length - 1), Y = (v) => Hh - P - v * (Hh - 2 * P) / max;
+    const NS = "http://www.w3.org/2000/svg";
+    const sv = (tag, a, ...kids) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(a)) e.setAttribute(k, v); e.append(...kids); return e; };
+    const svg = sv("svg", { viewBox: `0 0 ${W} ${Hh}`, class: "hchart", role: "img", "aria-label": t("hChart") + ": " + xs.map(urgentOf).join(", ") });
+    svg.append(sv("line", { x1: P, x2: W - P, y1: Y(0), y2: Y(0), class: "base" }));
+    svg.append(sv("polyline", { points: xs.map((s, i) => X(i) + "," + Y(urgentOf(s))).join(" "), class: "ln" }));
+    xs.forEach((s, i) => {
+      const g = sv("g", { class: "pt" + (s.sum.malware ? " bad" : "") });
+      g.append(sv("rect", { x: X(i) - 9, y: 0, width: 18, height: Hh, class: "hit" }), sv("circle", { cx: X(i), cy: Y(urgentOf(s)), r: 4 }),
+        sv("title", {}, fmtTime(s.at) + " · " + t("hCounts", urgentOf(s), s.sum.plan || 0, s.sum.malware || 0, (s.docker || 0) + (s.server || 0))));
+      svg.append(g);
+    });
+    const last = xs[xs.length - 1];
+    svg.append(sv("text", { x: W - P, y: Math.max(12, Y(urgentOf(last)) - 8), "text-anchor": "end", class: "lab" }, String(urgentOf(last))));
+    return el("div", { class: "card" }, el("div", { class: "h3" }, t("hChart")), svg);
+  }
+  function timeline(ph) {
+    const out = [];
+    let same = 0;
+    const flush = () => { if (same) out.push(el("div", { class: "hrow same quiet small" }, t("hSameN", same))); same = 0; };
+    ph.scans.forEach((s, i) => {
+      const d = s.diff, changed = d.first || d.new.length || d.fixed.length || d.changed.length;
+      if (!changed && i > 0) { same++; return; }
+      flush();
+      const head = el("summary", null,
+        el("span", { class: "ht" }, fmtTime(s.at)),
+        el("span", { class: "chip" + (s.by === "mcp" ? " ai" : "") }, byText(s)),
+        el("span", { class: "hc quiet small" }, t("hCounts", urgentOf(s), s.sum.plan || 0, s.sum.malware || 0, (s.docker || 0) + (s.server || 0))),
+        el("span", { class: "hd" }, diffChips(d)));
+      const body = [itemList(t("hNewL"), "bad", d.new), itemList(t("hFixedL"), "good", d.fixed), itemList(t("hChangedL"), "warn", d.changed)].filter(Boolean);
+      out.push(body.length ? el("details", { class: "hrow", open: i === 0 || undefined }, head, el("div", { class: "hbody" }, body))
+        : el("div", { class: "hrow flat" }, [...head.childNodes]));
+    });
+    flush();
+    return out;
+  }
+  const VERD = { ok: ["vOk", "ok"], caution: ["vCaution", "warn"], block: ["vBlock", "sev-critical"] };
+  function activity(evs, dir) {
+    if (!evs.length) return el("div", { class: "quiet small" }, t("actNone"));
+    return el("div", { class: "acts" }, evs.slice(0, 60).map((e) => el("div", { class: "act" + (e.error ? " err" : "") },
+      el("span", { class: "ht" }, fmtTime(e.at)),
+      el("b", null, e.agent),
+      el("code", null, e.tool === "connect" ? t("evConnect") : e.tool),
+      e.target ? el("span", { class: "mono" }, e.target) : null,
+      e.verdict && VERD[e.verdict] ? el("span", { class: "chip " + VERD[e.verdict][1] }, t(VERD[e.verdict][0])) : null,
+      e.project && e.project !== dir ? el("span", { class: "quiet small" }, relTo(e.project, dir) || baseName(e.project)) : null)));
+  }
+  function historyTab(ctx) {
+    if (st.readOnly) return el("div", { class: "empty" }, t("readOnly"));
+    return slot(ctx.dir, (h) => {
+      const multi = h.projects.length > 1;
+      const any = h.projects.some((p) => p.scans.length);
+      const projs = h.projects.filter((p) => p.scans.length).map((p) => {
+        const name = multi ? relTo(p.dir, ctx.dir) || t("folderRoot") : null;
+        return el("div", null, name ? el("div", { class: "h3 hproj" }, name) : null, chart(p.scans),
+          el("div", { class: "card hlist" }, el("div", { class: "h3" }, t("hScans", p.scans.length)), timeline(p)));
+      });
+      return [el("div", { class: "ghelp" }, t("hLocal")),
+        el("div", { class: "areas two" },
+          el("div", { class: "card" }, el("div", { class: "h3" }, t("agTitle")), agentList(h.agents)),
+          el("div", { class: "card" }, el("div", { class: "h3" }, t("actTitle")), activity(h.events, ctx.dir))),
+        any ? projs : el("div", { class: "empty" }, t("hNone")),
+        any || h.events.length ? el("div", { class: "hfoot" }, el("button", { class: "small ghost danger", onclick: async () => {
+          if (!confirm(t("hClearConfirm", baseName(ctx.dir)))) return;
+          try { await api("POST", "api/history/clear", { dir: ctx.dir }); hcache.delete(ctx.dir); toast(t("hCleared")); render(); }
+          catch (e) { toast(t("error", e.message)); }
+        } }, t("hClear"))) : null];
+    }, true);
+  }
+  // overview: one line on what changed since the scan before
+  function sinceCard(ctx) {
+    if (st.readOnly) return null;
+    return slot(ctx.dir, (h) => {
+      // the newest scan of each project that changed something
+      const hits = h.projects.map((p) => p.scans.find((s) => !s.diff.first && (s.diff.new.length || s.diff.fixed.length || s.diff.changed.length))).filter(Boolean);
+      if (!hits.length) return null;
+      const sum = { new: [], fixed: [], changed: [], lock: false };
+      for (const s of hits) { const d = s.diff; sum.new.push(...d.new); sum.fixed.push(...d.fixed); sum.changed.push(...d.changed); sum.lock = sum.lock || d.lockChanged; }
+      const at = hits.map((s) => s.at).sort().pop();
+      return el("div", { class: "card since" },
+        el("span", { class: "h3" }, t("sinceTitle")), el("span", { class: "quiet small" }, fmtTime(at)),
+        el("span", { class: "hd" }, diffChips({ new: sum.new, fixed: sum.fixed, changed: sum.changed, lockChanged: sum.lock })),
+        el("span", { class: "grow" }),
+        el("button", { class: "small", onclick: () => goTab("history") }, t("hOpen")));
+    });
   }
 
   // ---------- data sources ----------
