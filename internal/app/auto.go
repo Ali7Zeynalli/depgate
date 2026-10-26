@@ -71,9 +71,9 @@ func (m *Manager) staleDirs(now time.Time) []string {
 }
 
 // autoLoop scans stale projects again (also after the computer slept) and
-// checks once a day whether a newer DepGate is out.
+// checks 15 s after start and every 6 h whether a newer DepGate is out.
 func (m *Manager) autoLoop(ctx context.Context) {
-	first := time.NewTimer(time.Minute)
+	first := time.NewTimer(15 * time.Second)
 	tick := time.NewTicker(5 * time.Minute)
 	defer first.Stop()
 	defer tick.Stop()
@@ -88,9 +88,9 @@ func (m *Manager) autoLoop(ctx context.Context) {
 		if ds := m.staleDirs(time.Now()); len(ds) > 0 {
 			_ = m.ScanBy(ds, "auto")
 		}
-		if time.Since(lastCheck) > 24*time.Hour {
+		if time.Since(lastCheck) > 6*time.Hour {
 			lastCheck = time.Now()
-			m.checkUpdate(ctx)
+			_ = m.checkUpdate(ctx)
 		}
 	}
 }
@@ -106,13 +106,28 @@ type Update struct {
 // LatestURL is where the newest release is looked up (a test may point it elsewhere).
 var LatestURL = "https://api.github.com/repos/Ali7Zeynalli/depgate/releases/latest"
 
-func (m *Manager) checkUpdate(ctx context.Context) {
+// CheckUpdate asks GitHub now (the "⋯ → Check for updates" item); nil = up to date.
+func (m *Manager) CheckUpdate(ctx context.Context) (*Update, error) {
+	if m.ro != nil {
+		return nil, ErrReadOnly
+	}
+	if err := m.checkUpdate(ctx); err != nil {
+		return nil, err
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.update, nil
+}
+
+var errNoCheck = newErr("yeniləmə yoxlanmır (offline və ya DEPGATE_NO_UPDATE_CHECK=1)", "update checks are off (offline or DEPGATE_NO_UPDATE_CHECK=1)")
+
+func (m *Manager) checkUpdate(ctx context.Context) error {
 	if m.Opt.Offline || os.Getenv("DEPGATE_NO_UPDATE_CHECK") == "1" {
-		return
+		return errNoCheck
 	}
 	cur, err := semver.Parse(m.Opt.Version)
 	if err != nil {
-		return // a development build
+		return newErr("bu, rəsmi relizdən yığılmayıb — yoxlamaq mümkün deyil", "this is not a release build — nothing to compare") // a development build
 	}
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
@@ -121,11 +136,11 @@ func (m *Manager) checkUpdate(ctx context.Context) {
 	req.Header.Set("User-Agent", "depgate/"+m.Opt.Version)
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return
+		return newErr("GitHub-a çatmaq olmadı", "could not reach GitHub")
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
-		return
+		return newErr("GitHub cavab vermədi (HTTP %d)", "GitHub did not answer (HTTP %d)", res.StatusCode)
 	}
 	var rel struct {
 		Tag        string `json:"tag_name"`
@@ -134,11 +149,14 @@ func (m *Manager) checkUpdate(ctx context.Context) {
 		Prerelease bool   `json:"prerelease"`
 	}
 	if json.NewDecoder(res.Body).Decode(&rel) != nil || rel.Draft || rel.Prerelease {
-		return
+		return nil
 	}
 	latest, err := semver.Parse(rel.Tag)
 	if err != nil || semver.Compare(latest, cur) <= 0 {
-		return
+		m.mu.Lock()
+		m.update = nil
+		m.mu.Unlock()
+		return nil
 	}
 	if !strings.HasPrefix(rel.URL, "https://github.com/") {
 		rel.URL = "https://github.com/Ali7Zeynalli/depgate/releases/latest"
@@ -146,6 +164,7 @@ func (m *Manager) checkUpdate(ctx context.Context) {
 	m.mu.Lock()
 	m.update = &Update{Latest: strings.TrimPrefix(rel.Tag, "v"), URL: rel.URL}
 	m.mu.Unlock()
+	return nil
 }
 
 // Accept records that the user accepts a finding's risk in dirs for days days.

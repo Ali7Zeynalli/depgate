@@ -211,7 +211,7 @@
     migChecks: ["Əl ilə yoxla", "Check by hand"],
     migNotes: ["Release notes — breaking changes ({0})", "Release notes — breaking changes ({0})"],
     migNotesErr: ["Release notes yüklənmədi: {0}", "Release notes not loaded: {0}"],
-    migHint: ["Axtarış mətn nümunələrinə əsaslanır: hər yeri yoxla, sonra build və testləri işlət.", "Matching is text based: review each place, then run the build and tests."],
+    migHint: ["Təxminidir: yerlər mətn nümunələri ilə tapılır, səhv və ya əskik ola bilər — öz kodunu analiz et, sonra build və testləri işlət.", "Approximate: places are found by text patterns and may be wrong or missing — analyse your own code, then run the build and tests."],
     pMig: ["Kod dəyişiklikləri", "Code changes"],
     pMigPlan: ["Yeni major {0} mövcuddur: kodunda {1} yer dəyişəcək (DepGate-də bax)", "New major {0} is available: {1} places in your code would change (see DepGate)"],
     bundlesTitle: ["Birlikdə yenilə", "Update together"],
@@ -298,7 +298,26 @@
     impPlaces: ["{0} yer", "{0} places"],
     todoCmd: ["Əmri işlət (yuxarıda, kopyala düyməsi ilə)", "Run the command above"],
     todoSnippet: ["Yuxarıdakı dəyişikliyi fayla əlavə et", "Add the change above to the file"],
-    todoCode: ["Koddakı yerləri dəyiş — «Kod dəyişiklikləri» bölməsi", "Change the places in your code — the Code changes section"],
+    todoCode: ["Koddakı yerləri dəyiş — «Kod dəyişiklikləri» bölməsi (yerlər təxminidir: öz kodunu yoxla)", "Change the places in your code — the Code changes section (the places are approximate: check your code)"],
+    todoOverride: ["Əmri işlət — override-ı package.json-a yazır və lockfile-ı yeniləyir (və ya aşağıdakı dəyişikliyi əl ilə əlavə et)", "Run the command — it writes the override into package.json and updates the lockfile (or add the change below by hand)"],
+    cmdsBtn: ["Əmrlər", "Commands"],
+    cmdsTitle: ["package.json və lockfile üçün əmrlər", "Commands for package.json and the lockfile"],
+    cmdsHelp: ["Təklifdir: DepGate bunları özü işlətmir. Əvvəlcə commit et ki, geri qayıda biləsən; sonra build və testləri işlət. Kod dəyişikliyi tələb edənlər üçün əvvəlcə «Kod dəyişiklikləri» bölməsinə bax.", "Suggestions: DepGate does not run them. Commit first so you can go back; then run the build and the tests. For the ones that need code changes, look at the Code changes section first."],
+    cmdsStats: ["{0} əmr", "{0} commands"],
+    cmdsNone: ["İndi işlədiləcək əmr yoxdur.", "Nothing to run now."],
+    cmdsHead: ["DepGate — package.json və lockfile üçün TƏKLİF olunan əmrlər", "DepGate — SUGGESTED commands for package.json and the lockfile"],
+    cmdsCommit: ["Əvvəlcə: git add -A && git commit -m \"before dependency updates\"  (geri qayıtmaq üçün)", "First: git add -A && git commit -m \"before dependency updates\"  (so you can go back)"],
+    cmdsAfter: ["Sonra: build və testləri işlət, DepGate-də yenidən skan et.", "Then: run the build and the tests, and scan again in DepGate."],
+    cmdsMal: ["ZƏRƏRLİ paket — birinci bunu et", "MALWARE — do this first"],
+    cmdsEasy: ["İndi et — kod dəyişmir", "Do now — no code change"],
+    cmdsCode: ["İndi et — kod DƏYİŞİR (əvvəlcə «Kod dəyişiklikləri»-nə bax, yerlər təxminidir)", "Do now — code CHANGES (look at Code changes first; the places are approximate)"],
+    cmdsOverride: ["Override (keçid paketlər) — valideyn paket düzəlişi götürəndə sil; workspace/monorepo-da kök qovluqda işlət", "Overrides (transitive packages) — remove once the parent package takes the fix; in a workspace/monorepo run it in the root folder"],
+    cmdsOptional: ["İstəyə görə — təcili deyil (şərhdən çıxar)", "Optional — not urgent (uncomment)"],
+    cmdsBundle: ["Birlikdə yenilənməli paketlər", "Packages that must update together"],
+    cmdsPlan: ["Planla — hazır olanda (şərhdən çıxar)", "Plan — when you are ready (uncomment)"],
+    codeNote: ["Diqqət: kod yerləri mətn nümunələri ilə tapılır və TƏXMİNİDİR — səhv və ya əskik ola bilər. Öz kodunu analiz et (və ya «AI üçün prompt» ilə agentə tapşır), sonra build və testləri işlət. DepGate faylı dəyişmir.", "Note: code places are found by text patterns and are APPROXIMATE — some may be wrong or missing. Analyse your own code (or hand it to your agent with «AI prompt»), then run the build and the tests. DepGate never changes your files."],
+    updCheck: ["Yeniləməni yoxla", "Check for updates"],
+    updNone: ["Ən son versiyadasan ({0})", "You have the latest version ({0})"],
     todoBuild: ["Build və testləri işlət", "Run the build and the tests"],
     todoRescan: ["DepGate-də yenidən skan et", "Scan again in DepGate"],
     hMal: ["Dərhal müdaxilə", "Act now"],
@@ -510,6 +529,7 @@
     $("#addproj").replaceChildren(el("span", { class: "plus", "aria-hidden": "true" }, "+"), el("span", { class: "full" }, t("addProject").replace(/^\+\s*/, "")));
     $("#addproj").setAttribute("aria-label", t("addProjectTitle"));
     $("#srcbtn").textContent = t("sources");
+    $("#updbtn").textContent = t("updCheck");
     $("#logout").textContent = t("logout");
     $("#pwbtn").textContent = t("changePw");
   }
@@ -661,6 +681,7 @@
     $("#refresh").hidden = st.readOnly;
     $("#addproj").hidden = st.readOnly;
     $("#srcbtn").hidden = false;
+    $("#updbtn").hidden = !!st.readOnly;
     $("#scanall").disabled = st.busy;
     $("#scanall").textContent = st.busy ? t("scanning") : t("scanAll");
     renderRescan(ps.length);
@@ -769,6 +790,7 @@
       p.scanning ? el("span", { class: "chip busy" }, el("span", { class: "spin" }), t("scanningChip")) : p.queued ? el("span", { class: "chip busy" }, t("queued")) : null,
       st.readOnly ? null : el("button", { class: "small", disabled: p.scanning || p.queued || undefined, onclick: () => scan([p.dir]) }, t("scan")),
       st.readOnly ? null : el("button", { class: "small ghost danger", onclick: () => removeProject(p) }, t("remove")),
+      p.report ? el("button", { class: "small", onclick: () => openCommands([p], p.dir) }, t("cmdsBtn")) : null,
       p.report ? el("button", { class: "small primary", onclick: () => openPrompt([p], p.dir) }, t("aiBtn")) : null);
     const g = groupsOf(st.projects).find((x) => x.items.includes(p));
     if (g && g.items.length > 1 && !st.readOnly) {
@@ -828,7 +850,9 @@
   const sv = (tag, a, ...kids) => { const e = document.createElementNS(SVGNS, tag); for (const [k, v] of Object.entries(a || {})) e.setAttribute(k, v); e.append(...kids); return e; };
   const SEVN = { critical: "sevCritical", high: "sevHigh", moderate: "sevModerate", medium: "sevModerate", low: "sevLow" };
   const sevName = (s) => SEVN[s] ? t(SEVN[s]) : s || "";
-  const cmdOf = (f) => f.fix && f.fix.command && f.fix.strategy !== "override" ? f.fix.command.split("   #")[0] : "";
+  // an override's command is only useful when it also writes package.json (npm pkg set …)
+  const realCmd = (fx) => fx && fx.command && (fx.strategy !== "override" || fx.command.includes("npm pkg set ")) ? fx.command.split("   #")[0] : "";
+  const cmdOf = (f) => realCmd(f.fix);
 
   // the numbers every section starts from
   function factsOf(ctx) {
@@ -1093,7 +1117,7 @@
     if (!migs.length) return el("div", { class: "empty" }, t("codeNone"));
     const order = { now_code: 0, now_easy: 1, plan: 2, optional: 3, ok: 4 };
     const xs = [...migs].sort((a, b) => ((order[a.e.f.group] ?? 5) - (order[b.e.f.group] ?? 5)) || (b.e.f.priority || 0) - (a.e.f.priority || 0));
-    return [el("div", { class: "ghelp" }, t("codeHelp"), " ", t("readOnlyNote")),
+    return [el("div", { class: "ghelp" }, t("codeHelp")), el("div", { class: "codenote" }, t("codeNote")),
       xs.map(({ e, ms }) => el("div", { class: "card" },
         el("div", { class: "ctitle" }, el("span", { class: "pkg" }, e.f.pkg),
           el("span", { class: "ver" }, e.f.current, e.f.target ? [el("span", { class: "arr" }, "→"), e.f.target] : null),
@@ -1416,6 +1440,15 @@
     document.body.append(ov); document.addEventListener("keydown", esc);
     dlg.querySelector("button, a").focus();
   }
+  $("#updbtn").addEventListener("click", async () => {
+    $("#moremenu").hidden = true; $("#more").setAttribute("aria-expanded", "false");
+    try {
+      const res = await api("POST", "api/update/check");
+      if (res.update) { try { localStorage.removeItem("depgate-upd-later"); } catch {} }
+      setState(res.state);
+      if (res.update) openUpdate(); else toast(t("updNone", st.version || "dev"));
+    } catch (er) { toast(t("error", er.message)); }
+  });
   $("#srcbtn").addEventListener("click", () => {
     const p = st && (st.projects || []).find((x) => x.dir === current);
     openSources(p && p.report && p.report.sources ? p.report : null);
@@ -1442,6 +1475,7 @@
       busy ? el("span", { class: "chip busy" }, el("span", { class: "spin" }), t("scanningChip")) : null,
       st.readOnly ? null : el("button", { class: "small", disabled: st.busy || undefined, onclick: () => scan(ps.map((x) => x.dir)) }, t("scanFolder", ps.length)),
       st.readOnly ? null : el("button", { class: "small ghost danger", onclick: () => removeGroup(g) }, t("removeFolder", ps.length)),
+      scanned.length ? el("button", { class: "small", onclick: () => openCommands(scanned, g.dir, g) }, t("cmdsBtn")) : null,
       scanned.length ? el("button", { class: "small primary", onclick: () => openPrompt(scanned, g.dir, g) }, t("aiBtn")) : null);
     if (!scanned.length) return el("div", null, bar, el("div", { class: "empty" }, el("h1", null, baseName(g.dir)), busy ? t("firstScan") : t("folderNotScanned")));
 
@@ -1691,6 +1725,50 @@
     const ov = el("div", { class: "overlay", onclick: (e) => { if (e.target === ov) close(); } }, dlg);
     document.body.append(ov); document.addEventListener("keydown", esc); ta.focus(); ta.setSelectionRange(0, 0);
   }
+  // every package.json / lockfile command of a project or folder as one script — a suggestion to read, not run blindly
+  function commandScript(ps, g) {
+    const L = ["# " + t("cmdsHead"), "# " + t("readOnlyNote"), "# " + t("cmdsCommit"), ""];
+    let n = 0;
+    for (const p of ps) {
+      const r = p.report;
+      if (!r) continue;
+      const pre = g ? cdPrefix(p, g) : "", fs = r.findings || [];
+      const mal = fs.filter((f) => f.kind === "malware" && f.group !== "accepted");
+      const by = (grp) => fs.filter((f) => f.group === grp && f.kind !== "malware");
+      const easy = by("now_easy"), code = by("now_code"), plan = by("plan");
+      const ovr = [...easy, ...code].filter((f) => f.fix && f.fix.strategy === "override");
+      const sec = [];
+      const addMal = () => add(t("cmdsMal"), mal.map(cmdOf));
+      const add = (head, cmds, comment) => {
+        const u = [...new Set(cmds.filter(Boolean))];
+        if (!u.length) return;
+        sec.push("# --- " + head);
+        // each line in its own subshell, so a "cd" does not carry over to the next line
+        for (const c of u) { sec.push((comment ? "# " : "") + (pre || c.startsWith("cd ") ? "(" + pre + c + ")" : c)); if (!comment) n++; }
+        sec.push("");
+      };
+      addMal();
+      // simple production upgrades in one install, everything else one by one
+      const plain = easy.filter((f) => !f.fix || f.fix.strategy !== "override");
+      const one = (f) => f.fix && f.fix.strategy === "upgrade" && f.target && !f.dev;
+      add(t("cmdsEasy"), [plain.some(one) ? bulkCommand(plain.filter(one), r.manager) : "", ...plain.filter((f) => !one(f)).map(cmdOf)]);
+      add(t("cmdsCode"), code.filter((f) => !f.fix || f.fix.strategy !== "override").map(cmdOf));
+      add(t("cmdsOverride"), ovr.map(cmdOf));
+      add(t("cmdsBundle"), (r.bundles || []).map((b) => b.command || ""));
+      add(t("cmdsPlan"), plan.map(cmdOf), true);
+      add(t("cmdsOptional"), by("optional").map(cmdOf), true);
+      if (!sec.length) continue;
+      if (ps.length > 1 || g) L.push("# ===== " + (g ? relName(p, g) : baseName(p.dir)) + "  (" + p.dir + ")", "");
+      L.push(...sec);
+    }
+    if (!n) L.push("# " + t("cmdsNone"), "");
+    L.push("# " + t("cmdsAfter"));
+    return { text: L.join("\n"), n };
+  }
+  function openCommands(ps, rootDir, g) {
+    const s = commandScript(ps, g);
+    textModal(t("cmdsTitle"), t("cmdsHelp"), s.text, t("cmdsStats", s.n), "depgate-" + baseName(rootDir) + ".sh");
+  }
   function openPrompt(ps, rootDir, g) {
     const pr = promptFor(ps, rootDir, g);
     textModal(t("aiTitle"), t("aiHelp"), pr.text, t("aiStats", pr.tasks, pr.projects), "depgate-" + baseName(rootDir) + ".md");
@@ -1921,7 +1999,7 @@
     const specs = [], other = [];
     for (const f of fs) {
       if (f.fix && f.fix.strategy === "upgrade" && f.target && !f.dev) specs.push(`${f.pkg}@${f.target}`);
-      else if (f.fix && f.fix.command && f.fix.strategy !== "override") other.push(f.fix.command);
+      else if (realCmd(f.fix)) other.push(realCmd(f.fix));
     }
     if (!specs.length) return other.length > 1 ? other.join(" && ") : "";
     const base = { pnpm: "pnpm up", yarn: "yarn up", yarn1: "yarn upgrade", bun: "bun add", npm: "npm install" }[mgr] || "npm install";
@@ -2009,7 +2087,7 @@
         fx.snippet ? el("pre", null, (fx.file ? "// " + fx.file + "\n" : "") + fx.snippet) : null,
         note ? el("div", { class: "note" }, note) : null));
       if (f.group !== "ok" && f.group !== "accepted") R.push(el("ol", { class: "todo" },
-        el("li", null, t(fx.snippet ? "todoSnippet" : "todoCmd")),
+        el("li", null, t(fx.snippet ? (realCmd(fx) ? "todoOverride" : "todoSnippet") : "todoCmd")),
         f.codeImpact === "yes" || f.codeImpact === "maybe" ? el("li", null, t("todoCode")) : null,
         el("li", null, t("todoBuild")),
         el("li", null, t("todoRescan"))));
