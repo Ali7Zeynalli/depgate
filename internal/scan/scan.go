@@ -158,6 +158,16 @@ func One(ctx context.Context, d *decide.Data, dir string, opt Options) report.Pr
 	p.Server, p.ServerFiles = webserver.Scan(abs, root)
 	p.Server = append(p.Server, webserver.Versions(ctx, d.F, refs, opt.Now)...)
 	docker.SortIssues(p.Server)
+	docker.TagEnv(abs, p.Docker)
+	docker.TagEnv(abs, p.Server)
+	for _, f := range append(append([]string(nil), p.DockerFiles...), p.ServerFiles...) {
+		if e, _ := docker.EnvOfFile(f); e != "" {
+			if p.FileEnv == nil {
+				p.FileEnv = map[string]string{}
+			}
+			p.FileEnv[f] = e
+		}
+	}
 	p.Summary = Summarize(p.Findings)
 	sort.SliceStable(p.Errors, func(i, j int) bool { return p.Errors[i] < p.Errors[j] })
 	return p

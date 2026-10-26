@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -26,6 +27,29 @@ func (m *Manager) RescanHours() int {
 }
 
 // SetRescanHours saves the interval chosen in the UI.
+// SetEnvMark marks a Docker, Compose or web server file of project dir as "dev"
+// or "prod" ("" = DepGate's guess). It is stored in the data folder only.
+func (m *Manager) SetEnvMark(dir, file, env string) error {
+	if m.ro != nil {
+		return ErrReadOnly
+	}
+	if env != "" && env != "dev" && env != "prod" {
+		return newErr("mühit dev və ya prod olmalıdır", "the environment must be dev or prod")
+	}
+	p := m.Store.Report(dir)
+	if p == nil {
+		return newErr("bu layihə skan olunmayıb", "this project has not been scanned")
+	}
+	known := false
+	for _, f := range append(append([]string(nil), p.DockerFiles...), p.ServerFiles...) {
+		known = known || f == file
+	}
+	if !known {
+		return newErr("bu fayl layihənin Docker/server faylları arasında yoxdur", "this file is not one of the project's Docker/server files")
+	}
+	return m.Store.SetEnvMark(filepath.Join(dir, filepath.FromSlash(file)), env)
+}
+
 func (m *Manager) SetRescanHours(h int) error {
 	if m.ro != nil {
 		return ErrReadOnly

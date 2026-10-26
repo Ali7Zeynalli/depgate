@@ -68,6 +68,9 @@ func tasksOf(p *report.Project) []taskDef {
 		if hits := codeHits(f); id == "code" && hits > 0 {
 			label += fmt.Sprintf(" (%d places in code)", hits)
 		}
+		if f.Dev {
+			label += " (devDependency)"
+		}
 		t.items = append(t.items, history.WorkItem{Key: findingKey(f), Label: label})
 		t.findings = append(t.findings, f)
 	}
@@ -83,7 +86,11 @@ func tasksOf(p *report.Project) []taskDef {
 			id = "server"
 		}
 		t := by[id]
-		t.items = append(t.items, history.WorkItem{Key: issueKey(id, d), Label: fmt.Sprintf("[%s] %s:%d %s", d.Severity, d.File, d.Line, d.Title.En)})
+		env := ""
+		if d.Env == "dev" {
+			env = " (dev only)"
+		}
+		t.items = append(t.items, history.WorkItem{Key: issueKey(id, d), Label: fmt.Sprintf("[%s] %s:%d %s%s", d.Severity, d.File, d.Line, d.Title.En, env)})
 		t.issues = append(t.issues, d)
 	}
 	for _, c := range p.Hygiene {

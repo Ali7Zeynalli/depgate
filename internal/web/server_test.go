@@ -41,6 +41,7 @@ func (f *fakeBackend) ClearHistory(string) error                  { return app.E
 func (f *fakeBackend) SetRescanHours(int) error                   { return app.ErrReadOnly }
 func (f *fakeBackend) Accept([]string, string, string, int) error { return app.ErrReadOnly }
 func (f *fakeBackend) Unaccept([]string, string) error            { return app.ErrReadOnly }
+func (f *fakeBackend) SetEnvMark(string, string, string) error    { return app.ErrReadOnly }
 func (f *fakeBackend) CheckUpdate(context.Context) (*app.Update, error) {
 	return nil, app.ErrReadOnly
 }

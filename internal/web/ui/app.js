@@ -14,7 +14,9 @@
   };
   const h0 = parseHash();
   let st = null, current = h0.dir, pollT = null;
-  const state = { q: "", sev: "", dev: true, flt: new Set(), tab: h0.tab, grp: "", open: new Set(), shut: new Set() };
+  let envPick = "all";
+  try { envPick = localStorage.getItem("depgate-env") || "all"; } catch {}
+  const state = { q: "", sev: "", env: ["all", "prod", "dev"].includes(envPick) ? envPick : "all", flt: new Set(), tab: h0.tab, grp: "", open: new Set(), shut: new Set() };
 
   // ---------- language ----------
   const D = {
@@ -446,6 +448,21 @@
     hByMCP: ["AI agent", "AI agent"],
     hCounts: ["təcili {0} · planla {1} · zərərli {2} · Docker/server {3}", "urgent {0} · plan {1} · malware {2} · Docker/server {3}"],
     hNewL: ["Yeni", "New"],
+    envLbl: ["Mühit:", "Environment:"],
+    envAll: ["Hamısı", "All"],
+    envProd: ["Production", "Production"],
+    envDev: ["Dev", "Dev"],
+    envAllT: ["Production və dev birlikdə", "Production and dev together"],
+    envProdT: ["Yalnız production-a çatanlar: dependencies, dev olmayan Docker/server faylları", "Only what reaches production: dependencies, Docker/server files that are not dev"],
+    envDevT: ["Yalnız inkişaf: devDependencies, dev Docker/compose faylları və mərhələləri", "Only development: devDependencies, dev Docker/compose files and stages"],
+    ofDev: ["{0}-i dev", "{0} dev"],
+    envChip: ["dev", "dev"],
+    envProdChip: ["prod", "prod"],
+    envMark: ["Bu fayl:", "This file:"],
+    envAuto: ["Avtomatik", "Automatic"],
+    envAutoAs: ["Avtomatik ({0})", "Automatic ({0})"],
+    envSaved: ["Saxlandı — yalnız DepGate-in data qovluğunda", "Saved — in DepGate's data folder only"],
+    envFolder: ["Qovluq", "Folder"],
     wTitle: ["AI işləri", "AI work"],
     wHelp: ["Agent əvvəl yoxlama siyahısını göstərir, sən seçirsən, o bir-bir edir. «Təsdiqləndi» — DepGate yeni skanla özü yoxlayıb, agentin sözünə görə yox.", "The agent shows the checklist first, you choose, it does them one by one. «Verified» means DepGate checked it with a new scan itself — not the agent's word."],
     wNone: ["Hələ yoxdur. Agentə de: «DepGate ilə asılılıqları düzəlt» və ya /mcp__depgate__fix — əvvəl yoxlama siyahısını göstərəcək.", "Nothing yet. Tell your agent \"fix the dependencies with DepGate\" or use /mcp__depgate__fix — it shows the checklist first."],
@@ -848,7 +865,7 @@
     }
     const r = p.report;
     const srcs = (r.sources || []).filter((x) => x.requests > 0);
-    const ctx = projectCtx(p);
+    const ctx = envView(projectCtx(p));
     const nd = r.node;
     const head = el("div", { class: "phead" },
       el("div", null, el("h1", null, r.name),
@@ -872,6 +889,28 @@
     const target = n.securityFix || n.latestInLine;
     return "Node " + (n.version || n.line || "?") + (target && n.version && target !== n.version ? " → " + target : "") + " · " + needText("node", n.need);
   }
+  // production / dev: what runs in production, what only on a developer's machine.
+  // A package in devDependencies is dev; a Docker or server file is dev when its
+  // name, stage or compose profile says so, or when the user marked it.
+  const isDevIssue = (d) => d.env === "dev";
+  function envView(ctx) {
+    const e = state.env;
+    if (e === "all") return ctx;
+    const keep = (dev) => (e === "dev") === dev;
+    // malware stays in every view: in devDependencies it runs on your machine and in CI
+    return { ...ctx, entries: ctx.entries.filter((x) => x.f.kind === "malware" || keep(!!x.f.dev)),
+      docker: { ...ctx.docker, issues: ctx.docker.issues.filter((d) => keep(isDevIssue(d))) },
+      server: { ...ctx.server, issues: ctx.server.issues.filter((d) => keep(isDevIssue(d))) } };
+  }
+  function envSwitch() {
+    const set = (v) => { state.env = v; try { localStorage.setItem("depgate-env", v); } catch {} render(); };
+    return el("div", { class: "envsw", role: "group", "aria-label": t("envLbl") },
+      el("span", { class: "quiet small" }, t("envLbl")),
+      [["all", "envAll"], ["prod", "envProd"], ["dev", "envDev"]].map(([v, k]) =>
+        el("button", { class: "fchip" + (state.env === v ? " on" : ""), "aria-pressed": String(state.env === v), title: t(k + "T"), onclick: () => set(v) }, t(k))));
+  }
+  // what the environment selector of a Docker/server file needs: whose file it is and its state
+  const fileRef = (p, f, label) => ({ dir: p.dir, file: f, label, auto: (p.report.fileEnv || {})[f] || "", mark: (p.report.envMarks || {})[f] || "" });
   function projectCtx(p) {
     const r = p.report;
     return {
@@ -880,8 +919,8 @@
       card: (e) => card(e.f, r, null, null, true),
       bulk: (es) => { const c = bulkCommand(es.map((e) => e.f), r.manager); return c ? el("div", { class: "bulk" }, el("code", null, c), copyBtn(c)) : null; },
       bundles: (r.bundles || []).map((b) => bundleCard(b)),
-      docker: { issues: r.docker || [], files: r.dockerFiles || [], label: null },
-      server: { issues: r.server || [], files: r.serverFiles || [], label: null },
+      docker: { issues: r.docker || [], files: r.dockerFiles || [], label: null, ref: (f) => fileRef(p, f, f) },
+      server: { issues: r.server || [], files: r.serverFiles || [], label: null, ref: (f) => fileRef(p, f, f) },
       nodes: r.node ? [{ label: "", n: r.node }] : [],
       hygBad: (r.hygiene || []).filter((h) => !h.ok).length,
       env: () => el("div", { class: "side" }, nodeCard(r), hygieneCard(r)),
@@ -930,7 +969,8 @@
     return { n, inProj, migs, hits, hitsLater, pkgsNow, pkgsNowZero, pkgsLater, ds, high: sev("high"), medium: sev("medium"), low: sev("low"), mal, nodeNow,
       malProj: mal.reduce((a, e) => a + occ(e), 0),
       urgent: n("now_easy") + n("now_code"), urgentProj: inProj("now_easy") + inProj("now_code"),
-      tasks: important + nodeTasks + sev("high"), total, clean: Math.max(0, total - flagged) };
+      tasks: important + nodeTasks + sev("high"), total, clean: Math.max(0, total - flagged),
+      devUrgent: es.filter((e) => e.f.dev && (e.f.group === "now_easy" || e.f.group === "now_code")).length, dsDev: ds.filter(isDevIssue).length };
   }
 
   // the state of a project (or folder) at a glance: a ring of clean packages and one word
@@ -956,11 +996,11 @@
     const malNames = [...new Set(x.mal.map((e) => e.f.pkg + " " + e.f.current))];
     const tiles = [
       tile(x.mal.length ? "bad" : "zero", t("tileMal"), x.mal.length, x.mal.length ? malNames.slice(0, 2).join(", ") + (x.malProj > x.mal.length ? " · " + t("inProjects", x.malProj) : "") : t("tileNone"), "packages", x.mal.length ? { grp: x.mal[0].f.group, open: keyOf(x.mal[0].f) } : null),
-      tile(x.urgent ? "hi" : "zero", t("tileNow"), x.urgent, t("tileNowSub", x.n("now_easy"), x.n("now_code")) + (x.urgentProj > x.urgent ? " · " + t("inProjects", x.urgentProj) : ""), "packages", { grp: x.n("now_easy") ? "now_easy" : "now_code" }),
+      tile(x.urgent ? "hi" : "zero", t("tileNow"), x.urgent, t("tileNowSub", x.n("now_easy"), x.n("now_code")) + (x.urgentProj > x.urgent ? " · " + t("inProjects", x.urgentProj) : "") + (state.env === "all" && x.devUrgent ? " · " + t("ofDev", x.devUrgent) : ""), "packages", { grp: x.n("now_easy") ? "now_easy" : "now_code" }),
       tile(x.hits ? "code" : "zero", t("tileCode"), x.hits,
         [x.hits ? tn("tileCodeSub", x.pkgsNow) : x.pkgsNowZero ? tn("tileCodeZero", x.pkgsNowZero) : x.pkgsLater ? t("tileCodeNone") : t("tileNone"),
           x.hitsLater ? t("tileCodeMore", x.hitsLater) : x.pkgsLater && !x.hits ? tn("tileCodeLater", x.pkgsLater) : ""].filter(Boolean).join(" · "), "code"),
-      tile(x.high ? "warn" : x.ds.length ? "warn" : "zero", t("tileDs"), x.ds.length, x.ds.length ? t("tileDsSub", x.high, x.medium, x.low) : t("tileNone"), ctx.docker.issues.length || !ctx.server.issues.length ? "docker" : "server"),
+      tile(x.high ? "warn" : x.ds.length ? "warn" : "zero", t("tileDs"), x.ds.length, x.ds.length ? t("tileDsSub", x.high, x.medium, x.low) + (state.env === "all" && x.dsDev ? " · " + t("ofDev", x.dsDev) : "") : t("tileNone"), ctx.docker.issues.length || !ctx.server.issues.length ? "docker" : "server"),
     ];
     if (!st.readOnly) tiles.push(slot(ctx.hkey, (h) => {
       const ds = h.projects.map((p) => p.scans.find((s) => !s.diff.first && (s.diff.new.length || s.diff.fixed.length || s.diff.changed.length))).filter(Boolean);
@@ -1003,7 +1043,7 @@
     const body = tab === "packages" ? packagesTab(ctx) : tab === "code" ? codeTab(x.migs) : tab === "docker" ? dockerTab(ctx.docker)
       : tab === "server" ? dockerTab(ctx.server, "server")
       : tab === "env" ? ctx.env() : tab === "ai" ? aiTab(ctx) : tab === "history" ? historyTab(ctx) : overviewTab(ctx, x);
-    const out = el("div", null, tilesOf(ctx, x), bar, el("div", { class: "tabbody", role: "tabpanel", "aria-label": t(TABL[tab]) }, body));
+    const out = el("div", null, envSwitch(), tilesOf(ctx, x), bar, el("div", { class: "tabbody", role: "tabpanel", "aria-label": t(TABL[tab]) }, body));
     requestAnimationFrame(() => { const b = out.querySelector(".tabs [aria-selected=true]"); if (b && b.scrollIntoView && b.parentNode.scrollWidth > b.parentNode.clientWidth) b.scrollIntoView({ block: "nearest", inline: "nearest" }); });
     return out;
   }
@@ -1102,7 +1142,7 @@
       el("input", { type: "search", placeholder: t("search"), "aria-label": t("search"), value: state.q, oninput: (e) => { state.q = e.target.value; rerender(); } }),
       el("select", { "aria-label": t("allSev"), onchange: (e) => { state.sev = e.target.value; rerender(); } },
         ...[["", t("allSev")], ["critical", sevName("critical")], ["high", sevName("high") + "+"], ["moderate", sevName("moderate") + "+"]].map(([v, l]) => el("option", { value: v, selected: state.sev === v }, l))),
-      el("label", null, el("input", { type: "checkbox", checked: state.dev, onchange: (e) => { state.dev = e.target.checked; rerender(); } }), "devDependencies"));
+      null);
     const flts = el("div", { class: "fltrow", role: "group", "aria-label": t("filters") });
     const drawFlts = () => flts.replaceChildren(el("span", { class: "quiet small" }, t("filters") + ":"),
       ...[["kev", t("fKev")], ["epss", t("fEpss")], ["nofix", t("fNoFix")], ["direct", t("direct")], ["transitive", t("transitive")]].map(([k, l]) =>
@@ -1192,6 +1232,16 @@
         ms.map((x) => migBlock(x.m, x.label, true))))];
   }
   const SEVC = { high: "sev-high", medium: "sev-moderate", low: "" };
+  function envSelect(ref) {
+    if (!ref || st.readOnly) return null;
+    const auto = t(ref.auto === "dev" ? "envChip" : "envProdChip"); // unknown counts as production
+    const sel = el("select", { class: "envsel", "aria-label": t("envMark") + " " + ref.label, onchange: async (e) => {
+      try { setState(await api("POST", "api/envmark", { dir: ref.dir, file: ref.file, env: e.target.value })); toast(t("envSaved")); }
+      catch (er) { toast(t("error", er.message)); }
+    } }, [["", t("envAutoAs", auto)], ["prod", t("envProd")], ["dev", t("envDev")]].map(([v, l]) => el("option", { value: v, selected: ref.mark === v || undefined }, l)));
+    return el("label", { class: "envmark quiet small" }, t("envMark"), " ", sel);
+  }
+  const dirOf = (f) => { const i = f.lastIndexOf("/"); return i < 0 ? "" : f.slice(0, i + 1); };
   function dockerTab(dk, kind) {
     const srv = kind === "server";
     if (!dk.files.length && !dk.issues.length) return el("div", { class: "empty" }, t("dockerNone"));
@@ -1199,14 +1249,28 @@
     if (!dk.issues.length) return el("div", { class: "card" }, el("div", null, t("dockerOk", dk.files.join(", "))));
     const by = new Map();
     for (const d of dk.issues) { const f = dk.label ? dk.label(d) : d.file; if (!by.has(f)) by.set(f, []); by.get(f).push(d); }
-    return [el("div", { class: "ghelp" }, t(srv ? "serverHelp" : "dockerHelp"), " ", t("readOnlyNote")),
-      [...by].map(([file, ds]) => el("div", { class: "card dfile" },
-        el("div", { class: "dfh" }, el("code", null, file), el("span", { class: "quiet small" }, t("dockerN", ds.length))),
+    // grouped by the folder the files are in, so it is clear where each one lives
+    const folders = new Map();
+    for (const [file, ds] of by) { const d = dirOf(file); if (!folders.has(d)) folders.set(d, []); folders.get(d).push([file, ds]); }
+    const fileCard = ([file, ds]) => {
+      const ref = dk.ref ? dk.ref(file) : null;
+      const devFile = ds.every(isDevIssue);
+      return el("div", { class: "card dfile" + (devFile ? " devfile" : "") },
+        el("div", { class: "dfh" },
+          el("span", { class: "dpath" }, el("span", { class: "quiet" }, dirOf(file)), el("code", null, file.slice(dirOf(file).length))),
+          devFile ? el("span", { class: "chip envc", title: tr(ds[0].envWhy) || "" }, t("envChip")) : null,
+          el("span", { class: "quiet small" }, t("dockerN", ds.length)),
+          el("span", { class: "grow" }), envSelect(ref)),
         ds.map((d) => el("div", { class: "ditem" },
-          el("div", { class: "drow" }, el("span", { class: "chip " + (SEVC[d.severity] || "") }, d.severity), el("b", null, tr(d.title)),
-            el("span", { class: "quiet small" }, (d.line ? file.split("/").pop() + ":" + d.line : "") + (d.service ? " · " + d.service : ""))),
+          el("div", { class: "drow" }, el("span", { class: "chip " + (SEVC[d.severity] || "") }, d.severity),
+            !devFile && isDevIssue(d) ? el("span", { class: "chip envc", title: tr(d.envWhy) || "" }, t("envChip")) : null,
+            el("b", null, tr(d.title)),
+            el("span", { class: "quiet small" }, (d.line ? file.split("/").pop() + ":" + d.line : "") + (d.service ? " · " + d.service : "") + (d.envWhy && isDevIssue(d) ? " · " + tr(d.envWhy) : ""))),
           tr(d.detail) ? el("div", { class: "d" }, el("span", { class: "lbl" }, t("issueWhy")), " ", tr(d.detail)) : null,
-          d.fix ? el("div", { class: "d" }, el("span", { class: "lbl" }, t("issueFix")), " ", el("code", { class: "dfix" }, d.fix)) : null)))),
+          d.fix ? el("div", { class: "d" }, el("span", { class: "lbl" }, t("issueFix")), " ", el("code", { class: "dfix" }, d.fix)) : null)));
+    };
+    return [el("div", { class: "ghelp" }, t(srv ? "serverHelp" : "dockerHelp"), " ", t("readOnlyNote")),
+      [...folders].map(([d, files]) => folders.size > 1 ? el("div", { class: "dfolder" }, el("div", { class: "h3 dfname" }, "📁 ", d || "./"), files.map(fileCard)) : files.map(fileCard)),
       checked];
   }
   function aiTab(ctx) {
@@ -1638,8 +1702,12 @@
       }
     }).catch(() => {});
 
-    const dk = new Map(), dfiles = new Set();
+    const dk = new Map(), dfiles = new Set(), refs = new Map();
     for (const p of scanned) {
+      for (const f of [...(p.report.dockerFiles || []), ...(p.report.serverFiles || [])]) {
+        const l = relTo(joinPath(p.dir, f), g.dir) || f;
+        if (!refs.has(l)) refs.set(l, fileRef(p, f, l));
+      }
       for (const f of p.report.dockerFiles || []) dfiles.add(relTo(joinPath(p.dir, f), g.dir) || f);
       for (const d of p.report.docker || []) {
         const abs = joinPath(p.dir, d.file);
@@ -1658,7 +1726,7 @@
         }
       }
       const sev = { high: 0, medium: 1, low: 2 };
-      return { issues: [...m.values()].sort((a, b) => sev[a.severity] - sev[b.severity] || a.abs.localeCompare(b.abs) || a.line - b.line), files: [...fs], label: (d) => relTo(d.abs, g.dir) || d.abs };
+      return { issues: [...m.values()].sort((a, b) => sev[a.severity] - sev[b.severity] || a.abs.localeCompare(b.abs) || a.line - b.line), files: [...fs], label: (d) => relTo(d.abs, g.dir) || d.abs, ref: (l) => refs.get(l) };
     };
     const dIssues = [...dk.values()].sort((a, b) => ({ high: 0, medium: 1, low: 2 }[a.severity] - { high: 0, medium: 1, low: 2 }[b.severity]) || a.abs.localeCompare(b.abs) || a.line - b.line);
     const ctx = {
@@ -1675,7 +1743,7 @@
         return lines.length ? el("div", { class: "bulk multi" }, el("pre", null, lines.join("\n")), copyBtn(lines.join("\n"))) : null;
       },
       bundles: scanned.flatMap((p) => (p.report.bundles || []).map((b) => bundleCard({ ...b, command: b.command ? cdPrefix(p, g) + b.command : "" }, relName(p, g)))),
-      docker: { issues: dIssues, files: [...dfiles], label: (d) => relTo(d.abs, g.dir) || d.abs },
+      docker: { issues: dIssues, files: [...dfiles], label: (d) => relTo(d.abs, g.dir) || d.abs, ref: (l) => refs.get(l) },
       server: merge((r) => r.server, (r) => r.serverFiles),
       nodes: scanned.filter((p) => p.report.node).map((p) => ({ label: relName(p, g), n: p.report.node })),
       hygBad: scanned.reduce((a, p) => a + (p.report.hygiene || []).filter((h) => !h.ok).length, 0),
@@ -1684,8 +1752,9 @@
       errors: scanned.flatMap((p) => (p.report.errors || []).map((x) => relName(p, g) + ": " + x)),
       extra: rows,
     };
-    head.append(healthCard(ctx));
-    return el("div", null, bar, head, tabbed(ctx));
+    const vctx = envView(ctx);
+    head.append(healthCard(vctx));
+    return el("div", null, bar, head, tabbed(vctx));
   }
   function folderNodeCard(g, ps) {
     const withNode = ps.filter((p) => p.report.node);
@@ -2105,7 +2174,6 @@
 
   const SEVR = { critical: 4, high: 3, moderate: 2, low: 1 };
   function visible(f) {
-    if (!state.dev && f.dev) return false;
     if (state.q && !f.pkg.toLowerCase().includes(state.q.toLowerCase())) return false;
     if (state.sev && (f.kind !== "vuln" && f.kind !== "malware" || (SEVR[f.severity] || 0) < SEVR[state.sev])) return false;
     const advs = f.advisories || [];

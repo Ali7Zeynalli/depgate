@@ -65,28 +65,30 @@ type Source struct {
 }
 
 type Project struct {
-	ID          string        `json:"id"` // sha256 of repo remote + path, or of absolute path
-	ScannedAt   time.Time     `json:"scannedAt,omitempty"`
-	Name        string        `json:"name"`
-	Dir         string        `json:"dir"`
-	Repo        string        `json:"repo,omitempty"`
-	Path        string        `json:"path,omitempty"` // path inside the repo
-	Manager     string        `json:"manager"`
-	Lockfile    string        `json:"lockfile,omitempty"`
-	Approximate bool          `json:"approximate"`
-	Packages    int           `json:"packages"`
-	Node        *Node         `json:"node,omitempty"`
-	Hygiene     []Check       `json:"hygiene"`
-	Summary     Summary       `json:"summary"`
-	Findings    []Finding     `json:"findings"`
-	Errors      []string      `json:"errors,omitempty"`
-	Sources     []Source      `json:"sources,omitempty"` // data sources used for this scan
-	Bundles     []Bundle      `json:"bundles,omitempty"` // packages that must move together (react + react-dom, @nestjs/*, ...)
-	Docker      []DockerIssue `json:"docker,omitempty"`  // Dockerfile / compose findings
-	DockerFiles []string      `json:"dockerFiles,omitempty"`
-	Server      []DockerIssue `json:"server,omitempty"`      // nginx / Caddy config and version findings
-	ServerFiles []string      `json:"serverFiles,omitempty"` // nginx / Caddy configs that were checked
-	AIRules     *AIRules      `json:"aiRules,omitempty"`     // version-aware instructions for AI coding agents
+	ID          string            `json:"id"` // sha256 of repo remote + path, or of absolute path
+	ScannedAt   time.Time         `json:"scannedAt,omitempty"`
+	Name        string            `json:"name"`
+	Dir         string            `json:"dir"`
+	Repo        string            `json:"repo,omitempty"`
+	Path        string            `json:"path,omitempty"` // path inside the repo
+	Manager     string            `json:"manager"`
+	Lockfile    string            `json:"lockfile,omitempty"`
+	Approximate bool              `json:"approximate"`
+	Packages    int               `json:"packages"`
+	Node        *Node             `json:"node,omitempty"`
+	Hygiene     []Check           `json:"hygiene"`
+	Summary     Summary           `json:"summary"`
+	Findings    []Finding         `json:"findings"`
+	Errors      []string          `json:"errors,omitempty"`
+	Sources     []Source          `json:"sources,omitempty"` // data sources used for this scan
+	Bundles     []Bundle          `json:"bundles,omitempty"` // packages that must move together (react + react-dom, @nestjs/*, ...)
+	Docker      []DockerIssue     `json:"docker,omitempty"`  // Dockerfile / compose findings
+	DockerFiles []string          `json:"dockerFiles,omitempty"`
+	Server      []DockerIssue     `json:"server,omitempty"`      // nginx / Caddy config and version findings
+	ServerFiles []string          `json:"serverFiles,omitempty"` // nginx / Caddy configs that were checked
+	FileEnv     map[string]string `json:"fileEnv,omitempty"`     // Docker/server file → "dev" | "prod" guessed from its name
+	EnvMarks    map[string]string `json:"envMarks,omitempty"`    // Docker/server file → "dev" | "prod" the user chose (not saved in the report)
+	AIRules     *AIRules          `json:"aiRules,omitempty"`     // version-aware instructions for AI coding agents
 	// Versions are the installed packages of this scan; only the history uses
 	// them (to tell which versions changed), they are not saved in the report.
 	Versions []Version `json:"-"`
@@ -131,6 +133,10 @@ type DockerIssue struct {
 	Title    i18n.T `json:"title"`
 	Detail   i18n.T `json:"detail"`
 	Fix      string `json:"fix,omitempty"` // suggested line (code only)
+	// Env: "dev" when the file, stage or service is for development only,
+	// "prod" when its name says production, "" unknown (treated as production)
+	Env    string  `json:"env,omitempty"`
+	EnvWhy *i18n.T `json:"envWhy,omitempty"`
 }
 
 // AIRules are instructions for AI coding agents, generated from the versions the

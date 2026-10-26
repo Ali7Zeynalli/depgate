@@ -225,6 +225,7 @@ func (s *Store) RecordScan(p *report.Project, by, agent string) {
 func (s *Store) Report(dir string) *report.Project {
 	p := s.rawReport(dir)
 	s.applyAccepted(p)
+	s.applyEnvMarks(p)
 	return p
 }
 
