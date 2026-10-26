@@ -64,13 +64,13 @@ Sonra `http://127.0.0.1:7777` aç, parol seç və **+ Layihə əlavə et** (layi
 | Bölmə | Nə göstərir |
 |---|---|
 | **Ümumi** | əvvəlcə görüləcək bir neçə iş, sıra ilə |
-| **Paketlər** | hər paket bir sətir: nədir, nə tapılıb, zəiflik sadə dildə (CWE), ən təhlükəsiz versiya və əmr; zərərli paketlər, silinmiş versiyalar, birlikdə yenilənməli paketlər |
+| **Paketlər** | hər paket bir sətir: nədir, nə tapılıb, zəiflik sadə dildə (CWE), ən təhlükəsiz versiya və əmr; zərərli paketlər, silinmiş versiyalar, birlikdə yenilənməli paketlər; səbəb və tarixlə **riski qəbul et** (müddət bitəndə özü qayıdır) |
 | **Kod dəyişiklikləri** | Next.js, React, Express, NestJS, Prisma, Zod, Tailwind, ESLint, TanStack Query, React Router üçün `fayl:sətir` yerləri; codemod-lar; reliz qeydlərindən breaking changes |
 | **Docker** | 25 təhlükəsizlik qaydası, Compose Specification xətaları, dəstəyi bitmiş və köhnə image-lər |
 | **Veb server** | nginx / Caddy: versiyanın məlum zəiflikləri, TLS, başlıqlar, yol keçidi, açıq admin API |
 | **Node.js və mühit** | runtime təhlükəsizlik relizləri və dəstəyin bitməsi; lockfile, install skriptləri, gözləmə müddəti |
 | **AI və MCP** | hazır prompt, `AGENTS.md` versiya qaydaları, MCP qoşulma əmri, hansı agentlərin qoşulduğu |
-| **Tarixçə** | hər skan əvvəlki ilə müqayisə olunur: nə yenidir, nə aradan qalxıb, lockfile dəyişib, yoxsa yeni advisory çıxıb; skanı kim edib (interfeys, əmr sətri və ya AI agent) və hər agent MCP ilə nəyi yoxlayıb |
+| **Tarixçə** | layihələr avtomatik yenidən skan olunur (standart hər 12 saat, yuxarıda dəyişmək olur); hər skan əvvəlki ilə müqayisə olunur: nə yenidir, nə aradan qalxıb, lockfile dəyişib, yoxsa yeni advisory çıxıb; skanı kim edib (interfeys, əmr sətri və ya AI agent) və hər agent MCP ilə nəyi yoxlayıb |
 
 Qovluqlar və monorepo-lar üçün birləşmiş səhifə var; bir neçə layihədə olan tapıntı bir dəfə göstərilir.
 
@@ -128,6 +128,8 @@ depgate --reset-password      # Docker: docker exec depgate depgate --reset-pass
 | `--data` · `DEPGATE_DATA` | siyahı, hesabatlar, skan tarixçəsi, parol hash-ı | `~/.config/depgate` · macOS `~/Library/Application Support/depgate` · Windows `%AppData%\depgate` |
 | `--offline` | şəbəkəsiz, yalnız keş | söndürülüb |
 | `--cooldown` | N gündən yeni versiyaları hədəf seçmə | 3 |
+| `--rescan` · `DEPGATE_RESCAN_HOURS` | son skan N saatdan köhnədirsə, yenidən skan et (0 = söndür; interfeysdə də) | 12 |
+| `DEPGATE_NO_UPDATE_CHECK=1` | gündə bir dəfə GitHub-da yeni versiyanı yoxlama | — |
 | `--print-token` · `DEPGATE_TOKEN` | API / MCP tokeni | avtomatik |
 | `DEPGATE_PASSWORD` | parolu əvvəlcədən təyin et | — |
 | `DEPGATE_GITHUB_TOKEN` | reliz qeydləri üçün daha çox GitHub sorğusu | — |
@@ -138,7 +140,7 @@ depgate --reset-password      # Docker: docker exec depgate depgate --reset-pass
 
 ## Təhlükəsizlik və məxfilik
 
-- Kompüterindən yalnız paket adları, versiyalar, CVE nömrələri və image adları çıxır — kod, yollar və `.env` faylları heç vaxt.
+- Kompüterindən yalnız paket adları, versiyalar, CVE nömrələri və image adları çıxır — kod, yollar və `.env` faylları heç vaxt. Gündə bir dəfə DepGate GitHub-dan ən son reliz nömrəsini soruşur və yeni versiya varsa, bildiriş göstərir.
 - Yalnız oxuyur: layihələrinə heç nə yazılmır; Docker-də ev qovluğun yalnız oxuma rejimində bağlanır və DepGate root olmadan işləyir.
 - İnterfeys yalnız `127.0.0.1`-də açılır və parolla qorunur (PBKDF2-SHA256); API sorğuları xüsusi başlıq tələb edir, `Host` başlığı yoxlanır, sərt CSP göndərilir.
 

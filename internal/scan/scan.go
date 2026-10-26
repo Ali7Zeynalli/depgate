@@ -158,29 +158,4 @@ func One(ctx context.Context, d *decide.Data, dir string, opt Options) report.Pr
 }
 
 // Summarize counts findings per group.
-func Summarize(fs []report.Finding) report.Summary {
-	var s report.Summary
-	for _, f := range fs {
-		switch f.Group {
-		case report.GroupNowEasy:
-			s.NowEasy++
-		case report.GroupNowCode:
-			s.NowCode++
-		case report.GroupPlan:
-			s.Plan++
-		case report.GroupOptional:
-			s.Optional++
-		default:
-			s.OK++
-		}
-		switch {
-		case f.Kind == "malware":
-			s.Malware++
-		case f.Kind == "vuln" && f.Severity == "critical":
-			s.Critical++
-		case f.Kind == "vuln" && f.Severity == "high":
-			s.High++
-		}
-	}
-	return s
-}
+func Summarize(fs []report.Finding) report.Summary { return report.Summarize(fs) }

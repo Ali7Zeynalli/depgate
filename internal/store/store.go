@@ -39,6 +39,7 @@ type Store struct {
 	History *history.Log
 
 	mu       sync.Mutex
+	amu      sync.Mutex // accepted.json
 	projects []Entry
 }
 
@@ -206,6 +207,7 @@ func (s *Store) Has(dir string) bool {
 
 // SaveReport stores the last scan of one project.
 func (s *Store) SaveReport(p *report.Project) error {
+	s.applyAccepted(p)
 	b, err := json.Marshal(p)
 	if err != nil {
 		return err
@@ -221,6 +223,13 @@ func (s *Store) RecordScan(p *report.Project, by, agent string) {
 
 // Report loads the last scan of dir (nil when never scanned).
 func (s *Store) Report(dir string) *report.Project {
+	p := s.rawReport(dir)
+	s.applyAccepted(p)
+	return p
+}
+
+// rawReport loads the saved report without applying accepted risks.
+func (s *Store) rawReport(dir string) *report.Project {
 	b, err := os.ReadFile(s.reportPath(dir))
 	if err != nil {
 		return nil

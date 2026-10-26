@@ -36,6 +36,9 @@ type Backend interface {
 	Browse(path string) (*app.Listing, error)
 	History(dir string) (*app.History, error)
 	ClearHistory(dir string) error
+	SetRescanHours(h int) error
+	Accept(dirs []string, key, reason string, days int) error
+	Unaccept(dirs []string, key string) error
 }
 
 type Server struct {
@@ -171,6 +174,48 @@ func (s *Server) Handler() http.Handler {
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	})
+	mux.HandleFunc("POST /api/settings", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			RescanHours *int `json:"rescanHours"`
+		}
+		if !readJSON(w, r, &req) {
+			return
+		}
+		if req.RescanHours != nil {
+			if err := s.B.SetRescanHours(*req.RescanHours); err != nil {
+				writeErr(w, err)
+				return
+			}
+		}
+		writeJSON(w, http.StatusOK, s.B.State())
+	})
+	mux.HandleFunc("POST /api/accept", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Dirs   []string `json:"dirs"`
+			Key    string   `json:"key"`
+			Reason string   `json:"reason"`
+			Days   int      `json:"days"`
+			Remove bool     `json:"remove"`
+		}
+		if !readJSON(w, r, &req) {
+			return
+		}
+		if len(req.Dirs) == 0 || req.Key == "" {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "dirs and key are required"})
+			return
+		}
+		var err error
+		if req.Remove {
+			err = s.B.Unaccept(req.Dirs, req.Key)
+		} else {
+			err = s.B.Accept(req.Dirs, req.Key, req.Reason, req.Days)
+		}
+		if err != nil {
+			writeErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, s.B.State())
 	})
 	mux.HandleFunc("GET /api/mcp", func(w http.ResponseWriter, r *http.Request) {
 		// what the "AI agent (MCP)" dialog needs to build a connection for this server
