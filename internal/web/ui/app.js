@@ -416,6 +416,7 @@
     codeHelp: ["Yeniləmədən sonra kodunda dəyişməli olan yerlər.", "The places in your code that change with these updates."],
     codeNone: ["Kod dəyişikliyi tələb edən yeniləmə yoxdur.", "No update needs code changes."],
     toPackage: ["Paketə bax", "View package"],
+    seeCodePlan: ["Növbəti major-a keçəndə kodda {0} yer dəyişəcək → Kod dəyişiklikləri", "Moving to the next major later changes {0} places → Code changes"],
     seeCode: ["Kodda {0} yer dəyişməlidir → Kod dəyişiklikləri", "{0} places in your code change → Code changes"],
     seeCode0: ["Yeniləmə qeydləri → Kod dəyişiklikləri", "Upgrade notes → Code changes"],
     dockerHelp: ["Dockerfile və compose faylları: təhlükəsizlik, Compose standartı və image-lərin köhnəlməsi.", "Dockerfiles and compose files: security, the Compose Specification and outdated images."],
@@ -1841,8 +1842,10 @@
     if (f.impactWhy && f.impactWhy.length) R.push(el("ul", { class: "why" }, list(f.impactWhy)));
     const migs = where ? where.flatMap((w) => (w.f.migrate || []).map((m) => [m, where.length > 1 ? relName(w.p, g) : ""])) : (f.migrate || []).map((m) => [m, ""]);
     if (bare && migs.length) {
-      const hits = migs.reduce((a, [m]) => a + (m.hits || 0), 0);
-      R.push(el("button", { class: "tocode" + (migs.some(([m]) => !m.plan) ? " now" : ""), onclick: () => goTab("code") }, hits ? t("seeCode", hits) : t("seeCode0")));
+      const now = migs.filter(([m]) => !m.plan), hits = now.reduce((a, [m]) => a + (m.hits || 0), 0);
+      const later = migs.filter(([m]) => m.plan).reduce((a, [m]) => a + (m.hits || 0), 0);
+      R.push(el("button", { class: "tocode" + (now.length ? " now" : ""), onclick: () => goTab("code") },
+        hits ? t("seeCode", hits) : !now.length && later ? t("seeCodePlan", later) : t("seeCode0")));
     } else for (const [m, l] of migs) R.push(migBlock(m, l));
     if (f.warnings && f.warnings.length) R.push(el("div", { class: "warnbox" }, f.warnings.map((w) => el("div", null, "⚠ " + tr(w)))));
     if (where) {
