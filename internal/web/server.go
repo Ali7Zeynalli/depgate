@@ -58,6 +58,8 @@ type Server struct {
 	AllowHosts []string
 	// MCP serves the Model Context Protocol at /mcp for AI agents (Bearer token only).
 	MCP http.Handler
+	// Stop ends the program (⋯ → Stop DepGate); nil hides it (the container).
+	Stop func()
 }
 
 // Listen binds addr:port, trying the next ports when busy.
@@ -237,6 +239,14 @@ func (s *Server) Handler() http.Handler {
 		}
 		writeJSON(w, http.StatusOK, s.B.State())
 	})
+	mux.HandleFunc("POST /api/stop", func(w http.ResponseWriter, r *http.Request) {
+		if s.Stop == nil || s.B.State().ReadOnly || s.B.State().Container {
+			writeJSON(w, http.StatusNotFound, map[string]string{"error": "not available here"})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]bool{"stopping": true})
+		go func() { time.Sleep(300 * time.Millisecond); s.Stop() }()
+	})
 	mux.HandleFunc("POST /api/update/check", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
 		defer cancel()
@@ -323,6 +333,7 @@ func (s *Server) Handler() http.Handler {
 		}
 		if r.URL.Path == "/healthz" { // container health check: no data
 			w.Header().Set("Content-Type", "text/plain")
+			w.Header().Set("X-DepGate", "1") // a second start finds the running one
 			_, _ = io.WriteString(w, "ok\n")
 			return
 		}

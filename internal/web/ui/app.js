@@ -448,6 +448,10 @@
     hByMCP: ["AI agent", "AI agent"],
     hCounts: ["təcili {0} · planla {1} · zərərli {2} · Docker/server {3}", "urgent {0} · plan {1} · malware {2} · Docker/server {3}"],
     hNewL: ["Yeni", "New"],
+    stopBtn: ["DepGate-i dayandır", "Stop DepGate"],
+    stopConfirm: ["DepGate dayandırılsın? Avtomatik skanlar və AI agent qoşulması da dayanacaq. Yenidən işə salmaq üçün proqramı yenidən aç.", "Stop DepGate? Automatic scans and the AI agent connection stop too. Open the program again to start it."],
+    stoppedTitle: ["DepGate dayandırıldı", "DepGate has stopped"],
+    stoppedText: ["Bu səhifəni bağlaya bilərsən. Yenidən lazım olanda DepGate-i yenidən aç — layihələr və tarixçə yerində qalır.", "You can close this page. When you need it again, open DepGate — your projects and history are kept."],
     footMore: ["Eyni müəllifdən:", "More from the author:"],
     footDock: ["Docker idarəetmə paneli (lokal və SSH ilə serverlər)", "Docker control panel (local and remote hosts over SSH)"],
     footNovus: ["WireGuard üzərində öz VPN şəbəkən", "your own private VPN network on WireGuard"],
@@ -626,6 +630,7 @@
     $("#srcbtn").textContent = t("sources");
     $("#updbtn").textContent = t("updCheck");
     $("#logout").textContent = t("logout");
+    $("#stopbtn").textContent = t("stopBtn");
     $("#pwbtn").textContent = t("changePw");
   }
 
@@ -779,6 +784,7 @@
     $("#addproj").hidden = st.readOnly;
     $("#srcbtn").hidden = false;
     $("#updbtn").hidden = !!st.readOnly;
+    $("#stopbtn").hidden = !!st.readOnly || !!st.container;
     $("#scanall").disabled = st.busy;
     $("#scanall").textContent = st.busy ? t("scanning") : t("scanAll");
     renderRescan(ps.length);
@@ -1698,6 +1704,14 @@
     document.body.append(ov); document.addEventListener("keydown", esc);
     dlg.querySelector("button, a").focus();
   }
+  // ⋯ → Stop DepGate: the program ends; nothing else changes
+  $("#stopbtn").addEventListener("click", async () => {
+    if (!confirm(t("stopConfirm"))) return;
+    try { await api("POST", "api/stop"); } catch (e) { toast(t("error", e.message)); return; }
+    clearTimeout(pollT); st = null;
+    document.body.replaceChildren(el("div", { class: "stopped" },
+      el("h1", null, t("stoppedTitle")), el("p", null, t("stoppedText"))));
+  });
   $("#updbtn").addEventListener("click", async () => {
     $("#moremenu").hidden = true; $("#more").setAttribute("aria-expanded", "false");
     try {

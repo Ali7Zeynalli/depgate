@@ -56,7 +56,8 @@ Sonra `http://127.0.0.1:7777` aç, parol seç və **+ Layihə əlavə et** (layi
 
 - Ev qovluğun yalnız oxuma rejimində bağlanır; konteyner onun sahibi kimi işləyir və root hüquqlarını buraxır. Data `depgate-data` volume-unda saxlanır.
 - Yeniləmə: `git pull && docker compose up -d` (həmişə ən yeni image-i çəkir). Yeni versiya çıxanda DepGate yuxarıda bildiriş və əmri göstərir (açılanda və hər 6 saatdan bir yoxlayır; **⋯ → Yeniləməni yoxla** dərhal yoxlayır).
-- macOS, ilk dəfə: `xattr -d com.apple.quarantine ./depgate`. Windows SmartScreen: *More info → Run anyway*.
+- Windows: `depgate.exe`-ni iki dəfə klikləyəndə terminal açıq qalmır; DepGate arxa planda işləyir və brauzerdə açılır (mesajlar data qovluğunda `depgate.log` faylına yazılır). Yenidən açanda işləyən DepGate göstərilir. Dayandırmaq üçün **⋯ → DepGate-i dayandır**. cmd və ya PowerShell-dən işə salanda əvvəlki kimi həmin terminalda işləyir.
+- macOS, ilk dəfə: `xattr -d com.apple.quarantine ./depgate`. Windows SmartScreen: *More info → Run anyway*. Microsoft Defender imzasız exe-ni şübhəli göstərərsə (`…!ml` ilə bitən ad təxmindir, Go proqramlarında tez-tez olur), `checksums.txt` ilə yoxla və *Windows Security → Protection history* bölməsində icazə ver.
 - Yükləməni yoxla: `checksums.txt` və `gh attestation verify <fayl> -R Ali7Zeynalli/depgate`.
 </details>
 

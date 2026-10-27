@@ -90,8 +90,34 @@ func L(az, en string) string {
 	return en
 }
 
+// childEnv marks the copy started in the background (see detach_windows.go).
+const childEnv = "DEPGATE_BACKGROUND"
+
 func main() {
-	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
+	if detach() {
+		return
+	}
+	stderr := io.Writer(os.Stderr)
+	if os.Getenv(childEnv) != "" { // no terminal: write messages to a log in the data folder
+		data, _ := dirsFor(os.Getenv("DEPGATE_DATA"))
+		if err := os.MkdirAll(data, 0o700); err == nil {
+			if f, err := os.OpenFile(filepath.Join(data, "depgate.log"), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600); err == nil {
+				defer f.Close()
+				stderr = f
+			}
+		}
+	}
+	os.Exit(run(os.Args[1:], os.Stdout, stderr))
+}
+
+// running reports whether a DepGate already answers on the port of this computer.
+func running(port int) bool {
+	resp, err := (&http.Client{Timeout: 2 * time.Second}).Get(fmt.Sprintf("http://127.0.0.1:%d/healthz", port))
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+	return resp.StatusCode == http.StatusOK && resp.Header.Get("X-DepGate") != ""
 }
 
 func run(args []string, stdout, stderr io.Writer) int {
@@ -305,6 +331,13 @@ func run(args []string, stdout, stderr io.Writer) int {
 			roots = append(roots, abs)
 		}
 	}
+	// opened again while it already runs: show the running one instead of starting a second copy
+	if !c.noOpen && !container && running(c.port) {
+		url := fmt.Sprintf("http://127.0.0.1:%d/", c.port)
+		fmt.Fprintln(stderr, L("DepGate artıq işləyir:", "DepGate is already running:"), url)
+		openBrowser(url)
+		return 0
+	}
 	m := &app.Manager{Store: st, Fetcher: fetcher, Opt: opt, Roots: roots, Depth: c.depth, Container: container, Rescan: c.rescan}
 	m.Start(ctx)
 	if initial != "" {
@@ -411,13 +444,15 @@ func within(p string, roots []string) bool {
 }
 
 func serve(ctx context.Context, c config, b web.Backend, token string, au *auth.Auth, stderr io.Writer, mcpH http.Handler) int {
+	ctx, stopAll := context.WithCancel(ctx)
+	defer stopAll()
 	ln, port, err := web.Listen(c.addr, c.port)
 	if err != nil {
 		fmt.Fprintln(stderr, L("depgate: port açılmadı:", "depgate: cannot open port:"), err)
 		return 1
 	}
 	readOnly := au == nil && !c.noAuth // --view: one-time link, no password
-	srv := &web.Server{Token: token, B: b, Auth: au, NoAuth: c.noAuth || readOnly, AllowHosts: c.allowHost, MCP: mcpH}
+	srv := &web.Server{Token: token, B: b, Auth: au, NoAuth: c.noAuth || readOnly, AllowHosts: c.allowHost, MCP: mcpH, Stop: stopAll}
 	url := fmt.Sprintf("http://127.0.0.1:%d/", port)
 	fmt.Fprintf(stderr, "\nDepGate: %s\n", url)
 	switch {
