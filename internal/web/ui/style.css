@@ -646,3 +646,7 @@ th .link.on { font-weight: 700; }
 .appfoot a { color: var(--quiet); font-weight: 600; }
 .appfoot a:hover { color: var(--ink); }
 .appfoot .fsep { opacity: .8; }
+.stopped { max-width: 520px; margin: 18vh auto; padding: 0 16px; text-align: center; color: var(--ink); }
+.stopped h1 { font-size: 22px; margin-bottom: 8px; }
+.stopped p { color: var(--quiet); }
+.mitem.danger { color: var(--bad); }

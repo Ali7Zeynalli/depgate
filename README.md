@@ -56,7 +56,8 @@ Then open `http://127.0.0.1:7777`, choose a password and **+ Add project** (a pr
 
 - Your home is mounted read-only; the container runs as its owner and drops root. Data lives in the `depgate-data` volume.
 - Update: `git pull && docker compose up -d` (it always fetches the newest image). DepGate shows a notice at the top when a new version is out, with the command (it checks at start and every 6 h; **⋯ → Check for updates** checks now).
-- macOS binary, first run: `xattr -d com.apple.quarantine ./depgate`. Windows SmartScreen: *More info → Run anyway*.
+- Windows: double-click `depgate.exe` — no terminal stays open; DepGate runs in the background and opens in your browser (messages go to `depgate.log` in the data folder). Opening it again shows the running one. Stop it with **⋯ → Stop DepGate**. From cmd or PowerShell it runs in that terminal as before.
+- macOS binary, first run: `xattr -d com.apple.quarantine ./depgate`. Windows SmartScreen: *More info → Run anyway*. If Microsoft Defender flags the unsigned exe (a `…!ml` detection is a guess, common for Go programs), check `checksums.txt` and allow it under *Windows Security → Protection history*.
 - Verify downloads: `checksums.txt` and `gh attestation verify <file> -R Ali7Zeynalli/depgate`.
 </details>
 
