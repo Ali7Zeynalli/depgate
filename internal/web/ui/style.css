@@ -671,3 +671,6 @@ th .link.on { font-weight: 700; }
 .cnt b.nbad { color: var(--bad); }
 .newspage .phead { align-items: flex-start; }
 .dash .stiles { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+.mitem .msub { display: block; font-size: 11.5px; color: var(--quiet); margin-top: 2px; }
+.mitem .msub.bad { color: var(--bad); }
+#updbtn { display: flex; flex-direction: column; align-items: flex-start; }

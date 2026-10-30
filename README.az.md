@@ -55,7 +55,7 @@ Sonra `http://127.0.0.1:7777` aç, parol seç və **+ Layihə əlavə et** (layi
 | Windows WSL | WSL ev qovluğunu — layihələr Windows tərəfindədirsə, PowerShell-dən işə sal |
 
 - Ev qovluğun yalnız oxuma rejimində bağlanır; konteyner onun sahibi kimi işləyir və root hüquqlarını buraxır. Data `depgate-data` volume-unda saxlanır.
-- Yeniləmə: `git pull && docker compose up -d` (həmişə ən yeni image-i çəkir). Yeni versiya çıxanda DepGate yuxarıda bildiriş və əmri göstərir (açılanda və hər 6 saatdan bir yoxlayır; **⋯ → Yeniləməni yoxla** dərhal yoxlayır).
+- Yeniləmə: `git pull && docker compose up -d` (həmişə ən yeni image-i çəkir). Yeni versiya çıxanda DepGate yuxarıda bildiriş və əmri göstərir (açılanda və hər saat yoxlayır; **⋯ → Yeniləməni yoxla** dərhal yoxlayır və son yoxlamanın vaxtını və ya GitHub-a niyə çatılmadığını göstərir). *Sonra* bildirişi bir günlük gizlədir.
 - Windows: `depgate.exe`-ni iki dəfə klikləyəndə terminal açıq qalmır; DepGate arxa planda işləyir və brauzerdə açılır (mesajlar data qovluğunda `depgate.log` faylına yazılır). Yenidən açanda işləyən DepGate göstərilir. Dayandırmaq üçün **⋯ → DepGate-i dayandır**. cmd və ya PowerShell-dən işə salanda əvvəlki kimi həmin terminalda işləyir.
 - macOS, ilk dəfə: `xattr -d com.apple.quarantine ./depgate`. Windows SmartScreen: *More info → Run anyway*. Microsoft Defender imzasız exe-ni şübhəli göstərərsə (`…!ml` ilə bitən ad təxmindir, Go proqramlarında tez-tez olur), `checksums.txt` ilə yoxla və *Windows Security → Protection history* bölməsində icazə ver.
 - Yükləməni yoxla: `checksums.txt` və `gh attestation verify <fayl> -R Ali7Zeynalli/depgate`.
@@ -156,7 +156,7 @@ depgate --reset-password      # Docker: docker exec depgate depgate --reset-pass
 | `--addr` · `DEPGATE_ADDR` | dinləmə ünvanı | `127.0.0.1` (konteynerdə `0.0.0.0`) |
 | `--push URL` · `--token` / `DEPGATE_PUSH_TOKEN` | bir dəfə skan et və JSON hesabatı URL-ə POST et | — |
 | `--rescan` · `DEPGATE_RESCAN_HOURS` | son skan N saatdan köhnədirsə, yenidən skan et (0 = söndür; interfeysdə də) | 12 |
-| `DEPGATE_NO_UPDATE_CHECK=1` | GitHub-da yeni versiyanı yoxlama (açılanda və hər 6 saatdan bir) | — |
+| `DEPGATE_NO_UPDATE_CHECK=1` | GitHub-da yeni versiyanı yoxlama (açılanda və hər saat) | — |
 | `--print-token` · `DEPGATE_TOKEN` | API / MCP tokeni | avtomatik |
 | `DEPGATE_PASSWORD` | parolu əvvəlcədən təyin et | — |
 | `DEPGATE_GITHUB_TOKEN` | reliz qeydləri üçün daha çox GitHub sorğusu | — |
@@ -167,7 +167,7 @@ depgate --reset-password      # Docker: docker exec depgate depgate --reset-pass
 
 ## Təhlükəsizlik və məxfilik
 
-- Kompüterindən yalnız paket adları, versiyalar, CVE nömrələri, image adları və GitHub repo adları (reliz qeydləri üçün) çıxır — kod, yollar və `.env` faylları heç vaxt. Hesabatlar, tarixçə və qəbul edilmiş risklər data qovluğunda qalır. Açılanda və hər 6 saatdan bir DepGate GitHub-dan ən son reliz nömrəsini soruşur və yeni versiya varsa, bildiriş göstərir. Xəbərlər üçün açıq lentləri tam yükləyir, image-lərdəki sistem paketlərini isə ad ilə OSV-dən soruşur — stack-in haqqında başqa heç nə göndərilmir.
+- Kompüterindən yalnız paket adları, versiyalar, CVE nömrələri, image adları və GitHub repo adları (reliz qeydləri üçün) çıxır — kod, yollar və `.env` faylları heç vaxt. Hesabatlar, tarixçə və qəbul edilmiş risklər data qovluğunda qalır. Açılanda və hər saat DepGate GitHub-dan ən son reliz nömrəsini soruşur və yeni versiya varsa, bildiriş göstərir. Xəbərlər üçün açıq lentləri tam yükləyir, image-lərdəki sistem paketlərini isə ad ilə OSV-dən soruşur — stack-in haqqında başqa heç nə göndərilmir.
 - Git tarixçəsi layihənin kompüterindəki `.git` qovluğundan oxunur (commit mesajı, tarix və hər commit-dəki lockfile); git proqramı işlədilmir və heç nə göndərilmir.
 - Yalnız oxuyur: layihələrinə heç nə yazılmır; Docker-də ev qovluğun yalnız oxuma rejimində bağlanır və DepGate root olmadan işləyir.
 - İnterfeys `127.0.0.1`-də açılır (Docker-də port yalnız `127.0.0.1`-də açıqdır) və parolla qorunur (PBKDF2-SHA256); API sorğuları xüsusi başlıq tələb edir, `Host` başlığı yoxlanır, sərt CSP göndərilir.

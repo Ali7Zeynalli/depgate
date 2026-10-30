@@ -50,6 +50,9 @@ type State struct {
 	RescanHours int     `json:"rescanHours"`
 	Version     string  `json:"version,omitempty"`
 	Update      *Update `json:"update,omitempty"` // a newer release is out
+	// UpdateChecked is when GitHub was last asked; UpdateErr why it did not answer
+	UpdateChecked *time.Time `json:"updateChecked,omitempty"`
+	UpdateErr     *i18n.T    `json:"updateErr,omitempty"`
 	// WorkAt changes when an AI agent moves on a task, so the page redraws
 	WorkAt *time.Time `json:"workAt,omitempty"`
 	// news: unread items (all, about the user's stack), when the feed was built,
@@ -87,19 +90,21 @@ type Crumb struct {
 
 // Manager implements the web backend.
 type Manager struct {
-	Store     *store.Store
-	Fetcher   func() sources.Fetcher
-	Opt       scan.Options
-	Roots     []string // folders the UI may browse; never empty
-	Depth     int
-	Container bool
-	newsOnce  sync.Once
-	newsSt    *news.Store
-	newsKick  chan struct{}
-	newsBusy  bool // guarded by mu
-	gitMu     sync.Mutex
-	gitCache  map[string]gitCached // git history per project, see gitLog
-	Rescan    int                  // default hours between automatic scans (--rescan); 0 = off
+	Store      *store.Store
+	Fetcher    func() sources.Fetcher
+	Opt        scan.Options
+	Roots      []string // folders the UI may browse; never empty
+	Depth      int
+	Container  bool
+	newsOnce   sync.Once
+	newsSt     *news.Store
+	newsKick   chan struct{}
+	newsBusy   bool       // guarded by mu
+	updChecked *time.Time // last update check (guarded by mu)
+	updErr     *i18n.T    // why it failed
+	gitMu      sync.Mutex
+	gitCache   map[string]gitCached // git history per project, see gitLog
+	Rescan     int                  // default hours between automatic scans (--rescan); 0 = off
 
 	mu       sync.Mutex
 	running  map[string]bool
@@ -282,6 +287,7 @@ func (m *Manager) State() State {
 	}
 	running, queued := copyMap(m.running), copyMap(m.queued)
 	st.Update, st.Version = m.update, m.Opt.Version
+	st.UpdateChecked, st.UpdateErr = m.updChecked, m.updErr
 	m.mu.Unlock()
 	st.RescanHours = m.RescanHours()
 	st.WorkAt = m.Store.History.WorkStamp()
