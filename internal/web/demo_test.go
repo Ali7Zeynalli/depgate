@@ -98,6 +98,43 @@ func TestServeDemo(t *testing.T) {
 <item><title>DSA-9903-1 postgresql-15 - security update</title><link>https://www.debian.org/security/</link><description>Several vulnerabilities were found in PostgreSQL.</description><dc:date>` + day(4) + `</dc:date></item>
 </rdf:RDF>`
 
+	rfc := func(d int, h int) string {
+		return now.AddDate(0, 0, -d).Add(-time.Duration(h) * time.Hour).Format(time.RFC1123Z)
+	}
+	item := func(title, link, desc string, d, h int) string {
+		return "<item><title>" + title + "</title><link>" + link + "</link><description>" + desc + "</description><pubDate>" + rfc(d, h) + "</pubDate></item>"
+	}
+	feed := func(items ...string) string {
+		return `<rss version="2.0"><channel>` + strings.Join(items, "") + `</channel></rss>`
+	}
+	f.Feeds["https://seclists.org/rss/oss-sec.rss"] = feed(item("Linux kernel: skb handling flaw lets local users gain root (no CVE yet)", "https://example.org/oss-sec/1", "A public proof of concept exists. Mitigation: sysctl user.max_user_namespaces=0 until a fixed kernel ships.", 0, 3))
+	f.Feeds["https://feeds.feedburner.com/TheHackersNews"] = feed(
+		item("Unpatched Linux kernel zero-day gives root on Ubuntu and Debian servers", "https://example.org/thn/1", "Researchers published a working exploit; distribution fixes are being prepared.", 0, 2),
+		item("Critical CVE-2099-1100 flaw in a popular CI runner lets attackers run code", "https://example.org/thn/2", "CVSS 9.6. Self-hosted runners exposed to pull requests are at risk.", 1, 0))
+	f.Feeds["https://www.bleepingcomputer.com/feed/"] = feed(
+		item("New Linux kernel zero-day exploit gives root on Ubuntu, Debian", "https://example.org/bc/1", "", 0, 1),
+		item("Container escape CVE-2099-1002 now exploited in attacks", "https://example.org/bc/2", "", 1, 4))
+	f.Feeds["https://www.securityweek.com/feed/"] = feed(item("CI runner flaw CVE-2099-1100 patched, upgrade now", "https://example.org/sw/1", "", 1, 2))
+	f.Feeds["https://openai.com/news/rss.xml"] = feed(item("A new reasoning model is available in the API", "https://example.org/ai/1", "", 0, 5))
+	f.Feeds["https://huggingface.co/blog/feed.xml"] = feed(item("Running open LLMs on a single GPU with 4-bit quantization", "https://example.org/hf/1", "", 2, 0))
+	f.Feeds["https://simonwillison.net/atom/everything/"] = feed(item("Prompt injection in MCP tools, explained with examples", "https://example.org/sw2/1", "", 1, 6))
+	f.Feeds["https://kubernetes.io/feed.xml"] = feed(item("Kubernetes v1.36: what is new for cluster operators", "https://example.org/k8s/1", "", 3, 0))
+	f.Feeds["https://www.docker.com/blog/feed/"] = feed(item("Docker Engine security release for the runc container escape", "https://example.org/docker/1", "CVE-2099-1002 is fixed in this release.", 1, 3))
+	f.Feeds["https://github.blog/changelog/feed/"] = feed(item("GitHub Actions: new runner images with Ubuntu 26.04", "https://example.org/gh/1", "", 2, 2))
+	f.Feeds["https://lwn.net/headlines/rss"] = feed(item("Security updates for Thursday", "https://example.org/lwn/1", "", 1, 8))
+	f.Feeds["https://hnrss.org/frontpage?points=300"] = feed(item("Show HN: a tiny self-hosted dashboard for Docker hosts", "https://example.org/hn/1", "", 0, 6))
+	f.Feeds["https://services.nvd.nist.gov/rest/json/cves/2.0*"] = `{"vulnerabilities":[{"cve":{"id":"CVE-2099-1100","published":"` + now.AddDate(0, 0, -2).Format("2006-01-02T15:04:05.000") + `","descriptions":[{"lang":"en","value":"A self-hosted CI runner (Linux) runs code from untrusted pull requests."}],"metrics":{"cvssMetricV31":[{"cvssData":{"baseScore":9.6,"baseSeverity":"CRITICAL"}}]}}}]}`
+	f.Feeds["https://api.github.com/advisories*"] = `[{"ghsa_id":"GHSA-demo-demo-demo","cve_id":"CVE-2099-1200","html_url":"https://github.com/advisories","summary":"Remote code execution in an LLM agent framework","severity":"critical","published_at":"` + ts(2) + `","vulnerabilities":[{"package":{"ecosystem":"pip","name":"agent-framework"},"first_patched_version":"1.4.2"}]}]`
+	for _, src := range sources.NewsSources { // the other sources answer with nothing new
+		if _, ok := f.Feeds[src.URL]; !ok && (src.Kind == "rss" || src.Kind == "jsonfeed") {
+			if src.Kind == "jsonfeed" {
+				f.Feeds[src.URL] = `{"items":[]}`
+			} else {
+				f.Feeds[src.URL] = feed()
+			}
+		}
+	}
+
 	st, err := store.Open(filepath.Join(t.TempDir(), "data"))
 	if err != nil {
 		t.Fatal(err)

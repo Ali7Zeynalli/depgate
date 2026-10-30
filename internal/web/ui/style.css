@@ -674,3 +674,28 @@ th .link.on { font-weight: 700; }
 .mitem .msub { display: block; font-size: 11.5px; color: var(--quiet); margin-top: 2px; }
 .mitem .msub.bad { color: var(--bad); }
 #updbtn { display: flex; flex-direction: column; align-items: flex-start; }
+.ntopics { gap: 6px; flex-wrap: wrap; }
+.fchip .fn { margin-left: 6px; font-size: 11px; opacity: .7; }
+.ntools { gap: 8px; flex-wrap: wrap; align-items: center; }
+.nsearch { flex: 1 1 220px; min-width: 0; }
+.ntopic { font-size: 13px; }
+.nalso { margin-top: 8px; font-size: 13px; }
+.nalso summary { cursor: pointer; color: var(--accent); }
+.nalso ul { margin: 6px 0 0; padding-left: 18px; }
+.nalso li { margin: 3px 0; overflow-wrap: anywhere; }
+.nmore { align-self: center; }
+.nwhy ul { margin: 8px 0 0; padding-left: 18px; line-height: 1.5; }
+.nsrc { display: flex; flex-direction: column; gap: 8px; }
+.nsrch { gap: 8px; align-items: center; }
+.nsrclist { display: flex; flex-direction: column; gap: 4px; padding-left: 24px; }
+.nsrclist.off { opacity: .5; }
+.nsrow { gap: 8px; align-items: center; flex-wrap: wrap; font-size: 13.5px; }
+.nsrow label { gap: 6px; align-items: center; }
+.nform { gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.nform input { min-width: 0; }
+.small.bad, span.bad { color: var(--bad); }
+.newspage .row { display: flex; }
+.ntools input, .ntools select, .nform input, .nform select { font: inherit; font-size: 13px; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); }
+.nform input[type="url"] { flex: 2 1 220px; }
+.nform input:not([type]) { flex: 1 1 140px; }
+.nsrow .chip { font-size: 10.5px; }

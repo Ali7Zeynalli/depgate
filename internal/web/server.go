@@ -26,6 +26,7 @@ import (
 
 	"github.com/Ali7Zeynalli/depgate/internal/app"
 	"github.com/Ali7Zeynalli/depgate/internal/auth"
+	"github.com/Ali7Zeynalli/depgate/internal/news"
 )
 
 //go:embed ui
@@ -48,6 +49,7 @@ type Backend interface {
 	News() (*app.NewsView, error)
 	MarkNews(ids []string, all, unread bool) error
 	RefreshNews(ctx context.Context) error
+	SetNewsSettings(news.Settings) (news.Settings, error)
 }
 
 type Server struct {
@@ -207,6 +209,18 @@ func (s *Server) Handler() http.Handler {
 			return
 		}
 		writeJSON(w, http.StatusOK, s.B.State())
+	})
+	mux.HandleFunc("POST /api/news/settings", func(w http.ResponseWriter, r *http.Request) {
+		var req news.Settings
+		if !readJSON(w, r, &req) {
+			return
+		}
+		set, err := s.B.SetNewsSettings(req)
+		if err != nil {
+			writeErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, set)
 	})
 	mux.HandleFunc("POST /api/news/refresh", func(w http.ResponseWriter, r *http.Request) {
 		if s.B.State().ReadOnly {

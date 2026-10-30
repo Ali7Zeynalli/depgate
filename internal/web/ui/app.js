@@ -460,15 +460,60 @@
     footNovus: ["WireGuard üzərində öz VPN şəbəkən", "your own private VPN network on WireGuard"],
     newsTitle: ["Xəbərlər", "News"],
     newsSub: ["CVE, yeniləmələr, zero-day", "CVEs, updates, zero-days"],
-    newsHelp: ["Docker fayllarındakı sistemlər üçün yeni zəifliklər, təhlükəsizlik relizləri və dəstəyin bitməsi · ümumi Linux və DevOps xəbərləri. Əmrlər təklifdir.", "New vulnerabilities, security releases and end of support for the systems in your Docker files · general Linux and DevOps news. Commands are suggestions."],
+    newsHelp: ["Docker fayllarındakı sistemlər üçün zəifliklər, relizlər və dəstəyin bitməsi · zero-day, CVE, Linux, konteyner, DevOps, proqramlaşdırma, AI və cloud xəbərləri. Eyni hadisəni bir neçə mənbə yazırsa bir kartda birləşir. Əmrlər təklifdir.", "Vulnerabilities, releases and end of support for the systems in your Docker files · zero-day, CVE, Linux, container, DevOps, programming, AI and cloud news. A story told by several sources is one card. Commands are suggestions."],
     newsBuilt: ["yeniləndi {0}", "updated {0}"],
-    newsNever: ["Xəbərlər hələ toplanmayıb — DepGate açılandan bir az sonra və hər 6 saatdan bir toplayır.", "No news yet — DepGate collects them shortly after it starts and every 6 hours."],
-    newsEvery: ["hər 6 saatdan bir və skanlardan sonra", "every 6 hours and after scans"],
+    newsNever: ["Xəbərlər hələ toplanmayıb: DepGate açılandan bir az sonra və hər saat toplayır.", "No news yet: DepGate collects them shortly after it starts and every hour."],
+    newsEvery: ["hər saat və skanlardan sonra", "every hour and after scans"],
     newsRefresh: ["Xəbərləri yenilə", "Refresh news"],
     newsRefreshing: ["Xəbərlər yenilənir…", "Refreshing the news…"],
     newsBusy: ["Mənbələr oxunur…", "Reading the sources…"],
     newsTabMine: ["Səndə olanlar", "In your stack"],
-    newsTabGen: ["Ümumi: Linux və DevOps", "General: Linux and DevOps"],
+    newsTabGen: ["Ümumi xəbərlər", "General news"],
+    newsTabSrc: ["Mənbələr", "Sources"],
+    newsZero: ["Zero-day", "Zero-day"],
+    newsMaybe: ["Səndə ola bilər", "May concern you"],
+    newsSortImp: ["Ən vacib əvvəl", "Most important first"],
+    newsSortNew: ["Ən yeni əvvəl", "Newest first"],
+    newsSearch: ["Axtar: CVE, məhsul, söz…", "Search: CVE, product, word…"],
+    newsAllSrc: ["Bütün mənbələr", "All sources"],
+    newsMore: ["Daha {0} xəbər göstər", "Show {0} more"],
+    newsCount: ["{0} xəbər", "items: {0}"],
+    newsAlso: ["+{0} mənbə", "+{0} sources"],
+    newsAlsoHead: ["Bu hadisəni başqa mənbələr də yazır:", "Other sources telling this story:"],
+    nNews: ["Xəbər", "News"],
+    tpAll: ["Hamısı", "All"],
+    tp_zeroday: ["Zero-day və hücumlar", "Zero-days and attacks"],
+    tp_security: ["Təhlükəsizlik", "Security"],
+    tp_cve: ["Kritik CVE", "Critical CVEs"],
+    tp_linux: ["Linux", "Linux"],
+    tp_containers: ["Konteyner və K8s", "Containers and K8s"],
+    tp_devops: ["DevOps", "DevOps"],
+    tp_code: ["Proqramlaşdırma", "Programming"],
+    tp_ai: ["AI", "AI"],
+    tp_cloud: ["Cloud", "Cloud"],
+    tp_hot: ["Gündəm", "Trending"],
+    tp_tools: ["Mənim alətlərim", "My tools"],
+    srcHelp: ["Hansı mənbələrin oxunacağını seç. Hamısı sənin maşınından birbaşa oxunur, heç bir ara serverimiz yoxdur. Dəyişiklikdən sonra xəbərlər bir az sonra yenilənir.", "Choose which sources are read. They are read straight from your machine; there is no server of ours in between. The news are rebuilt shortly after a change."],
+    srcItems: ["{0} xəbər", "items: {0}"],
+    srcErr: ["cavab vermədi", "did not answer"],
+    srcNotYet: ["hələ oxunmayıb", "not read yet"],
+    srcOfficial: ["rəsmi", "official"],
+    srcCustom: ["Öz RSS/Atom feed-in", "Your own RSS/Atom feeds"],
+    srcCustomHelp: ["İstənilən saytın RSS və ya Atom ünvanını əlavə et.", "Add the RSS or Atom address of any site."],
+    srcName: ["Ad", "Name"],
+    srcURL: ["Feed ünvanı (https://…)", "Feed address (https://…)"],
+    srcAdd: ["Əlavə et", "Add"],
+    srcRemove: ["Sil", "Remove"],
+    srcWatch: ["Mənim alətlərim: GitHub relizləri", "My tools: GitHub releases"],
+    srcWatchHelp: ["İzlədiyin alətlərin GitHub reposunu yaz (məsələn traefik/traefik və ya https://github.com/caddyserver/caddy). Hər yeni reliz xəbər kimi gəlir.", "Write the GitHub repository of the tools you follow (e.g. traefik/traefik or https://github.com/caddyserver/caddy). Every new release comes as news."],
+    srcRepo: ["owner/repo", "owner/repo"],
+    srcSaved: ["Saxlanıldı. Xəbərlər bir az sonra yenilənəcək.", "Saved. The news will be rebuilt shortly."],
+    srcTopicOff: ["Bu mövzu söndürülüb", "This topic is off"],
+    mineWhyHead: ["Niyə boşdur:", "Why it is empty:"],
+    mineWhyNoImg: ["Docker fayllarında image tapılmadı. Layihələr 0.19-dan əvvəl skan olunubsa, yenidən skan et.", "No images were found in the Docker files. If the projects were scanned before 0.19, scan them again."],
+    mineWhyOS: ["{0} image-dən {1}-in OS versiyası teqdən bilinmir (məsələn node:22, postgres:16). Onların içindəki sistem paketləri (openssl, glibc…) yoxlanmır. Teqə OS əlavə etsən (node:22-bookworm, postgres:16-alpine3.20) yoxlanacaq.", "{1} of {0} images do not name their OS version in the tag (e.g. node:22, postgres:16), so their system packages (openssl, glibc…) are not checked. Name it in the tag (node:22-bookworm, postgres:16-alpine3.20) and they will be."],
+    mineWhyOK: ["Son 30 gündə bu image-lər üçün yeni zəiflik, reliz və ya dəstək xəbəri çıxmayıb.", "No new vulnerability, release or end-of-support news for these images in the last 30 days."],
+    mineWhyErr: ["Bəzi mənbələr cavab vermədi, ona görə siyahı natamam ola bilər (aşağıya bax).", "Some sources did not answer, so the list may be incomplete (see below)."],
     newsTabStack: ["Stack: nə izlənir", "Stack: what is watched"],
     newsFilter: ["Süzgəc:", "Filter:"],
     newsAll: ["Hamısı", "All"],
@@ -1923,12 +1968,18 @@
     return newsData.p;
   }
   const NSEV = { critical: ["sevCritical", "sev-critical"], high: ["sevHigh", "sev-high"], medium: ["sevModerate", "sev-moderate"], low: ["sevLow", "sev-low"],
-    eol: ["nEol", "warn"], release: ["nRelease", "ok"], update: ["nUpdate", ""] };
+    eol: ["nEol", "warn"], release: ["nRelease", "ok"], update: ["nUpdate", ""], news: ["nNews", ""] };
+  const TOPICS = ["zeroday", "security", "cve", "linux", "containers", "devops", "code", "ai", "cloud", "hot", "tools"];
+  const TICON = { zeroday: "🔥", security: "🛡️", cve: "🧾", linux: "🐧", containers: "📦", devops: "⚙️", code: "💻", ai: "🤖", cloud: "☁️", hot: "📈", tools: "⭐" };
+  const nIsRead = (it, read) => !!read[it.id] || (it.alias || []).some((a) => read[a]);
+  const nIds = (it) => [it.id, ...(it.alias || [])];
+  // importance: the score DepGate gave the item, less 40 a day of age
+  const nWeight = (it) => (it.score || 0) - (Date.now() - new Date(it.at)) / 864e5 * 40;
   async function markNews(body) {
     try { setState(await api("POST", "api/news/read", body)); } catch (e) { toast(t("error", e.message)); }
   }
   function newsItem(it, read) {
-    const unread = !read[it.id];
+    const unread = !nIsRead(it, read);
     const sv = NSEV[it.severity] || NSEV.update;
     const where = it.where || [];
     const open = state.nopen === it.id;
@@ -1938,9 +1989,11 @@
         el("span", { class: "quiet small ndate" }, fmtTime(it.at).slice(0, 10)),
         el("span", { class: "chip " + sv[1] }, t(sv[0])),
         it.kev ? el("span", { class: "chip sev-critical" }, t("tagKev")) : null,
+        it.zeroDay && !it.kev ? el("span", { class: "chip sev-high" }, "ZERO-DAY") : null,
         it.mine ? el("span", { class: "chip ai" }, t("newsMineChip")) : it.maybe ? el("span", { class: "chip ai" }, t("newsMaybeChip")) : null,
-        el("span", { class: "chip" }, it.product),
+        it.product ? el("span", { class: "chip" }, it.product) : null,
         el("span", { class: "grow" }),
+        (it.topics || []).filter((x) => TICON[x]).slice(0, 3).map((x) => el("span", { class: "ntopic", title: t("tp_" + x) }, TICON[x])),
         el("span", { class: "quiet small" }, it.source)),
       el("div", { class: "ntitle" }, tr(it.title)),
       tr(it.desc) ? el("div", { class: "ndesc" }, tr(it.desc)) : null,
@@ -1949,11 +2002,15 @@
           w.project + " · " + w.file + (w.line ? ":" + w.line : "") + (w.image ? " → " + w.image : ""))])) : null,
       it.fix ? el("div", { class: "nwhere" }, el("span", { class: "quiet" }, t("newsFix")), " ", el("b", null, it.fix)) : null,
       it.cmd ? el("div", { class: "row ncmd" }, el("span", { class: "quiet small" }, t("newsSuggest")), el("code", null, it.cmd), copyBtn(it.cmd.split("   #")[0])) : null,
+      (it.also || []).length ? el("details", { class: "nalso" }, el("summary", null, t("newsAlso", it.also.length)),
+        el("div", { class: "quiet small" }, t("newsAlsoHead")),
+        el("ul", null, it.also.map((r) => el("li", null, el("b", null, r.source), " · ",
+          safeURL(r.url) ? el("a", { href: r.url, target: "_blank", rel: "noopener noreferrer" }, r.title || r.url) : (r.title || ""))))) : null,
       el("div", { class: "row nfoot" },
         safeURL(it.url) ? el("a", { href: it.url, target: "_blank", rel: "noopener noreferrer" }, t("newsSource")) : null,
         (it.cves || []).slice(0, 4).map((c) => el("span", { class: "quiet small mono" }, c)),
         el("span", { class: "grow" }),
-        el("button", { class: "small", onclick: () => markNews({ ids: [it.id], unread: !unread }) }, unread ? t("newsRead") : t("newsUnreadBtn"))));
+        st.readOnly ? null : el("button", { class: "small", onclick: () => markNews({ ids: nIds(it), unread: !unread }) }, unread ? t("newsRead") : t("newsUnreadBtn"))));
     if (open) setTimeout(() => { box.scrollIntoView({ block: "center" }); state.nopen = ""; }, 50);
     return box;
   }
@@ -1974,10 +2031,10 @@
   }
   const STK = { ok: ["stOk", "ok"], old: ["stOld", "warn"], bad: ["stBad", "sev-critical"], eol: ["stEol", "warn"], unk: ["stUnk", ""] };
   function newsView(ps) {
-    const tab = state.ntab || "mine", f = state.nf || "all";
+    const tab = state.ntab || "mine";
     const tabs = el("div", { class: "tabs", role: "tablist", "aria-label": t("newsTitle") },
-      [["mine", "newsTabMine"], ["general", "newsTabGen"], ["stack", "newsTabStack"]].map(([k, l]) => el("button", {
-        role: "tab", "aria-selected": String(tab === k), onclick: () => { state.ntab = k; render(); } }, t(l),
+      [["mine", "newsTabMine"], ["general", "newsTabGen"], ["stack", "newsTabStack"], ["sources", "newsTabSrc"]].map(([k, l]) => el("button", {
+        role: "tab", "aria-selected": String(tab === k), onclick: () => { state.ntab = k; state.nlimit = 0; render(); } }, t(l),
         k === "mine" && st.newsMine ? el("span", { class: "n bad" }, st.newsMine) : k === "general" && st.newsUnread - st.newsMine > 0 ? el("span", { class: "n" }, st.newsUnread - st.newsMine) : null)));
     const head = el("div", { class: "phead" },
       el("div", null, el("h1", null, t("newsTitle")),
@@ -1987,6 +2044,7 @@
         try { await api("POST", "api/news/refresh"); toast(t("newsRefreshing")); } catch (e) { toast(t("error", e.message)); }
       } }, "⟳ " + t("newsRefresh")));
     const body = el("div", { class: "nbody" }, el("div", { class: "quiet small" }, t("loading")));
+    const fail = (e) => body.replaceChildren(el("div", { class: "empty" }, t("error", e.message)));
     if (tab === "stack") {
       const rows = stackRows(ps);
       const draw = (v) => {
@@ -2013,27 +2071,138 @@
       };
       draw(null);
       getNews().then(draw).catch(() => {});
+    } else if (tab === "sources") {
+      getNews().then((v) => body.replaceChildren(newsSources(v))).catch(fail);
     } else {
-      getNews().then((v) => {
-        const items = v.items.filter((it) => (tab === "mine") === !!it.mine);
-        const keep = (it) => f === "all" || (f === "crit" && (it.severity === "critical" || it.severity === "high")) || (f === "kev" && it.kev) || (f === "unread" && !v.read[it.id]);
-        // exploited first, then the newest
-        const shown = items.filter(keep).sort((a, b) => (!!b.kev - !!a.kev) || (new Date(b.at) - new Date(a.at)));
-        const unreadIds = items.filter((it) => !v.read[it.id]).map((it) => it.id);
-        body.replaceChildren(...[
-          el("div", { class: "row nfilters" },
-            el("span", { class: "quiet small" }, t("newsFilter")),
-            [["all", "newsAll"], ["crit", "newsCrit"], ["kev", "newsKev"], ["unread", "newsUnread"]].map(([k, l]) =>
-              el("button", { class: "fchip" + (f === k ? " on" : ""), "aria-pressed": String(f === k), onclick: () => { state.nf = k; render(); } }, t(l))),
-            el("span", { class: "grow" }),
-            unreadIds.length && !st.readOnly ? el("button", { class: "small", onclick: () => markNews({ ids: unreadIds }) }, t("newsReadAll")) : null),
-          v.busy ? el("div", { class: "quiet small" }, el("span", { class: "spin" }), " ", t("newsBusy")) : null,
-          shown.length ? el("div", { class: "nlist" }, shown.map((it) => newsItem(it, v.read)))
-            : el("div", { class: "empty" }, !v.updated || v.updated.startsWith("0001") ? t("newsNever") : tab === "mine" && !items.length ? t("newsMineNone") : t("newsNone")),
-          (v.errors || []).length ? el("details", { class: "quiet small nerr" }, el("summary", null, t("newsErrors", v.errors.length)), el("ul", null, v.errors.map((e) => el("li", null, e)))) : null].filter(Boolean));
-      }).catch((e) => body.replaceChildren(el("div", { class: "empty" }, t("error", e.message))));
+      getNews().then((v) => body.replaceChildren(...newsList(v, tab))).catch(fail);
     }
     return el("div", { class: "newspage" }, head, tabs, body);
+  }
+
+  // the list of the «in your stack» or the general tab, with its filters
+  function newsList(v, tab) {
+    const mine = tab === "mine";
+    const f = state.nf || "all", topic = mine ? "all" : (state.ntopic || "all"), sortBy = state.nsort || "imp", src = mine ? "" : (state.nsrc || "");
+    const items = v.items.filter((it) => mine === !!it.mine);
+    const inTopic = (it, tp) => tp === "all" || (it.topics || []).includes(tp);
+    const keep = (it) => f === "all" || (f === "crit" && (it.severity === "critical" || it.severity === "high")) || (f === "kev" && it.kev)
+      || (f === "zero" && (it.zeroDay || it.kev)) || (f === "maybe" && (it.maybe || it.mine)) || (f === "unread" && !nIsRead(it, v.read));
+    const words = () => (state.nq || "").toLowerCase().split(/\s+/).filter(Boolean);
+    const match = (it) => {
+      const ws = words();
+      if (!ws.length) return true;
+      const hay = [tr(it.title), tr(it.desc), it.product, it.source, ...(it.cves || []), ...(it.also || []).map((r) => r.source + " " + r.title)].join(" ").toLowerCase();
+      return ws.every((w) => hay.includes(w));
+    };
+    const base = items.filter((it) => keep(it) && (!src || it.source === src || (it.also || []).some((r) => r.source === src)));
+    const listBox = el("div", { class: "nlist" });
+    const countBox = el("span", { class: "quiet small" });
+    const drawList = () => {
+      const shown = base.filter((it) => inTopic(it, topic) && match(it))
+        .sort(sortBy === "new" ? (a, b) => new Date(b.at) - new Date(a.at) : (a, b) => nWeight(b) - nWeight(a));
+      const lim = state.nlimit || 40;
+      countBox.textContent = t("newsCount", shown.length);
+      listBox.replaceChildren(...(shown.length ? [
+        ...shown.slice(0, lim).map((it) => newsItem(it, v.read)),
+        shown.length > lim ? el("button", { class: "small nmore", onclick: () => { state.nlimit = lim + 40; drawList(); } }, t("newsMore", Math.min(40, shown.length - lim))) : null,
+      ].filter(Boolean) : [mine && !items.length ? mineWhy(v) : el("div", { class: "empty" }, !v.updated || v.updated.startsWith("0001") ? t("newsNever") : t("newsNone"))]));
+    };
+    const unreadIds = items.filter((it) => inTopic(it, topic) && !nIsRead(it, v.read)).flatMap(nIds);
+    const topics = mine ? null : el("div", { class: "row ntopics" },
+      ["all", ...TOPICS].map((k) => {
+        const n = base.filter((it) => inTopic(it, k)).length;
+        if (k !== "all" && !n && k !== topic) return null;
+        return el("button", { class: "fchip" + (topic === k ? " on" : ""), "aria-pressed": String(topic === k),
+          onclick: () => { state.ntopic = k; state.nlimit = 0; render(); } }, (TICON[k] ? TICON[k] + " " : "") + t(k === "all" ? "tpAll" : "tp_" + k), el("span", { class: "fn" }, n));
+      }));
+    const sources = [...new Set(items.flatMap((it) => [it.source, ...(it.also || []).map((r) => r.source)]))].sort();
+    const search = el("input", { type: "search", class: "nsearch", placeholder: t("newsSearch"), value: state.nq || "", "aria-label": t("newsSearch"),
+      oninput: (e) => { state.nq = e.target.value; state.nlimit = 0; drawList(); } });
+    const filters = el("div", { class: "row nfilters" },
+      el("span", { class: "quiet small" }, t("newsFilter")),
+      [["all", "newsAll"], ["crit", "newsCrit"], ["kev", "newsKev"], ["zero", "newsZero"], mine ? null : ["maybe", "newsMaybe"], ["unread", "newsUnread"]].filter(Boolean).map(([k, l]) =>
+        el("button", { class: "fchip" + (f === k ? " on" : ""), "aria-pressed": String(f === k), onclick: () => { state.nf = k; state.nlimit = 0; render(); } }, t(l))),
+      el("span", { class: "grow" }),
+      unreadIds.length && !st.readOnly ? el("button", { class: "small", onclick: () => markNews({ ids: unreadIds }) }, t("newsReadAll")) : null);
+    const tools = el("div", { class: "row ntools" }, search,
+      mine ? null : el("select", { "aria-label": t("newsAllSrc"), onchange: (e) => { state.nsrc = e.target.value; state.nlimit = 0; render(); } },
+        el("option", { value: "" }, t("newsAllSrc")), sources.map((x) => el("option", { value: x, selected: x === src || undefined }, x))),
+      el("select", { "aria-label": t("newsSortImp"), onchange: (e) => { state.nsort = e.target.value; render(); } },
+        el("option", { value: "imp", selected: sortBy === "imp" || undefined }, t("newsSortImp")),
+        el("option", { value: "new", selected: sortBy === "new" || undefined }, t("newsSortNew"))),
+      el("span", { class: "grow" }), countBox);
+    drawList();
+    return [topics, filters, tools,
+      v.busy ? el("div", { class: "quiet small" }, el("span", { class: "spin" }), " ", t("newsBusy")) : null,
+      listBox,
+      (v.errors || []).length ? el("details", { class: "quiet small nerr" }, el("summary", null, t("newsErrors", v.errors.length)), el("ul", null, v.errors.map((e) => el("li", null, e)))) : null].filter(Boolean);
+  }
+
+  // why the «in your stack» tab is empty
+  function mineWhy(v) {
+    if (!v.updated || v.updated.startsWith("0001")) return el("div", { class: "empty" }, t("newsNever"));
+    const s = v.stack || {};
+    const why = [];
+    if (!s.images) why.push(t("mineWhyNoImg"));
+    else {
+      if (s.osKnown < s.images) why.push(t("mineWhyOS", s.images, s.images - s.osKnown));
+      why.push(t("mineWhyOK"));
+    }
+    if ((v.errors || []).length) why.push(t("mineWhyErr"));
+    return el("div", { class: "card nwhy" }, el("div", { class: "h3" }, t("newsMineNone")), el("div", { class: "quiet small" }, t("mineWhyHead")),
+      el("ul", null, why.map((w) => el("li", null, w))));
+  }
+
+  // the sources tab: which feeds are read, the user's own feeds and watched repositories
+  function newsSources(v) {
+    let set = { off: [...(v.settings.off || [])], feeds: [...(v.settings.feeds || [])], watch: [...(v.settings.watch || [])] };
+    const ro = st.readOnly;
+    const save = async (next) => {
+      try {
+        const saved = await api("POST", "api/news/settings", next);
+        set = saved;
+        newsData = null; // the catalog follows the settings
+        toast(t("srcSaved"));
+        render();
+      } catch (e) { toast(t("error", e.message)); }
+    };
+    const isOff = (id) => set.off.includes(id);
+    const toggle = (id, on) => save({ ...set, off: on ? set.off.filter((x) => x !== id) : [...set.off, id] });
+    const stat = (id) => {
+      const x = (v.sources || {})[id];
+      if (!x) return el("span", { class: "quiet small" }, t("srcNotYet"));
+      if (x.err) return el("span", { class: "small bad", title: x.err }, "✗ " + t("srcErr"));
+      return el("span", { class: "quiet small" }, "✓ " + t("srcItems", x.items));
+    };
+    const groups = (v.topics || TOPICS).map((tp) => {
+      const srcs = v.catalog.filter((s) => s.topic === tp);
+      if (!srcs.length && tp !== "tools") return null;
+      const tOff = isOff("topic:" + tp);
+      return el("div", { class: "card nsrc" },
+        el("label", { class: "row nsrch" }, el("input", { type: "checkbox", checked: !tOff || undefined, disabled: ro || undefined, onchange: (e) => toggle("topic:" + tp, e.target.checked) }),
+          el("b", null, TICON[tp] + " " + t("tp_" + tp)), tOff ? el("span", { class: "quiet small" }, t("srcTopicOff")) : null),
+        el("div", { class: "nsrclist" + (tOff ? " off" : "") }, srcs.map((s) => el("div", { class: "row nsrow" },
+          el("label", { class: "row" }, el("input", { type: "checkbox", checked: !isOff(s.id) || undefined, disabled: ro || tOff || undefined, onchange: (e) => toggle(s.id, e.target.checked) }),
+            el("span", null, s.name)),
+          s.official ? el("span", { class: "chip ok" }, t("srcOfficial")) : null,
+          safeURL(s.home) ? el("a", { href: s.home, target: "_blank", rel: "noopener noreferrer", class: "quiet small" }, "↗") : null,
+          el("span", { class: "grow" }), stat(s.id),
+          s.custom && !ro ? el("button", { class: "small", onclick: () => save(s.id.startsWith("gh:")
+            ? { ...set, watch: set.watch.filter((r) => "gh:" + r.toLowerCase() !== s.id) }
+            : { ...set, feeds: set.feeds.filter((x) => x.url !== s.home) }) }, t("srcRemove")) : null))));
+    }).filter(Boolean);
+    const name = el("input", { placeholder: t("srcName"), "aria-label": t("srcName") });
+    const url = el("input", { type: "url", placeholder: t("srcURL"), "aria-label": t("srcURL"), class: "grow" });
+    const topicSel = el("select", { "aria-label": t("newsTabGen") }, TOPICS.filter((x) => x !== "tools").map((x) => el("option", { value: x }, t("tp_" + x))));
+    const repo = el("input", { placeholder: t("srcRepo"), "aria-label": t("srcRepo"), class: "grow" });
+    const forms = ro ? [] : [
+      el("div", { class: "card" }, el("div", { class: "h3" }, t("srcCustom")), el("div", { class: "quiet small" }, t("srcCustomHelp")),
+        el("form", { class: "row nform", onsubmit: (e) => { e.preventDefault(); if (url.value.trim()) save({ ...set, feeds: [...set.feeds, { name: name.value, url: url.value, topic: topicSel.value }] }); } },
+          name, url, topicSel, el("button", { type: "submit", class: "small" }, t("srcAdd")))),
+      el("div", { class: "card" }, el("div", { class: "h3" }, "⭐ " + t("srcWatch")), el("div", { class: "quiet small" }, t("srcWatchHelp")),
+        el("form", { class: "row nform", onsubmit: (e) => { e.preventDefault(); if (repo.value.trim()) save({ ...set, watch: [...set.watch, repo.value] }); } },
+          repo, el("button", { type: "submit", class: "small" }, t("srcAdd"))))];
+    return el("div", { class: "nbody" }, el("div", { class: "quiet small" }, t("srcHelp")), ...forms, ...groups);
   }
   const osName = (im) => ({ debian: "Debian", ubuntu: "Ubuntu", alpine: "Alpine" }[im.os] || im.os) + (im.osVersion ? " " + im.osVersion : "");
 

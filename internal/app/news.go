@@ -8,10 +8,12 @@ import (
 	"github.com/Ali7Zeynalli/depgate/internal/i18n"
 	"github.com/Ali7Zeynalli/depgate/internal/news"
 	"github.com/Ali7Zeynalli/depgate/internal/report"
+	"github.com/Ali7Zeynalli/depgate/internal/sources"
 )
 
-// newsEvery is how often the news are fetched again.
-const newsEvery = 6 * time.Hour
+// newsEvery is how often the news are fetched again (the feeds are cached a
+// little less, so each round reads them fresh).
+const newsEvery = time.Hour
 
 // NewsAlert is the newest unread item that is about the user's stack and is
 // exploited in real attacks: the red strip shows it.
@@ -24,8 +26,11 @@ type NewsAlert struct {
 // NewsView is what the news page shows.
 type NewsView struct {
 	news.Feed
-	Read map[string]bool `json:"read"`
-	Busy bool            `json:"busy"`
+	Read     map[string]bool      `json:"read"`
+	Busy     bool                 `json:"busy"`
+	Settings news.Settings        `json:"settings"`
+	Catalog  []sources.NewsSource `json:"catalog"` // every general source, on or off
+	Topics   []string             `json:"topics"`
 }
 
 func (m *Manager) newsStore() *news.Store {
@@ -33,7 +38,7 @@ func (m *Manager) newsStore() *news.Store {
 	return m.newsSt
 }
 
-// newsLoop builds the news shortly after start, every 6 h, and after scans.
+// newsLoop builds the news shortly after start, every hour, and after scans.
 func (m *Manager) newsLoop(ctx context.Context) {
 	first := time.NewTimer(30 * time.Second)
 	tick := time.NewTicker(newsEvery)
@@ -85,20 +90,33 @@ func (m *Manager) RefreshNews(ctx context.Context) error {
 		}
 	}
 	st := m.newsStore()
-	feed := news.Build(ctx, m.Fetcher(), ps, news.Options{Now: time.Now(), FirstSee: st.FirstSeen()})
+	feed := news.Build(ctx, m.Fetcher(), ps, news.Options{Now: time.Now(), FirstSee: st.FirstSeen(), Settings: st.Settings()})
 	return st.Save(feed)
 }
 
 // News returns the feed and what was read.
 func (m *Manager) News() (*NewsView, error) {
 	if m.ro != nil {
-		return &NewsView{Feed: news.Feed{Items: []news.Item{}}, Read: map[string]bool{}}, nil
+		return &NewsView{Feed: news.Feed{Items: []news.Item{}}, Read: map[string]bool{}, Settings: news.Settings{}.Clean(), Catalog: sources.NewsSources, Topics: sources.NewsTopics}, nil
 	}
 	m.mu.Lock()
 	busy := m.newsBusy
 	m.mu.Unlock()
 	st := m.newsStore()
-	return &NewsView{Feed: st.Feed(), Read: st.Read(), Busy: busy}, nil
+	set := st.Settings()
+	return &NewsView{Feed: st.Feed(), Read: st.Read(), Busy: busy, Settings: set, Catalog: news.All(set), Topics: sources.NewsTopics}, nil
+}
+
+// SetNewsSettings stores which general sources are read and rebuilds the news.
+func (m *Manager) SetNewsSettings(set news.Settings) (news.Settings, error) {
+	if m.ro != nil {
+		return set, ErrReadOnly
+	}
+	out, err := m.newsStore().SaveSettings(set)
+	if err == nil {
+		m.kickNews()
+	}
+	return out, err
 }
 
 // MarkNews marks items read (or unread again); all marks every item of the feed.
@@ -110,7 +128,7 @@ func (m *Manager) MarkNews(ids []string, all, unread bool) error {
 	if all {
 		ids = ids[:0]
 		for _, it := range st.Feed().Items {
-			ids = append(ids, it.ID)
+			ids = append(append(ids, it.ID), it.Alias...)
 		}
 	}
 	return st.MarkRead(ids, unread)
@@ -126,7 +144,7 @@ func (m *Manager) newsSummary(s *State) {
 	}
 	var alert []news.Item
 	for _, it := range f.Items {
-		if read[it.ID] {
+		if news.IsRead(it, read) || !news.Notable(it) {
 			continue
 		}
 		s.NewsUnread++
