@@ -1,9 +1,10 @@
 // Package news builds DepGate's news page: what changed for the systems in the
 // user's Docker files ("mine": images that reached end of life, new patch
 // releases, nginx/Caddy versions with known vulnerabilities, fresh security
-// records of the OS packages inside the images) and, apart from that, recent
-// Linux and DevOps security news (CISA KEV additions, Ubuntu and Debian
-// bulletins for core server software).
+// records of the OS packages inside the images) and, apart from that, general
+// news by topic from public feeds (general.go): zero-days, security news sites,
+// critical CVEs, Linux, containers, DevOps, programming, AI, cloud, trending,
+// the user's own feeds and watched GitHub repositories.
 //
 // Feed text comes from third parties: it is shown as text and passed to AI
 // agents as data, never as instructions. Nothing about the user's stack is sent
@@ -53,13 +54,41 @@ type Item struct {
 	Fix      string    `json:"fix,omitempty"`
 	Cmd      string    `json:"cmd,omitempty"` // a suggestion only
 	Where    []Where   `json:"where,omitempty"`
+
+	Topics  []string `json:"topics,omitempty"`  // general news: zeroday, security, cve, linux, containers, devops, code, ai, cloud, hot, tools
+	ZeroDay bool     `json:"zeroDay,omitempty"` // a zero-day, exploited or not fixed yet
+	Also    []Ref    `json:"also,omitempty"`    // the same story told by other sources
+	Alias   []string `json:"alias,omitempty"`   // the ids of the merged items (read marks)
+	Score   int      `json:"score"`             // importance, before age is counted
+}
+
+// Ref is another source of the same story.
+type Ref struct {
+	Source string `json:"source"`
+	URL    string `json:"url,omitempty"`
+	Title  string `json:"title,omitempty"`
+}
+
+// StackInfo says what the «in your stack» news could look at.
+type StackInfo struct {
+	Projects int `json:"projects"` // scanned projects
+	Images   int `json:"images"`   // images in their Docker files
+	OSKnown  int `json:"osKnown"`  // images whose OS version is known (their system packages are checked)
+}
+
+// SourceStat is how one general source answered.
+type SourceStat struct {
+	Items int    `json:"items"`
+	Err   string `json:"err,omitempty"`
 }
 
 // Feed is the whole news page.
 type Feed struct {
-	Items   []Item    `json:"items"`
-	Updated time.Time `json:"updated"`
-	Errors  []string  `json:"errors,omitempty"`
+	Items   []Item                `json:"items"`
+	Updated time.Time             `json:"updated"`
+	Errors  []string              `json:"errors,omitempty"`
+	Stack   StackInfo             `json:"stack"`
+	Sources map[string]SourceStat `json:"sources,omitempty"` // general sources by id
 }
 
 // Options of one build.
@@ -68,6 +97,7 @@ type Options struct {
 	Offline  bool
 	MaxOSV   int                  // package lookups at most (0: 40)
 	FirstSee map[string]time.Time // when DepGate first saw an item without a date of its own
+	Settings Settings             // which general sources are read
 }
 
 var cveRe = regexp.MustCompile(`CVE-\d{4}-\d{4,7}`)
@@ -87,8 +117,8 @@ func Build(ctx context.Context, f sources.Fetcher, ps []*report.Project, o Optio
 		}
 	}
 	kev := map[string]sources.KEVEntry{}
-	entries, err := sources.KEVEntries(ctx, f)
-	fail(err)
+	entries, kevErr := sources.KEVEntries(ctx, f)
+	fail(kevErr)
 	for _, e := range entries {
 		kev[e.CVE] = e
 	}
@@ -215,55 +245,52 @@ func Build(ctx context.Context, f sources.Fetcher, ps []*report.Project, o Optio
 		}
 	}
 
-	// 3. general: CISA KEV additions about servers and DevOps software
+	// 3. general news, the same story from several sources merged into one item
 	stackWords := stackKeywords(ps)
-	for _, e := range entries {
-		at, err := time.Parse("2006-01-02", e.Added)
-		if err != nil || o.Now.Sub(at) > Window || !infra(e.Vendor+" "+e.Product) {
-			continue
-		}
-		it := Item{ID: "kev:" + e.CVE, Source: "CISA KEV", URL: "https://nvd.nist.gov/vuln/detail/" + e.CVE, At: at.UTC(), Severity: "critical", KEV: true,
-			Product: strings.TrimSpace(e.Vendor + " " + e.Product), CVEs: []string{e.CVE},
-			Title: i18n.F("%s: %s", "%s: %s", e.CVE, clip(e.Name, 160)),
-			Desc:  i18n.F("Real hücumlarda istifadə olunur. %s Tələb olunan: %s", "Exploited in real attacks. %s Required action: %s", clip(e.Description, 400), clip(e.Action, 200))}
-		it.Maybe = mentions(stackWords, e.Vendor+" "+e.Product)
-		add(it, nil)
-	}
-
-	// 4. general: Ubuntu and Debian bulletins for core server software
-	for _, src := range []struct{ url, name string }{{sources.UbuntuUSN, "Ubuntu USN"}, {sources.DebianDSA, "Debian DSA"}} {
-		items, err := sources.Feed(ctx, f, src.url)
-		if err != nil {
-			fail(err)
-			continue
-		}
-		for _, fi := range items {
-			if fi.At.IsZero() || o.Now.Sub(fi.At) > Window || !coreBulletin(fi.Title) {
-				continue
-			}
-			cv := uniq(cveRe.FindAllString(fi.Title+" "+fi.Description, -1))
-			it := Item{ID: "feed:" + strings.ToLower(firstWord(fi.Title)), Source: src.name, URL: fi.Link, At: fi.At, Severity: "update", KEV: isKEV(cv),
-				Product: bulletinProduct(fi.Title), CVEs: cv, Title: i18n.F("%s", "%s", clip(fi.Title, 160)), Desc: i18n.F("%s", "%s", clip(stripTags(fi.Description), 400))}
-			if it.KEV {
-				it.Severity = "critical"
-			}
-			it.Maybe = mentions(stackWords, fi.Title)
-			add(it, nil)
-		}
+	feed.Sources = map[string]SourceStat{}
+	gen := general(ctx, f, o, entries, isKEV, stackWords, &feed)
+	if st, ok := feed.Sources["kev"]; ok && kevErr != nil {
+		st.Err = kevErr.Error()
+		feed.Sources["kev"] = st
 	}
 
 	for _, it := range byID {
+		it.Topics = []string{"mine"}
+		it.Score = score(*it)
 		feed.Items = append(feed.Items, *it)
 	}
-	sort.Slice(feed.Items, func(i, j int) bool {
-		a, b := feed.Items[i], feed.Items[j]
-		if !a.At.Equal(b.At) {
-			return a.At.After(b.At)
+	byDate := func(xs []Item) {
+		sort.Slice(xs, func(i, j int) bool {
+			a, b := xs[i], xs[j]
+			if !a.At.Equal(b.At) {
+				return a.At.After(b.At)
+			}
+			return a.ID < b.ID
+		})
+	}
+	byDate(feed.Items)
+	byDate(gen)
+	if len(gen) > MaxGeneral {
+		gen = gen[:MaxGeneral]
+	}
+	feed.Items = append(feed.Items, gen...)
+	byDate(feed.Items)
+
+	// what the «in your stack» news could look at
+	seen := map[string]bool{}
+	for _, p := range ps {
+		feed.Stack.Projects++
+		for _, im := range p.Images {
+			k := filepath.Clean(filepath.Join(p.Dir, im.File)) + ":" + itoa(im.Line)
+			if seen[k] {
+				continue
+			}
+			seen[k] = true
+			feed.Stack.Images++
+			if e, _ := ecosystem(im); e != "" {
+				feed.Stack.OSKnown++
+			}
 		}
-		return a.ID < b.ID
-	})
-	if len(feed.Items) > 300 {
-		feed.Items = feed.Items[:300]
 	}
 	return feed
 }
@@ -355,25 +382,10 @@ func infra(s string) bool {
 	return false
 }
 
-var infraWords = []string{"linux", "kernel", "openssh", "openssl", "sudo", "glibc", "gnu c", "systemd", "polkit", "docker", "kubernetes", "runc",
+var infraWords = []string{"linux", "kernel", "ubuntu", "canonical", "debian", "red hat", "rhel", "alpine", "openssh", "openssl", "sudo", "glibc", "gnu c", "systemd", "polkit", "docker", "kubernetes", "runc",
 	"containerd", "nginx", "apache", "tomcat", "postgres", "mysql", "mariadb", "redis", "mongodb", "elastic", "jenkins", "gitlab", "github",
 	"git", "atlassian", "jira", "confluence", "bitbucket", "grafana", "hashicorp", "terraform", "traefik", "haproxy", "node.js", "nodejs",
 	"python", "php", "xz", "exim", "postfix", "bind", "samba", "vmware", "citrix", "f5 big-ip", "rabbitmq", "kafka", "openvpn", "wireguard"}
-
-// coreBulletin tells whether a distribution bulletin is about core server software.
-func coreBulletin(title string) bool {
-	t := " " + strings.ToLower(title) + " "
-	for _, k := range coreWords {
-		if strings.Contains(t, k) {
-			return true
-		}
-	}
-	return false
-}
-
-var coreWords = []string{" linux", "kernel", "openssh", "openssl", " sudo", "glibc", "systemd", "polkit", "docker", "containerd", " runc", "nginx",
-	"apache2", "postgresql", "mysql", "mariadb", "redis", " git ", " git:", " curl", "bind9", "xz-utils", "libssh", "gnutls", "python3", "nodejs",
-	"haproxy", "exim", "postfix", "samba", "openvpn", "rsync", "squid", "dnsmasq", "nss "}
 
 func bulletinProduct(title string) string {
 	t := title

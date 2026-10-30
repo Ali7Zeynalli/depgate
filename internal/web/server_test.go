@@ -10,6 +10,7 @@ import (
 
 	"github.com/Ali7Zeynalli/depgate/internal/app"
 	"github.com/Ali7Zeynalli/depgate/internal/auth"
+	"github.com/Ali7Zeynalli/depgate/internal/news"
 )
 
 func init() { auth.Iterations = 1000 }
@@ -45,6 +46,9 @@ func (f *fakeBackend) SetEnvMark(string, string, string) error    { return app.E
 func (f *fakeBackend) News() (*app.NewsView, error)               { return &app.NewsView{}, nil }
 func (f *fakeBackend) MarkNews([]string, bool, bool) error        { return app.ErrReadOnly }
 func (f *fakeBackend) RefreshNews(context.Context) error          { return app.ErrReadOnly }
+func (f *fakeBackend) SetNewsSettings(s news.Settings) (news.Settings, error) {
+	return s, app.ErrReadOnly
+}
 func (f *fakeBackend) CheckUpdate(context.Context) (*app.Update, error) {
 	return nil, app.ErrReadOnly
 }

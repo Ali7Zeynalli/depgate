@@ -143,3 +143,46 @@ func (s *Store) MarkRead(ids []string, unread bool) error {
 	}
 	return writeJSON(s.statePath(), st)
 }
+
+func (s *Store) settingsPath() string { return filepath.Join(s.Dir, "news-settings.json") }
+
+// Settings returns which general sources are read.
+func (s *Store) Settings() Settings {
+	var st Settings
+	if s == nil || s.Dir == "" {
+		return st.Clean()
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	readJSON(s.settingsPath(), &st)
+	return st.Clean()
+}
+
+// SaveSettings stores the settings (cleaned up) and returns what was stored.
+func (s *Store) SaveSettings(st Settings) (Settings, error) {
+	st = st.Clean()
+	if s == nil || s.Dir == "" {
+		return st, nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return st, writeJSON(s.settingsPath(), st)
+}
+
+// IsRead tells whether an item (or one of the items merged into it) was read.
+func IsRead(it Item, read map[string]bool) bool {
+	if read[it.ID] {
+		return true
+	}
+	for _, a := range it.Alias {
+		if read[a] {
+			return true
+		}
+	}
+	return false
+}
+
+// Notable tells whether an unread item counts on the badge: about the stack,
+// exploited, a zero-day, or naming something in the stack. The rest of the
+// general news is there to browse.
+func Notable(it Item) bool { return it.Mine || it.KEV || it.ZeroDay || it.Maybe }

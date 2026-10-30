@@ -140,6 +140,8 @@ func (f *Fake) Do(ctx context.Context, method, u string, body []byte, _ map[stri
 		return json.Marshal(map[string]any{"vulns": vs})
 	case f.Feeds[u] != "":
 		return []byte(f.Feeds[u]), nil
+	case f.feedPrefix(u) != "":
+		return []byte(f.feedPrefix(u)), nil
 	case strings.HasPrefix(u, "https://nginx.org/"):
 		if f.NginxHTML == "" {
 			return nil, sources.ErrNotFound
@@ -226,4 +228,15 @@ func (f *Fake) Do(ctx context.Context, method, u string, body []byte, _ map[stri
 		return json.Marshal(map[string]any{"name": name, "version": ver})
 	}
 	return nil, fmt.Errorf("sourcestest: unexpected %s %s", method, u)
+}
+
+// feedPrefix answers a URL with a query that changes (the NVD's dates) by the
+// Feeds entry ending in "*" whose start it matches.
+func (f *Fake) feedPrefix(u string) string {
+	for k, v := range f.Feeds {
+		if p, ok := strings.CutSuffix(k, "*"); ok && strings.HasPrefix(u, p) {
+			return v
+		}
+	}
+	return ""
 }
