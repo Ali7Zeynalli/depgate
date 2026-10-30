@@ -66,6 +66,7 @@ Then open `http://127.0.0.1:7777`, choose a password and **+ Add project** (a pr
 | Section | What it shows |
 |---|---|
 | **Dashboard** | every project on one page — the start page once you have more than one: totals (malware, do now, code changes, Docker & server, Node.js), how each project is doing, **the 10 most important things to do** anywhere, **updates needed in several projects** with all their commands, indicators, weekly chart, AI work, and a sortable table of every project with its trend, oldest open finding and time to fix |
+| **News** | security news for the systems in your Docker files and general Linux / DevOps news, refreshed every 6 h and after scans. **In your stack**: images that reached end of life, new patch releases, nginx/Caddy versions with known vulnerabilities, fresh advisories of the OS packages inside your images (Debian, Ubuntu, Alpine via OSV; the packages your Dockerfiles `apt-get install` / `apk add` included) — each with where it is, the fixed version and a suggested command. **General**: CISA KEV additions (zero-days exploited in the wild) and Ubuntu / Debian bulletins for core server software (kernel, OpenSSH, OpenSSL, sudo, Docker, runc, nginx, PostgreSQL…). **Stack** shows what is watched. Read / unread, filters, a red strip when something in your stack is exploited |
 | **Overview** | the state at a glance (malware, do now, code changes, Docker & server, last change) and the first steps in order, with the command where there is one; indicators: time to fix, oldest open finding, this week |
 | **Packages** | one row per package, risk first: what it is, what was found, the weakness in plain words (CWE), the safest version, **which version fixes what**, the command and numbered steps; filters for exploited (KEV), EPSS, no fix, direct / transitive; malware, removed versions, packages that must update together; **accept a risk** with a reason until a date (it comes back by itself); **Commands** gives every `package.json` / lockfile command of a project or folder as one script to review (malware first, then do now, overrides written with `npm pkg set`, plan and optional commented out) |
 | **Code changes** | `file:line` places for Next.js, React, Express, NestJS, Prisma, Zod, Tailwind, ESLint, TanStack Query, React Router; codemods; breaking changes from release notes |
@@ -86,6 +87,7 @@ Folders and monorepos get one merged page with a table of their projects (trend,
 | <img src="docs/history.png" alt="Scans and git commits on one timeline, AI work and indicators" width="420"> | <img src="docs/mcp.png" alt="AI work: the tasks an agent took on and what DepGate verified" width="420"> |
 
 <p align="center"><img src="docs/dashboard.png" alt="Dashboard: every project on one page" width="860"></p>
+<p align="center"><img src="docs/news.png" alt="News: what changed for the systems in your Docker files" width="860"></p>
 
 ## AI agents (MCP)
 
@@ -113,6 +115,7 @@ Then ask it, or use the ready commands: `/mcp__depgate__fix` (fix the dependenci
 | `get_docker_issues` | Docker, compose, image, nginx and Caddy findings |
 | `get_ai_rules` · `project_status` · `scan_project` · `list_projects` | version rules · summary · rescan · all projects |
 | `get_history` | what changed between recent scans — to confirm a fix worked |
+| `get_news` | security news for the user's stack and general Linux / DevOps news |
 
 - Windows PowerShell: `claude mcp add --transport http depgate -s user http://127.0.0.1:7777/mcp --header "Authorization: Bearer $(depgate --print-token)"` — Docker on Windows: Windows paths (`C:\Users\you\…`) are understood.
 - Only this project: add `?project=<its path>` to the URL and use `-s local` in the project folder.
@@ -123,7 +126,7 @@ Then ask it, or use the ready commands: `/mcp__depgate__fix` (fix the dependenci
 
 ## Data sources
 
-Public and free: [OSV.dev](https://osv.dev), [npm advisories](https://docs.npmjs.com/cli/commands/npm-audit), [CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog), [FIRST EPSS](https://www.first.org/epss/), [deps.dev](https://deps.dev), [npm registry](https://www.npmjs.com), [GitHub releases](https://docs.github.com/en/rest/releases/releases), [nginx advisories](https://nginx.org/en/security_advisories.html), [endoflife.date](https://endoflife.date), [Node.js releases](https://nodejs.org/en/about/previous-releases). **⋯ → Sources** (or the line at the bottom of a project page) shows how each one answered in the last scan.
+Public and free: [OSV.dev](https://osv.dev), [npm advisories](https://docs.npmjs.com/cli/commands/npm-audit), [CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog), [FIRST EPSS](https://www.first.org/epss/), [deps.dev](https://deps.dev), [npm registry](https://www.npmjs.com), [GitHub releases](https://docs.github.com/en/rest/releases/releases), [nginx advisories](https://nginx.org/en/security_advisories.html), [endoflife.date](https://endoflife.date), [Node.js releases](https://nodejs.org/en/about/previous-releases), [Ubuntu Security Notices](https://ubuntu.com/security/notices), [Debian Security Advisories](https://www.debian.org/security/). **⋯ → Sources** (or the line at the bottom of a project page) shows how each one answered in the last scan.
 
 A weekly test checks that every advisory `npm audit` reports is also in DepGate's report (71 of 71 at the time of writing).
 
@@ -164,7 +167,7 @@ More: `depgate --help`.
 
 ## Security and privacy
 
-- Only package names, versions, CVE ids, image names and GitHub repository names (for release notes) leave your computer — never code, paths or `.env` files. Reports, history and accepted risks stay in the data folder. At start and every 6 hours DepGate asks GitHub for the newest release number and shows a notice if there is one.
+- Only package names, versions, CVE ids, image names and GitHub repository names (for release notes) leave your computer — never code, paths or `.env` files. Reports, history and accepted risks stay in the data folder. At start and every 6 hours DepGate asks GitHub for the newest release number and shows a notice if there is one. For the news it downloads the public feeds whole and asks OSV about the OS packages in your images by name — nothing else about your stack is sent.
 - Git history is read from the project's `.git` folder on your computer (commit message, date and the lockfile at each commit); git is never run and nothing is sent.
 - Read-only: nothing is written into your projects; in Docker your home is mounted read-only and DepGate runs without root.
 - The UI listens on `127.0.0.1` (in Docker the port is published on `127.0.0.1` only) and is password-protected (PBKDF2-SHA256); API calls need a custom header, the `Host` header is checked, a strict CSP is sent.

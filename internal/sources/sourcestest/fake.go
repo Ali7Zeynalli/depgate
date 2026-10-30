@@ -36,6 +36,9 @@ type Fake struct {
 	EOL       map[string][]map[string]any      // endoflife.date cycles (original API format) by product
 	NginxHTML string                           // nginx.org security advisories page
 	OSVQuery  map[string][]string              // OSV /v1/query answers by "ecosystem|name|version"
+	OSVRecent map[string][]sources.Vuln        // OSV /v1/query without a version, by "ecosystem|name" (news)
+	KEVFull   []sources.KEVEntry               // full KEV records (news); KEV ids are added to them
+	Feeds     map[string]string                // RSS/RDF bodies by URL (news)
 	// Match decides whether a vuln applies to name@version (set to decide.Affects by callers).
 	Match func(v *sources.Vuln, name, version string) bool
 
@@ -43,7 +46,7 @@ type Fake struct {
 }
 
 func New(now time.Time) *Fake {
-	return &Fake{Now: now, Vulns: map[string]*sources.Vuln{}, Versions: map[string][]Version{}, Manifest: map[string]map[string]any{}, EPSS: map[string]float64{}, Schedule: map[string]sources.NodeLine{}, NpmAdv: map[string][]sources.NpmAdvisory{}, Removed: map[string]bool{}, NodeCore: map[string]sources.NodeVuln{}, Releases: map[string][]sources.Release{}, EOL: map[string][]map[string]any{}, OSVQuery: map[string][]string{}}
+	return &Fake{Now: now, Vulns: map[string]*sources.Vuln{}, Versions: map[string][]Version{}, Manifest: map[string]map[string]any{}, EPSS: map[string]float64{}, Schedule: map[string]sources.NodeLine{}, NpmAdv: map[string][]sources.NpmAdvisory{}, Removed: map[string]bool{}, NodeCore: map[string]sources.NodeVuln{}, Releases: map[string][]sources.Release{}, EOL: map[string][]map[string]any{}, OSVQuery: map[string][]string{}, OSVRecent: map[string][]sources.Vuln{}, Feeds: map[string]string{}}
 }
 
 // Old returns versions published long ago (past any cooldown).
@@ -127,11 +130,16 @@ func (f *Fake) Do(ctx context.Context, method, u string, body []byte, _ map[stri
 		if err := json.Unmarshal(body, &q); err != nil {
 			return nil, err
 		}
+		if q.Version == "" {
+			return json.Marshal(map[string]any{"vulns": f.OSVRecent[q.Package.Ecosystem+"|"+q.Package.Name]})
+		}
 		var vs []map[string]string
 		for _, id := range f.OSVQuery[q.Package.Ecosystem+"|"+q.Package.Name+"|"+q.Version] {
 			vs = append(vs, map[string]string{"id": id})
 		}
 		return json.Marshal(map[string]any{"vulns": vs})
+	case f.Feeds[u] != "":
+		return []byte(f.Feeds[u]), nil
 	case strings.HasPrefix(u, "https://nginx.org/"):
 		if f.NginxHTML == "" {
 			return nil, sources.ErrNotFound
@@ -148,7 +156,10 @@ func (f *Fake) Do(ctx context.Context, method, u string, body []byte, _ map[stri
 	case strings.Contains(u, "nodejs/Release"):
 		return json.Marshal(f.Schedule)
 	case strings.Contains(u, "known_exploited"):
-		var vs []map[string]string
+		var vs []any
+		for _, e := range f.KEVFull {
+			vs = append(vs, e)
+		}
 		for _, c := range f.KEV {
 			vs = append(vs, map[string]string{"cveID": c})
 		}

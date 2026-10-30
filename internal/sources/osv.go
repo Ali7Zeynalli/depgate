@@ -26,6 +26,7 @@ type Vuln struct {
 	Summary          string     `json:"summary"`
 	Details          string     `json:"details"`
 	Published        string     `json:"published"`
+	Modified         string     `json:"modified"`
 	Withdrawn        string     `json:"withdrawn"`
 	Severity         []osvSev   `json:"severity"`
 	Affected         []Affected `json:"affected"`

@@ -66,6 +66,7 @@ Sonra `http://127.0.0.1:7777` aç, parol seç və **+ Layihə əlavə et** (layi
 | Bölmə | Nə göstərir |
 |---|---|
 | **Ümumi panel** | bütün layihələr bir səhifədə — birdən çox layihə olanda açılış səhifəsi: cəmlər (zərərli, indi et, kod dəyişikliyi, Docker və server, Node.js), hər layihənin vəziyyəti, hər yerdən **ən vacib 10 iş**, **bir neçə layihədə lazım olan yeniləmələr** və onların bütün əmrləri, göstəricilər, həftəlik qrafik, AI işləri və trend, ən köhnə açıq iş və düzəltmə müddəti ilə sıralanan layihələr cədvəli |
+| **Xəbərlər** | Docker fayllarındakı sistemlər üçün təhlükəsizlik xəbərləri və ümumi Linux / DevOps xəbərləri, hər 6 saatdan bir və skanlardan sonra yenilənir. **Səndə olanlar**: dəstəyi bitən image-lər, yeni patch relizləri, məlum zəifliyi olan nginx/Caddy versiyaları, image-lərin içindəki sistem paketlərinin təzə bülletenləri (OSV ilə Debian, Ubuntu, Alpine; Dockerfile-da `apt-get install` / `apk add` ilə quraşdırılanlar da daxil) — hər birində harada olduğu, düzəldən versiya və təklif olunan əmr. **Ümumi**: CISA KEV-ə əlavə olunanlar (real hücumda istifadə olunan zero-day-lər) və əsas server proqramları üçün Ubuntu / Debian bülletenləri (kernel, OpenSSH, OpenSSL, sudo, Docker, runc, nginx, PostgreSQL…). **Stack** nəyin izləndiyini göstərir. Oxundu / oxunmamış, süzgəclər, stack-ində real hücumda istifadə olunan bir şey olanda qırmızı zolaq |
 | **Ümumi** | vəziyyət bir baxışda (zərərli, indi et, kod dəyişikliyi, Docker və server, son dəyişiklik) və ilk addımlar sıra ilə, əmri olanda elə orada; göstəricilər: düzəltmə müddəti, ən köhnə açıq iş, bu həftə |
 | **Paketlər** | hər paket bir sətir, əvvəl risk: nədir, nə tapılıb, zəiflik sadə dildə (CWE), ən təhlükəsiz versiya, **hansı versiya nəyi düzəldir**, əmr və nömrəli addımlar; süzgəclər: real hücumda (KEV), EPSS, düzəlişi yoxdur, birbaşa / dolayı; zərərli paketlər, silinmiş versiyalar, birlikdə yenilənməli paketlər; səbəb və tarixlə **riski qəbul et** (müddət bitəndə özü qayıdır); **Əmrlər** düyməsi layihənin və ya qovluğun bütün `package.json` / lockfile əmrlərini yoxlamaq üçün bir skript kimi verir (əvvəl zərərli, sonra «indi et», override-lar `npm pkg set` ilə, «planla» və «istəyə görə» şərhdə) |
 | **Kod dəyişiklikləri** | Next.js, React, Express, NestJS, Prisma, Zod, Tailwind, ESLint, TanStack Query, React Router üçün `fayl:sətir` yerləri; codemod-lar; reliz qeydlərindən breaking changes |
@@ -86,6 +87,7 @@ Qovluqlar və monorepo-lar üçün layihələr cədvəli (trend, ən köhnə aç
 | <img src="docs/history-az.png" alt="Skanlar və git commit-ləri bir xətt üzərində, AI işləri və göstəricilər" width="420"> | <img src="docs/mcp-az.png" alt="AI işləri: agentin götürdüyü tapşırıqlar və DepGate-in təsdiqlədikləri" width="420"> |
 
 <p align="center"><img src="docs/dashboard-az.png" alt="Ümumi panel: bütün layihələr bir səhifədə" width="860"></p>
+<p align="center"><img src="docs/news-az.png" alt="Xəbərlər: Docker fayllarındakı sistemlər üçün nə dəyişib" width="860"></p>
 
 ## AI agentlər (MCP)
 
@@ -113,6 +115,7 @@ Sonra agentə yaz və ya hazır əmrlərdən istifadə et: `/mcp__depgate__fix` 
 | `get_docker_issues` | Docker, compose, image, nginx və Caddy tapıntıları |
 | `get_ai_rules` · `project_status` · `scan_project` · `list_projects` | versiya qaydaları · xülasə · yenidən skan · bütün layihələr |
 | `get_history` | son skanlar arasında nə dəyişib — düzəlişin işlədiyini təsdiqləmək üçün |
+| `get_news` | stack-inə aid təhlükəsizlik xəbərləri və ümumi Linux / DevOps xəbərləri |
 
 - Windows PowerShell: `claude mcp add --transport http depgate -s user http://127.0.0.1:7777/mcp --header "Authorization: Bearer $(depgate --print-token)"` — Docker-də Windows yolları (`C:\Users\sən\…`) başa düşülür.
 - Yalnız bir layihə üçün: URL-ə `?project=<yolu>` əlavə et və layihə qovluğunda `-s local` istifadə et.
@@ -123,7 +126,7 @@ Sonra agentə yaz və ya hazır əmrlərdən istifadə et: `/mcp__depgate__fix` 
 
 ## Mənbələr
 
-Açıq və pulsuz: [OSV.dev](https://osv.dev), [npm advisories](https://docs.npmjs.com/cli/commands/npm-audit), [CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog), [FIRST EPSS](https://www.first.org/epss/), [deps.dev](https://deps.dev), [npm registry](https://www.npmjs.com), [GitHub releases](https://docs.github.com/en/rest/releases/releases), [nginx advisories](https://nginx.org/en/security_advisories.html), [endoflife.date](https://endoflife.date), [Node.js releases](https://nodejs.org/en/about/previous-releases). **⋯ → Mənbələr** (və ya layihə səhifəsinin altındakı sətir) hər birinin son skanda necə cavab verdiyini göstərir.
+Açıq və pulsuz: [OSV.dev](https://osv.dev), [npm advisories](https://docs.npmjs.com/cli/commands/npm-audit), [CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog), [FIRST EPSS](https://www.first.org/epss/), [deps.dev](https://deps.dev), [npm registry](https://www.npmjs.com), [GitHub releases](https://docs.github.com/en/rest/releases/releases), [nginx advisories](https://nginx.org/en/security_advisories.html), [endoflife.date](https://endoflife.date), [Node.js releases](https://nodejs.org/en/about/previous-releases), [Ubuntu Security Notices](https://ubuntu.com/security/notices), [Debian Security Advisories](https://www.debian.org/security/). **⋯ → Mənbələr** (və ya layihə səhifəsinin altındakı sətir) hər birinin son skanda necə cavab verdiyini göstərir.
 
 Həftəlik test `npm audit`-in tapdığı hər advisory-nin DepGate-in hesabatında da olduğunu yoxlayır (yazılan vaxt 71-dən 71-i).
 
@@ -164,7 +167,7 @@ depgate --reset-password      # Docker: docker exec depgate depgate --reset-pass
 
 ## Təhlükəsizlik və məxfilik
 
-- Kompüterindən yalnız paket adları, versiyalar, CVE nömrələri, image adları və GitHub repo adları (reliz qeydləri üçün) çıxır — kod, yollar və `.env` faylları heç vaxt. Hesabatlar, tarixçə və qəbul edilmiş risklər data qovluğunda qalır. Açılanda və hər 6 saatdan bir DepGate GitHub-dan ən son reliz nömrəsini soruşur və yeni versiya varsa, bildiriş göstərir.
+- Kompüterindən yalnız paket adları, versiyalar, CVE nömrələri, image adları və GitHub repo adları (reliz qeydləri üçün) çıxır — kod, yollar və `.env` faylları heç vaxt. Hesabatlar, tarixçə və qəbul edilmiş risklər data qovluğunda qalır. Açılanda və hər 6 saatdan bir DepGate GitHub-dan ən son reliz nömrəsini soruşur və yeni versiya varsa, bildiriş göstərir. Xəbərlər üçün açıq lentləri tam yükləyir, image-lərdəki sistem paketlərini isə ad ilə OSV-dən soruşur — stack-in haqqında başqa heç nə göndərilmir.
 - Git tarixçəsi layihənin kompüterindəki `.git` qovluğundan oxunur (commit mesajı, tarix və hər commit-dəki lockfile); git proqramı işlədilmir və heç nə göndərilmir.
 - Yalnız oxuyur: layihələrinə heç nə yazılmır; Docker-də ev qovluğun yalnız oxuma rejimində bağlanır və DepGate root olmadan işləyir.
 - İnterfeys `127.0.0.1`-də açılır (Docker-də port yalnız `127.0.0.1`-də açıqdır) və parolla qorunur (PBKDF2-SHA256); API sorğuları xüsusi başlıq tələb edir, `Host` başlığı yoxlanır, sərt CSP göndərilir.

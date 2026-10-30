@@ -6,6 +6,7 @@ package app
 import (
 	"context"
 	"errors"
+	"github.com/Ali7Zeynalli/depgate/internal/news"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -51,6 +52,12 @@ type State struct {
 	Update      *Update `json:"update,omitempty"` // a newer release is out
 	// WorkAt changes when an AI agent moves on a task, so the page redraws
 	WorkAt *time.Time `json:"workAt,omitempty"`
+	// news: unread items (all, about the user's stack), when the feed was built,
+	// and the newest unread exploited item about the stack
+	NewsUnread int        `json:"newsUnread"`
+	NewsMine   int        `json:"newsMine"`
+	NewsAt     *time.Time `json:"newsAt,omitempty"`
+	NewsAlert  *NewsAlert `json:"newsAlert,omitempty"`
 }
 
 // Entry is one folder in a Browse listing.
@@ -86,6 +93,10 @@ type Manager struct {
 	Roots     []string // folders the UI may browse; never empty
 	Depth     int
 	Container bool
+	newsOnce  sync.Once
+	newsSt    *news.Store
+	newsKick  chan struct{}
+	newsBusy  bool // guarded by mu
 	gitMu     sync.Mutex
 	gitCache  map[string]gitCached // git history per project, see gitLog
 	Rescan    int                  // default hours between automatic scans (--rescan); 0 = off
@@ -121,8 +132,10 @@ func (m *Manager) start(ctx context.Context) {
 	m.once.Do(func() {
 		m.running, m.queued, m.by = map[string]bool{}, map[string]bool{}, map[string]string{}
 		m.jobs = make(chan []string, 64)
+		m.newsKick = make(chan struct{}, 1)
 		go m.worker(ctx)
 		go m.autoLoop(ctx)
+		go m.newsLoop(ctx)
 	})
 }
 
@@ -171,6 +184,7 @@ func (m *Manager) worker(ctx context.Context) {
 			}
 			m.errors, m.sources, m.lastScan = rep.Errors, rep.Sources, &now
 			m.mu.Unlock()
+			m.kickNews()
 		}
 	}
 }
@@ -271,6 +285,7 @@ func (m *Manager) State() State {
 	m.mu.Unlock()
 	st.RescanHours = m.RescanHours()
 	st.WorkAt = m.Store.History.WorkStamp()
+	m.newsSummary(&st)
 	st.Busy = len(running)+len(queued) > 0
 	explicit := map[string]string{}
 	for _, e := range m.Store.Projects() {

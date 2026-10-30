@@ -42,6 +42,9 @@ func (f *fakeBackend) SetRescanHours(int) error                   { return app.E
 func (f *fakeBackend) Accept([]string, string, string, int) error { return app.ErrReadOnly }
 func (f *fakeBackend) Unaccept([]string, string) error            { return app.ErrReadOnly }
 func (f *fakeBackend) SetEnvMark(string, string, string) error    { return app.ErrReadOnly }
+func (f *fakeBackend) News() (*app.NewsView, error)               { return &app.NewsView{}, nil }
+func (f *fakeBackend) MarkNews([]string, bool, bool) error        { return app.ErrReadOnly }
+func (f *fakeBackend) RefreshNews(context.Context) error          { return app.ErrReadOnly }
 func (f *fakeBackend) CheckUpdate(context.Context) (*app.Update, error) {
 	return nil, app.ErrReadOnly
 }

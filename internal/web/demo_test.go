@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -73,6 +74,29 @@ func TestServeDemo(t *testing.T) {
 	f.Manifest["axios@1.6.8"] = map[string]any{"name": "axios", "version": "1.6.8", "description": "Promise based HTTP client for the browser and node.js", "dependencies": map[string]string{"follow-redirects": "^1.15.6"}}
 	f.Node = []sources.NodeRelease{{Version: "v22.23.4", LTS: "Jod", Security: true}, {Version: "v22.20.0", LTS: "Jod"}}
 	f.Schedule = map[string]sources.NodeLine{"v22": {LTS: "2024-10-29", End: "2027-04-30"}}
+	// news (sample data: the CVE ids use the year 2099 so nobody takes them for real ones)
+	day := func(d int) string { return now.AddDate(0, 0, -d).Format("2006-01-02") }
+	ts := func(d int) string { return now.AddDate(0, 0, -d).Format(time.RFC3339) }
+	f.KEVFull = []sources.KEVEntry{
+		{CVE: "CVE-2099-1001", Vendor: "Linux", Product: "Kernel", Name: "Linux Kernel Use-After-Free Privilege Escalation", Added: day(0), Description: "A local user can gain root privileges.", Action: "Apply the vendor updates and reboot."},
+		{CVE: "CVE-2099-1002", Vendor: "Linux Foundation", Product: "runc", Name: "runc Container Breakout", Added: day(1), Description: "A malicious image can write to the host file system.", Action: "Update Docker Engine / containerd."},
+		{CVE: "CVE-2099-1003", Vendor: "OpenSSL", Product: "OpenSSL", Name: "OpenSSL TLS Handshake Memory Corruption", Added: day(2), Description: "A crafted TLS message can crash the process or run code.", Action: "Apply updates."},
+		{CVE: "CVE-2099-1004", Vendor: "Sudo", Product: "Sudo", Name: "Sudo Privilege Escalation", Added: day(6), Description: "An unprivileged user can become root.", Action: "Apply updates."},
+	}
+	osvRec := func(id, cve, pkg, eco, sum, fix string, d int) sources.Vuln {
+		var v sources.Vuln
+		_ = json.Unmarshal([]byte(`{"id":"`+id+`","aliases":["`+cve+`"],"summary":"`+sum+`","published":"`+ts(d)+`","affected":[{"package":{"ecosystem":"`+eco+`","name":"`+pkg+`"},"ranges":[{"type":"ECOSYSTEM","events":[{"introduced":"0"},{"fixed":"`+fix+`"}]}]}]}`), &v)
+		return v
+	}
+	f.OSVRecent["Debian:12|openssl"] = []sources.Vuln{osvRec("DEBIAN-CVE-2099-1003", "CVE-2099-1003", "openssl", "Debian:12", "TLS handshake memory corruption", "3.0.15-1~deb12u3", 2)}
+	f.OSVRecent["Debian:12|glibc"] = []sources.Vuln{osvRec("DEBIAN-CVE-2099-1010", "CVE-2099-1010", "glibc", "Debian:12", "Buffer overflow in iconv", "2.36-9+deb12u10", 5)}
+	f.Feeds[sources.UbuntuUSN] = `<rss version="2.0"><channel>
+<item><title>USN-9901-1: OpenSSH vulnerability</title><link>https://ubuntu.com/security/notices</link><description>CVE-2099-1020: a remote attacker could cause sshd to stop responding.</description><pubDate>` + now.AddDate(0, 0, -1).Format(time.RFC1123Z) + `</pubDate></item>
+<item><title>USN-9902-1: Linux kernel vulnerabilities</title><link>https://ubuntu.com/security/notices</link><description>Several security issues were fixed in the Linux kernel.</description><pubDate>` + now.AddDate(0, 0, -3).Format(time.RFC1123Z) + `</pubDate></item>
+</channel></rss>`
+	f.Feeds[sources.DebianDSA] = `<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns="http://purl.org/rss/1.0/" xmlns:dc="http://purl.org/dc/elements/1.1/">
+<item><title>DSA-9903-1 postgresql-15 - security update</title><link>https://www.debian.org/security/</link><description>Several vulnerabilities were found in PostgreSQL.</description><dc:date>` + day(4) + `</dc:date></item>
+</rdf:RDF>`
 
 	st, err := store.Open(filepath.Join(t.TempDir(), "data"))
 	if err != nil {

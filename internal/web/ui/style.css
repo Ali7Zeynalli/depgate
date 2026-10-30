@@ -650,3 +650,24 @@ th .link.on { font-weight: 700; }
 .stopped h1 { font-size: 22px; margin-bottom: 8px; }
 .stopped p { color: var(--quiet); }
 .mitem.danger { color: var(--bad); }
+.newspage .tabs { margin: 8px 0 12px; }
+.nbody { display: flex; flex-direction: column; gap: 10px; }
+.nfilters { gap: 6px; flex-wrap: wrap; }
+.nlist { display: flex; flex-direction: column; gap: 10px; }
+.nitem { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+.nitem:not(.unread) { opacity: .75; }
+.nitem.hot { border-color: var(--bad); }
+.nhead { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.ndot { width: 8px; height: 8px; border-radius: 50%; background: transparent; flex: none; }
+.nitem.unread .ndot { background: var(--accent); }
+.ndate { min-width: 72px; }
+.ntitle { font-weight: 600; font-size: 15px; margin-top: 8px; overflow-wrap: anywhere; }
+.ndesc { font-size: 13px; color: var(--quiet); margin-top: 4px; line-height: 1.45; overflow-wrap: anywhere; }
+.nwhere { font-size: 13px; margin-top: 8px; overflow-wrap: anywhere; }
+.ncmd { margin-top: 8px; gap: 8px; flex-wrap: wrap; align-items: center; }
+.ncmd code { overflow-wrap: anywhere; }
+.nfoot { margin-top: 10px; gap: 10px; flex-wrap: wrap; align-items: center; }
+.nerr { margin-top: 6px; }
+.cnt b.nbad { color: var(--bad); }
+.newspage .phead { align-items: flex-start; }
+.dash .stiles { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
