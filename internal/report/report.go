@@ -89,9 +89,27 @@ type Project struct {
 	FileEnv     map[string]string `json:"fileEnv,omitempty"`     // Docker/server file → "dev" | "prod" guessed from its name
 	EnvMarks    map[string]string `json:"envMarks,omitempty"`    // Docker/server file → "dev" | "prod" the user chose (not saved in the report)
 	AIRules     *AIRules          `json:"aiRules,omitempty"`     // version-aware instructions for AI coding agents
+	// Images is what the project's Docker files run: images, their OS and the
+	// system packages the Dockerfiles install — what the news are matched to.
+	Images []ImageItem `json:"images,omitempty"`
 	// Versions are the installed packages of this scan; only the history uses
 	// them (to tell which versions changed), they are not saved in the report.
 	Versions []Version `json:"-"`
+}
+
+// ImageItem is one image a project's Docker files use.
+type ImageItem struct {
+	File      string   `json:"file"` // relative to the project dir
+	Line      int      `json:"line,omitempty"`
+	Service   string   `json:"service,omitempty"`   // compose service
+	Image     string   `json:"image"`               // as written, e.g. postgres:16.4-alpine
+	Product   string   `json:"product,omitempty"`   // postgres, redis, nginx, node … ("" when not a known official image)
+	Version   string   `json:"version,omitempty"`   // from the tag ("" when unpinned)
+	OS        string   `json:"os,omitempty"`        // debian | ubuntu | alpine ("" unknown)
+	OSVersion string   `json:"osVersion,omitempty"` // 12, 24.04, 3.19 ("" unknown)
+	OSGuess   bool     `json:"osGuess,omitempty"`   // the OS is the image's default, not written in the tag
+	Packages  []string `json:"packages,omitempty"`  // apt-get install / apk add in this stage
+	Unpinned  bool     `json:"unpinned,omitempty"`  // no tag or :latest
 }
 
 // Version is one installed package version.

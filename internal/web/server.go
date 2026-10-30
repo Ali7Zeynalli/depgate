@@ -45,6 +45,9 @@ type Backend interface {
 	Unaccept(dirs []string, key string) error
 	CheckUpdate(ctx context.Context) (*app.Update, error)
 	SetEnvMark(dir, file, env string) error
+	News() (*app.NewsView, error)
+	MarkNews(ids []string, all, unread bool) error
+	RefreshNews(ctx context.Context) error
 }
 
 type Server struct {
@@ -181,6 +184,41 @@ func (s *Server) Handler() http.Handler {
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	})
+	mux.HandleFunc("GET /api/news", func(w http.ResponseWriter, r *http.Request) {
+		v, err := s.B.News()
+		if err != nil {
+			writeErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, v)
+	})
+	mux.HandleFunc("POST /api/news/read", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			IDs    []string `json:"ids"`
+			All    bool     `json:"all"`
+			Unread bool     `json:"unread"`
+		}
+		if !readJSON(w, r, &req) {
+			return
+		}
+		if err := s.B.MarkNews(req.IDs, req.All, req.Unread); err != nil {
+			writeErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, s.B.State())
+	})
+	mux.HandleFunc("POST /api/news/refresh", func(w http.ResponseWriter, r *http.Request) {
+		if s.B.State().ReadOnly {
+			writeErr(w, app.ErrReadOnly)
+			return
+		}
+		go func() { // fetching the feeds takes a while; the page follows the state
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+			defer cancel()
+			_ = s.B.RefreshNews(ctx)
+		}()
+		writeJSON(w, http.StatusAccepted, map[string]bool{"started": true})
 	})
 	mux.HandleFunc("POST /api/envmark", func(w http.ResponseWriter, r *http.Request) {
 		var req struct {

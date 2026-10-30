@@ -92,6 +92,11 @@ var tools = map[string]tool{
 			"note": map[string]any{"type": "string", "description": "One line: what you changed or why it was skipped."}},
 		req: []string{"task"},
 		run: runComplete},
+	"get_news": {readOK: true,
+		desc: "Security news DepGate collected: about the systems in the user's Docker files (end-of-life images, new patch releases, fresh advisories of the OS packages in the images) and general Linux/DevOps news (CISA KEV additions, Ubuntu and Debian bulletins). Default: unread items.",
+		props: map[string]any{"kind": map[string]any{"type": "string", "enum": []string{"mine", "general"}, "description": "Only items about the user's stack (mine) or only general news; default: both, unread only."},
+			"limit": map[string]any{"type": "integer", "description": "How many (default 20, max 60)."}},
+		run: runNews},
 	"scan_project": {
 		desc:  "Scan the project again (after you changed dependencies) and return the new status. Reads files only.",
 		props: map[string]any{"project": projectProp},
