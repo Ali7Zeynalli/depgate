@@ -55,7 +55,7 @@ Then open `http://127.0.0.1:7777`, choose a password and **+ Add project** (a pr
 | Windows WSL | your WSL home — projects on the Windows side? start it from PowerShell |
 
 - Your home is mounted read-only; the container runs as its owner and drops root. Data lives in the `depgate-data` volume.
-- Update: `git pull && docker compose up -d` (it always fetches the newest image). DepGate shows a notice at the top when a new version is out, with the command (it checks at start and every 6 h; **⋯ → Check for updates** checks now).
+- Update: `git pull && docker compose up -d` (it always fetches the newest image). DepGate shows a notice at the top when a new version is out, with the command (it checks at start and every hour; **⋯ → Check for updates** checks now and shows when it last asked, or why GitHub could not be reached). *Later* hides the notice for a day.
 - Windows: double-click `depgate.exe` — no terminal stays open; DepGate runs in the background and opens in your browser (messages go to `depgate.log` in the data folder). Opening it again shows the running one. Stop it with **⋯ → Stop DepGate**. From cmd or PowerShell it runs in that terminal as before.
 - macOS binary, first run: `xattr -d com.apple.quarantine ./depgate`. Windows SmartScreen: *More info → Run anyway*. If Microsoft Defender flags the unsigned exe (a `…!ml` detection is a guess, common for Go programs), check `checksums.txt` and allow it under *Windows Security → Protection history*.
 - Verify downloads: `checksums.txt` and `gh attestation verify <file> -R Ali7Zeynalli/depgate`.
@@ -156,7 +156,7 @@ Risks you accept in the UI also count for `--ci`. For CI on another machine, dow
 | `--addr` · `DEPGATE_ADDR` | listen address | `127.0.0.1` (`0.0.0.0` in the container) |
 | `--push URL` · `--token` / `DEPGATE_PUSH_TOKEN` | scan once and POST the JSON report to a URL | — |
 | `--rescan` · `DEPGATE_RESCAN_HOURS` | scan projects again when the last scan is older than N hours (0 = off; also in the UI) | 12 |
-| `DEPGATE_NO_UPDATE_CHECK=1` | don't check GitHub for a newer DepGate (at start and every 6 h) | — |
+| `DEPGATE_NO_UPDATE_CHECK=1` | don't check GitHub for a newer DepGate (at start and every hour) | — |
 | `--print-token` · `DEPGATE_TOKEN` | API / MCP token | generated |
 | `DEPGATE_PASSWORD` | set the password up front | — |
 | `DEPGATE_GITHUB_TOKEN` | more GitHub requests for release notes | — |
@@ -167,7 +167,7 @@ More: `depgate --help`.
 
 ## Security and privacy
 
-- Only package names, versions, CVE ids, image names and GitHub repository names (for release notes) leave your computer — never code, paths or `.env` files. Reports, history and accepted risks stay in the data folder. At start and every 6 hours DepGate asks GitHub for the newest release number and shows a notice if there is one. For the news it downloads the public feeds whole and asks OSV about the OS packages in your images by name — nothing else about your stack is sent.
+- Only package names, versions, CVE ids, image names and GitHub repository names (for release notes) leave your computer — never code, paths or `.env` files. Reports, history and accepted risks stay in the data folder. At start and every hour DepGate asks GitHub for the newest release number and shows a notice if there is one. For the news it downloads the public feeds whole and asks OSV about the OS packages in your images by name — nothing else about your stack is sent.
 - Git history is read from the project's `.git` folder on your computer (commit message, date and the lockfile at each commit); git is never run and nothing is sent.
 - Read-only: nothing is written into your projects; in Docker your home is mounted read-only and DepGate runs without root.
 - The UI listens on `127.0.0.1` (in Docker the port is published on `127.0.0.1` only) and is password-protected (PBKDF2-SHA256); API calls need a custom header, the `Host` header is checked, a strict CSP is sent.

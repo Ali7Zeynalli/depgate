@@ -95,7 +95,7 @@ func (m *Manager) staleDirs(now time.Time) []string {
 }
 
 // autoLoop scans stale projects again (also after the computer slept) and
-// checks 15 s after start and every 6 h whether a newer DepGate is out.
+// checks 15 s after start and every hour whether a newer DepGate is out.
 func (m *Manager) autoLoop(ctx context.Context) {
 	first := time.NewTimer(15 * time.Second)
 	tick := time.NewTicker(5 * time.Minute)
@@ -112,7 +112,7 @@ func (m *Manager) autoLoop(ctx context.Context) {
 		if ds := m.staleDirs(time.Now()); len(ds) > 0 {
 			_ = m.ScanBy(ds, "auto")
 		}
-		if time.Since(lastCheck) > 6*time.Hour {
+		if time.Since(lastCheck) > updateEvery {
 			lastCheck = time.Now()
 			_ = m.checkUpdate(ctx)
 		}
@@ -145,7 +145,25 @@ func (m *Manager) CheckUpdate(ctx context.Context) (*Update, error) {
 
 var errNoCheck = newErr("yeniləmə yoxlanmır (offline və ya DEPGATE_NO_UPDATE_CHECK=1)", "update checks are off (offline or DEPGATE_NO_UPDATE_CHECK=1)")
 
+// updateEvery is how often GitHub is asked for a newer release (one small request).
+const updateEvery = time.Hour
+
+// checkUpdate asks GitHub and remembers when and whether it worked (the ⋯ menu shows it).
 func (m *Manager) checkUpdate(ctx context.Context) error {
+	err := m.askGitHub(ctx)
+	now := time.Now().UTC()
+	m.mu.Lock()
+	m.updChecked = &now
+	m.updErr = nil
+	if e, ok := err.(*Error); ok {
+		t := e.T
+		m.updErr = &t
+	}
+	m.mu.Unlock()
+	return err
+}
+
+func (m *Manager) askGitHub(ctx context.Context) error {
 	if m.Opt.Offline || os.Getenv("DEPGATE_NO_UPDATE_CHECK") == "1" {
 		return errNoCheck
 	}

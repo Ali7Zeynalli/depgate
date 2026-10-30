@@ -326,6 +326,9 @@
     cmdsBundle: ["Birlikdə yenilənməli paketlər", "Packages that must update together"],
     cmdsPlan: ["Planla — hazır olanda (şərhdən çıxar)", "Plan — when you are ready (uncomment)"],
     codeNote: ["Diqqət: kod yerləri mətn nümunələri ilə tapılır və TƏXMİNİDİR — səhv və ya əskik ola bilər. Öz kodunu analiz et (və ya «AI üçün prompt» ilə agentə tapşır), sonra build və testləri işlət. DepGate faylı dəyişmir.", "Note: code places are found by text patterns and are APPROXIMATE — some may be wrong or missing. Analyse your own code (or hand it to your agent with «AI prompt»), then run the build and the tests. DepGate never changes your files."],
+    updFailed: ["son yoxlama alınmadı: {0}", "last check failed: {0}"],
+    updChecked: ["son yoxlama {0} · ən son versiyadasan", "checked {0} · you are up to date"],
+    updNewer: ["yeni versiya var: {0}", "a new version is out: {0}"],
     updCheck: ["Yeniləməni yoxla", "Check for updates"],
     updNone: ["Ən son versiyadasan ({0})", "You have the latest version ({0})"],
     todoBuild: ["Build və testləri işlət", "Run the build and the tests"],
@@ -833,6 +836,11 @@
     $("#addproj").hidden = st.readOnly;
     $("#srcbtn").hidden = false;
     $("#updbtn").hidden = !!st.readOnly;
+    // when GitHub was last asked, or why it did not answer
+    $("#updbtn").replaceChildren(...[el("span", null, t("updCheck")),
+      st && st.updateErr ? el("span", { class: "msub bad" }, t("updFailed", tr(st.updateErr)))
+        : st && st.updateChecked ? el("span", { class: "msub" }, st.update ? t("updNewer", st.update.latest) : t("updChecked", fmtTime(st.updateChecked).slice(11)))
+        : null].filter(Boolean));
     $("#stopbtn").hidden = !!st.readOnly || !!st.container;
     $("#scanall").disabled = st.busy;
     $("#scanall").textContent = st.busy ? t("scanning") : t("scanAll");
@@ -1486,14 +1494,15 @@
   });
   function renderUpdate() {
     const bar = $("#update"), u = st.update;
-    let later = ""; try { later = localStorage.getItem("depgate-upd-later") || ""; } catch {}
-    bar.hidden = !u || later === u.latest;
+    // «Later» hides this version for a day, then the notice comes back
+    let later = {}; try { later = JSON.parse(localStorage.getItem("depgate-upd-later") || "{}") || {}; } catch { later = {}; }
+    bar.hidden = !u || (later.v === u.latest && Date.now() < later.until);
     if (bar.hidden) return;
     bar.replaceChildren(el("span", null, t("updText", u.latest, st.version)),
       el("button", { class: "small", onclick: openUpdate }, t("updHow")),
       safeURL(u.url) ? el("a", { href: u.url, target: "_blank", rel: "noopener noreferrer" }, t("updNotes")) : null,
       el("span", { class: "grow" }),
-      el("button", { class: "small ghost", onclick: () => { try { localStorage.setItem("depgate-upd-later", u.latest); } catch {} renderUpdate(); } }, t("updLater")));
+      el("button", { class: "small ghost", onclick: () => { try { localStorage.setItem("depgate-upd-later", JSON.stringify({ v: u.latest, until: Date.now() + 864e5 })); } catch {} renderUpdate(); } }, t("updLater")));
   }
   function openUpdate() {
     const close = () => { ov.remove(); document.removeEventListener("keydown", esc); };
