@@ -40,6 +40,13 @@ git clone https://github.com/Ali7Zeynalli/depgate.git && cd depgate
 docker compose up -d
 ```
 
+**Bir sətirlə** (sisteminə uyğun relizi yükləyir və SHA-256-nı yoxlayır):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Ali7Zeynalli/depgate/main/install.sh | sh          # Linux, macOS
+irm https://raw.githubusercontent.com/Ali7Zeynalli/depgate/main/install.ps1 | iex               # Windows PowerShell
+```
+
 **Tək fayl** — [Releases](https://github.com/Ali7Zeynalli/depgate/releases)-dən yüklə, `./depgate` işlət (Windows: `depgate.exe`). **Go** — `go install github.com/Ali7Zeynalli/depgate@latest`.
 
 Sonra `http://127.0.0.1:7777` aç, parol seç və **+ Layihə əlavə et** (layihə və ya bütöv qovluq).
@@ -70,7 +77,7 @@ Sonra `http://127.0.0.1:7777` aç, parol seç və **+ Layihə əlavə et** (layi
 | **Ümumi** | vəziyyət bir baxışda (zərərli, indi et, kod dəyişikliyi, Docker və server, son dəyişiklik) və ilk addımlar sıra ilə, əmri olanda elə orada; göstəricilər: düzəltmə müddəti, ən köhnə açıq iş, bu həftə |
 | **Paketlər** | hər paket bir sətir, əvvəl risk: nədir, nə tapılıb, zəiflik sadə dildə (CWE), ən təhlükəsiz versiya, **hansı versiya nəyi düzəldir**, əmr və nömrəli addımlar; süzgəclər: real hücumda (KEV), EPSS, düzəlişi yoxdur, birbaşa / dolayı; zərərli paketlər, silinmiş versiyalar, birlikdə yenilənməli paketlər; səbəb və tarixlə **riski qəbul et** (müddət bitəndə özü qayıdır); **Əmrlər** düyməsi layihənin və ya qovluğun bütün `package.json` / lockfile əmrlərini yoxlamaq üçün bir skript kimi verir (əvvəl zərərli, sonra «indi et», override-lar `npm pkg set` ilə, «planla» və «istəyə görə» şərhdə) |
 | **Kod dəyişiklikləri** | Next.js, React, Express, NestJS, Prisma, Zod, Tailwind, ESLint, TanStack Query, React Router üçün `fayl:sətir` yerləri; codemod-lar; reliz qeydlərindən breaking changes |
-| **Docker** | layihədə və ya repo-da harada olursa olsun Dockerfile və compose faylları (`docker/`, `deploy/`, `infra/`… və compose-un build etdiyi və ya daxil etdiyi fayllar): təhlükəsizlik səhvləri və Compose Specification xətaları üçün 37 qayda, dəstəyi bitmiş və köhnə image-lər; qovluqlara görə qruplaşdırılır; **dev və ya production** fayl adından, Dockerfile mərhələsindən və ya compose profilindən təxmin olunur — faylı özün də işarələyə bilərsən |
+| **Docker** | layihədə və ya repo-da harada olursa olsun Dockerfile və compose faylları (`docker/`, `deploy/`, `infra/`… və compose-un build etdiyi və ya daxil etdiyi fayllar): təhlükəsizlik səhvləri və Compose Specification xətaları üçün 37 qayda, dəstəyi bitmiş və köhnə image-lər; **Kubernetes manifestləri və Helm `values.yaml`** də: onların image-ləri eyni yoxlamalardan (dəstəyin bitməsi, patch, nginx/Caddy, xəbərlər) keçir, üstəgəl pod təhlükəsizlik qaydaları (privileged, host network/PID/IPC, root istifadəçi, imtiyaz artırma, həssas hostPath, sabitlənməmiş image); klasterə qoşulmur; qovluqlara görə qruplaşdırılır; **dev və ya production** fayl adından, Dockerfile mərhələsindən və ya compose profilindən təxmin olunur — faylı özün də işarələyə bilərsən |
 | **Veb server** | nginx / Caddy: versiyanın məlum zəiflikləri, TLS, başlıqlar, yol keçidi, açıq admin API |
 | **Node.js və mühit** | runtime təhlükəsizlik relizləri və dəstəyin bitməsi; lockfile, install skriptləri, gözləmə müddəti, hər yerdə eyni Node.js versiyası |
 | **AI və MCP** | hazır prompt, `AGENTS.md` versiya qaydaları, agentinə görə qoşulma, hansı agentlərin qoşulduğu və **AI işləri**: agentin götürdüyü tapşırıqlar və DepGate-in nəyi təsdiqlədiyi |
@@ -98,6 +105,8 @@ Agent DepGate-dən özü soruşur və hər paketi **quraşdırmadan əvvəl** yo
 claude mcp add --transport http depgate -s user http://127.0.0.1:7777/mcp \
   --header "Authorization: Bearer $(depgate --print-token)"
 ```
+
+Agentlər yalnız oxusun istəyirsənsə (skan yox, tapşırıq dəyişikliyi yox), DepGate-i `--mcp-read-only` ilə işə sal (və ya `DEPGATE_MCP_READ_ONLY=1`; stdio üçün: `depgate mcp --read-only`).
 
 Sonra agentə yaz və ya hazır əmrlərdən istifadə et: `/mcp__depgate__fix` (asılılıqları düzəlt), `/mcp__depgate__status`, `/mcp__depgate__check` (paketi quraşdırmadan əvvəl), `/mcp__depgate__docker`, `/mcp__depgate__changes`.
 
@@ -158,6 +167,7 @@ depgate --reset-password      # Docker: docker exec depgate depgate --reset-pass
 | `--rescan` · `DEPGATE_RESCAN_HOURS` | son skan N saatdan köhnədirsə, yenidən skan et (0 = söndür; interfeysdə də) | 12 |
 | `DEPGATE_NO_UPDATE_CHECK=1` | GitHub-da yeni versiyanı yoxlama (açılanda və hər saat) | — |
 | `--print-token` · `DEPGATE_TOKEN` | API / MCP tokeni | avtomatik |
+| `--mcp-read-only` · `DEPGATE_MCP_READ_ONLY=1` | AI agentlər yalnız oxuyan MCP alətlərini alır | söndürülüb |
 | `DEPGATE_PASSWORD` | parolu əvvəlcədən təyin et | — |
 | `DEPGATE_GITHUB_TOKEN` | reliz qeydləri üçün daha çox GitHub sorğusu | — |
 | `DEPGATE_LANG=az` | terminal mesajları Azərbaycan dilində | ingilis |

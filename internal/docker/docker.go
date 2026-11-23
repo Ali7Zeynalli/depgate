@@ -49,9 +49,11 @@ func isCompose(name string) bool {
 // It looks in dir and, when different, repoRoot (monorepos keep compose at the root).
 // files lists the files it inspected (relative to dir, e.g. "Dockerfile", "../../docker-compose.yml").
 func Scan(dir, repoRoot string) (issues []report.DockerIssue, files []string) {
-	var dfs, composes []foundFile
+	var dfs, composes, kube []foundFile
 	for _, f := range discover(dir, repoRoot) {
-		if f.compose {
+		if f.k8s != "" {
+			kube = append(kube, f)
+		} else if f.compose {
 			composes = append(composes, f)
 		} else {
 			dfs = append(dfs, f)
@@ -82,6 +84,12 @@ func Scan(dir, repoRoot string) (issues []report.DockerIssue, files []string) {
 			continue
 		}
 		issues = append(issues, checkDockerfile(&dfCtx{file: f.rel, path: f.path, src: src, healthElse: health})...)
+	}
+	for _, f := range kube {
+		files = append(files, f.rel)
+		if src, ok := read(f.path); ok && f.k8s == "manifest" {
+			issues = append(issues, checkK8s(f.rel, src)...)
+		}
 	}
 	sort.Strings(files)
 	sortIssues(issues)

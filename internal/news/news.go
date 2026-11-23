@@ -467,6 +467,13 @@ func fixCmd(file, service, fix string) string {
 	if fix == "" || strings.ContainsAny(fix, " \n") {
 		return ""
 	}
+	if strings.HasPrefix(service, "Helm/") {
+		name, tag, _ := strings.Cut(fix, ":")
+		return "repository: " + name + "  tag: \"" + tag + "\"   # " + filepath.Base(file) + " · helm upgrade <release> <chart> -f " + filepath.ToSlash(file)
+	}
+	if strings.Contains(service, "/") { // a Kubernetes workload: Kind/name
+		return "image: " + fix + "   # " + filepath.Base(file) + " · kubectl apply -f " + filepath.ToSlash(file)
+	}
 	if service != "" {
 		return "image: " + fix + "   # " + filepath.Base(file) + " · docker compose pull " + service + " && docker compose up -d " + service
 	}
@@ -474,6 +481,12 @@ func fixCmd(file, service, fix string) string {
 }
 
 func rebuildCmd(w Where) string {
+	if strings.HasPrefix(w.Service, "Helm/") {
+		return "helm upgrade <release> <chart> -f " + filepath.ToSlash(w.File) + "   # after the image has a new build"
+	}
+	if strings.Contains(w.Service, "/") {
+		return "kubectl rollout restart " + strings.ToLower(w.Service) + "   # pulls a new build when imagePullPolicy is Always"
+	}
 	if w.Service != "" {
 		return "docker compose pull " + w.Service + " && docker compose up -d " + w.Service
 	}

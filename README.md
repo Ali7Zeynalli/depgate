@@ -40,6 +40,13 @@ git clone https://github.com/Ali7Zeynalli/depgate.git && cd depgate
 docker compose up -d
 ```
 
+**One line** (downloads the release for your system and checks its SHA-256):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Ali7Zeynalli/depgate/main/install.sh | sh          # Linux, macOS
+irm https://raw.githubusercontent.com/Ali7Zeynalli/depgate/main/install.ps1 | iex               # Windows PowerShell
+```
+
 **Single binary** — from [Releases](https://github.com/Ali7Zeynalli/depgate/releases), run `./depgate` (Windows: `depgate.exe`). **Go** — `go install github.com/Ali7Zeynalli/depgate@latest`.
 
 Then open `http://127.0.0.1:7777`, choose a password and **+ Add project** (a project or a whole folder).
@@ -70,7 +77,7 @@ Then open `http://127.0.0.1:7777`, choose a password and **+ Add project** (a pr
 | **Overview** | the state at a glance (malware, do now, code changes, Docker & server, last change) and the first steps in order, with the command where there is one; indicators: time to fix, oldest open finding, this week |
 | **Packages** | one row per package, risk first: what it is, what was found, the weakness in plain words (CWE), the safest version, **which version fixes what**, the command and numbered steps; filters for exploited (KEV), EPSS, no fix, direct / transitive; malware, removed versions, packages that must update together; **accept a risk** with a reason until a date (it comes back by itself); **Commands** gives every `package.json` / lockfile command of a project or folder as one script to review (malware first, then do now, overrides written with `npm pkg set`, plan and optional commented out) |
 | **Code changes** | `file:line` places for Next.js, React, Express, NestJS, Prisma, Zod, Tailwind, ESLint, TanStack Query, React Router; codemods; breaking changes from release notes |
-| **Docker** | Dockerfiles and compose files anywhere in the project or repository (`docker/`, `deploy/`, `infra/`…, and the files a compose file builds from or includes): 37 rules for security mistakes and Compose Specification errors, end-of-life and outdated images; grouped by folder; **dev or production** guessed from the file name, Dockerfile stage or compose profile — and you can mark a file yourself |
+| **Docker** | Dockerfiles and compose files anywhere in the project or repository (`docker/`, `deploy/`, `infra/`…, and the files a compose file builds from or includes): 37 rules for security mistakes and Compose Specification errors, end-of-life and outdated images; **Kubernetes manifests and Helm `values.yaml`** too: their images get the same end-of-life, patch, nginx/Caddy and news checks, plus pod security rules (privileged, host network/PID/IPC, root user, privilege escalation, sensitive hostPath, unpinned images); no cluster is contacted; grouped by folder; **dev or production** guessed from the file name, Dockerfile stage or compose profile — and you can mark a file yourself |
 | **Web server** | nginx / Caddy: known vulnerabilities of your version, TLS, headers, path traversal, exposed admin API |
 | **Node.js & setup** | runtime security releases and end of life; lockfile, install scripts, release cooldown, the same Node.js version everywhere |
 | **AI & MCP** | a ready prompt, `AGENTS.md` version rules, the setup for your agent, which agents are connected, and **AI work**: the tasks an agent took on and what DepGate verified |
@@ -98,6 +105,8 @@ The agent asks DepGate itself — and checks every package **before** it install
 claude mcp add --transport http depgate -s user http://127.0.0.1:7777/mcp \
   --header "Authorization: Bearer $(depgate --print-token)"
 ```
+
+To let agents only read (no scans, no task changes), start DepGate with `--mcp-read-only` (or `DEPGATE_MCP_READ_ONLY=1`; for stdio: `depgate mcp --read-only`).
 
 Then ask it, or use the ready commands: `/mcp__depgate__fix` (fix the dependencies), `/mcp__depgate__status`, `/mcp__depgate__check` (a package before installing), `/mcp__depgate__docker`, `/mcp__depgate__changes`.
 
@@ -158,6 +167,7 @@ Risks you accept in the UI also count for `--ci`. For CI on another machine, dow
 | `--rescan` · `DEPGATE_RESCAN_HOURS` | scan projects again when the last scan is older than N hours (0 = off; also in the UI) | 12 |
 | `DEPGATE_NO_UPDATE_CHECK=1` | don't check GitHub for a newer DepGate (at start and every hour) | — |
 | `--print-token` · `DEPGATE_TOKEN` | API / MCP token | generated |
+| `--mcp-read-only` · `DEPGATE_MCP_READ_ONLY=1` | AI agents get only the MCP tools that read | off |
 | `DEPGATE_PASSWORD` | set the password up front | — |
 | `DEPGATE_GITHUB_TOKEN` | more GitHub requests for release notes | — |
 | `DEPGATE_LANG=az` | terminal messages in Azerbaijani | English |

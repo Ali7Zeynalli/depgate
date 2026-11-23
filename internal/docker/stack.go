@@ -21,6 +21,14 @@ func Stack(dir, repoRoot string) []report.ImageItem {
 		if err != nil || len(b) > maxFileSize {
 			continue
 		}
+		if f.k8s != "" {
+			for _, r := range k8sImages(f.rel, f.k8s, string(b)) {
+				it := describe(r.Ref)
+				it.File, it.Line, it.Service = r.File, r.Line, r.Service
+				out = append(out, it)
+			}
+			continue
+		}
 		if f.compose {
 			root, err := parseYAML(string(b))
 			if err != nil || root == nil {

@@ -25,6 +25,10 @@ func ImageRefs(dir, repoRoot string) []ImageRef {
 		if err != nil || len(b) > maxFileSize {
 			continue
 		}
+		if f.k8s != "" {
+			out = append(out, k8sImages(f.rel, f.k8s, string(b))...)
+			continue
+		}
 		if f.compose {
 			root, err := parseYAML(string(b))
 			if err != nil || root == nil {
@@ -61,6 +65,7 @@ func ImageRefs(dir, repoRoot string) []ImageRef {
 type foundFile struct {
 	path, rel string
 	compose   bool
+	k8s       string // "manifest" | "helm" for Kubernetes files
 }
 
 // discover finds the Dockerfiles and compose files of a project: in its folder
@@ -76,7 +81,7 @@ func discover(dir, repoRoot string) []foundFile {
 	}
 	var out []foundFile
 	seen := map[string]bool{}
-	add := func(p string, compose bool) {
+	addK := func(p string, compose bool, k8s string) {
 		abs, err := filepath.Abs(p)
 		if err != nil || seen[abs] {
 			return
@@ -89,8 +94,9 @@ func discover(dir, repoRoot string) []foundFile {
 		if err != nil {
 			rel = abs
 		}
-		out = append(out, foundFile{abs, filepath.ToSlash(rel), compose})
+		out = append(out, foundFile{abs, filepath.ToSlash(rel), compose, k8s})
 	}
+	add := func(p string, compose bool) { addK(p, compose, "") }
 	// the project folder and the repository root, with their sub-folders
 	// (docker/, deploy/, infra/ …), but not other projects: their files are theirs
 	for _, root := range roots {
@@ -120,6 +126,14 @@ func discover(dir, repoRoot string) []foundFile {
 					add(p, false)
 				case isCompose(name):
 					add(p, true)
+				case strings.HasSuffix(name, ".yaml") || strings.HasSuffix(name, ".yml"):
+					if info, err := e.Info(); err == nil && info.Size() <= maxFileSize {
+						if b, err := os.ReadFile(p); err == nil {
+							if k := k8sKind(p, string(b)); k != "" {
+								addK(p, false, k)
+							}
+						}
+					}
 				}
 			}
 		}
@@ -127,7 +141,7 @@ func discover(dir, repoRoot string) []foundFile {
 	}
 	// files a compose file points to: build context / dockerfile, include, extends
 	for i := 0; i < len(out); i++ {
-		if !out[i].compose {
+		if !out[i].compose || out[i].k8s != "" {
 			continue
 		}
 		b, err := os.ReadFile(out[i].path)

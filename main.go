@@ -51,6 +51,7 @@ func init() {
 }
 
 type config struct {
+	mcpRO     bool
 	port      int
 	addr      string
 	noOpen    bool
@@ -153,6 +154,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	fs.StringVar(&c.view, "view", "", "open a saved JSON report in the UI (read-only)")
 	fs.StringVar(&c.data, "data", os.Getenv("DEPGATE_DATA"), "folder for the project list and reports (default ~/.config/depgate; DEPGATE_DATA)")
 	fs.Var(&c.roots, "root", "folder the UI may browse (repeatable; default: home; DEPGATE_ROOTS)")
+	fs.BoolVar(&c.mcpRO, "mcp-read-only", envBool("DEPGATE_MCP_READ_ONLY"), "AI agents get only the MCP tools that read (no scans, no task changes; DEPGATE_MCP_READ_ONLY=1)")
 	fs.Var(&c.allowHost, "allow-host", "extra allowed Host name, e.g. depgate.lan (repeatable)")
 	fs.Usage = func() {
 		fmt.Fprintf(stderr, "DepGate %s — npm dependency security and update advisor for Node.js projects\n\n", version)
@@ -350,7 +352,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		}
 	}
 	fmt.Fprintf(stderr, L("Yadda saxlanan layihələr: %d · Kök qovluqlar: %s\n", "Remembered projects: %d · Browsable roots: %s\n"), len(st.Projects()), strings.Join(roots, ", "))
-	mcpSrv := &mcp.Server{Store: st, Fetcher: fetcher, Opt: opt, Version: version, Roots: roots, Log: stderr}
+	mcpSrv := &mcp.Server{Store: st, Fetcher: fetcher, Opt: opt, Version: version, Roots: roots, Log: stderr, ReadOnly: c.mcpRO}
 	return serve(ctx, c, m, token, au, stderr, mcpSrv.HTTPHandler())
 }
 
@@ -647,6 +649,7 @@ func runMCP(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	data := fs.String("data", os.Getenv("DEPGATE_DATA"), "DepGate data folder (shared with the UI)")
 	offline := fs.Bool("offline", false, "never use the network, cache only")
 	cooldown := fs.Int("cooldown", 3, "never suggest versions younger than N days")
+	readOnly := fs.Bool("read-only", envBool("DEPGATE_MCP_READ_ONLY"), "offer only the tools that read (no scans, no task changes; DEPGATE_MCP_READ_ONLY=1)")
 	fs.Usage = func() {
 		fmt.Fprintln(stderr, "Usage: depgate mcp [--project DIR]\n\nModel Context Protocol server (stdio) for AI coding agents, e.g.\n  claude mcp add depgate -- depgate mcp\n\nFlags:")
 		fs.PrintDefaults()
@@ -679,13 +682,14 @@ func runMCP(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		}
 	}
 	s := &mcp.Server{
-		Hint:    hint,
-		Store:   st,
-		Fetcher: func() sources.Fetcher { return sources.NewHTTP(cacheDir, *offline, version) },
-		Opt:     scan.Options{Version: version, CooldownDays: *cooldown, Offline: *offline},
-		Project: *projectDir,
-		Version: version,
-		Log:     stderr,
+		Hint:     hint,
+		Store:    st,
+		Fetcher:  func() sources.Fetcher { return sources.NewHTTP(cacheDir, *offline, version) },
+		Opt:      scan.Options{Version: version, CooldownDays: *cooldown, Offline: *offline},
+		Project:  *projectDir,
+		Version:  version,
+		Log:      stderr,
+		ReadOnly: *readOnly,
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -694,6 +698,14 @@ func runMCP(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return 1
 	}
 	return 0
+}
+
+func envBool(k string) bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv(k))) {
+	case "1", "true", "yes", "on":
+		return true
+	}
+	return false
 }
 
 func envInt(k string, def int) int {
