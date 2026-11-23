@@ -1,3 +1,4 @@
 /depgate
 /dist/
 *.test
+rsrc_windows_*.syso

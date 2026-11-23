@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"sort"
 	"strings"
 	"time"
 )
@@ -50,6 +51,7 @@ var NewsSources = []NewsSource{
 	// Linux
 	{ID: "usn", Name: "Ubuntu USN", Topic: "linux", Kind: "rss", URL: UbuntuUSN, Home: "https://ubuntu.com/security/notices", Official: true},
 	{ID: "dsa", Name: "Debian DSA", Topic: "linux", Kind: "rss", URL: DebianDSA, Home: "https://www.debian.org/security/", Official: true},
+	{ID: "ubuntu-cve", Name: "Ubuntu CVE tracker", Topic: "linux", Kind: "ubuntucve", URL: UbuntuCVEs, Home: "https://ubuntu.com/security/cves", Official: true},
 	{ID: "lwn", Name: "LWN.net", Topic: "linux", Kind: "rss", URL: "https://lwn.net/headlines/rss", Home: "https://lwn.net"},
 	{ID: "phoronix", Name: "Phoronix", Topic: "linux", Kind: "rss", URL: "https://www.phoronix.com/rss.php", Home: "https://www.phoronix.com"},
 	// containers and Kubernetes
@@ -300,6 +302,95 @@ func GHSARecent(ctx context.Context, f Fetcher) ([]CVERecord, error) {
 				}
 			}
 		}
+		out = append(out, r)
+	}
+	return out, nil
+}
+
+// UbuntuCVEs is Ubuntu's CVE tracker: unlike the notices (USN) it lists CVEs
+// that are not fixed yet, with each release's status.
+const UbuntuCVEs = "https://ubuntu.com/security/cves.json?limit=50&priority=critical&priority=high&sort_by=published&order=descending"
+
+// supported Ubuntu releases by codename
+var ubuntuReleases = map[string]string{"focal": "20.04", "jammy": "22.04", "noble": "24.04", "plucky": "25.04", "questing": "25.10", "resolute": "26.04"}
+
+// UbuntuCVE is one record of the tracker.
+type UbuntuCVE struct {
+	ID        string
+	Published time.Time
+	Priority  string
+	Score     float64
+	Desc      string
+	Packages  []string
+	Unfixed   []string // releases still waiting for a fix (needed, pending, deferred)
+	Fixed     []string // releases with the fix released
+}
+
+// UbuntuCVEList reads the newest high and critical CVEs of the tracker.
+func UbuntuCVEList(ctx context.Context, f Fetcher, u string) ([]UbuntuCVE, error) {
+	b, err := f.Do(ctx, "GET", u, nil, nil, FeedTTL)
+	if err != nil {
+		return nil, fmt.Errorf("Ubuntu CVE tracker: %w", err)
+	}
+	var doc struct {
+		CVEs []struct {
+			ID          string  `json:"id"`
+			Published   string  `json:"published"`
+			Priority    string  `json:"priority"`
+			CVSS3       float64 `json:"cvss3"`
+			Description string  `json:"description"`
+			UbuntuDesc  string  `json:"ubuntu_description"`
+			Status      string  `json:"status"`
+			Packages    []struct {
+				Name     string `json:"name"`
+				Statuses []struct {
+					Release string `json:"release_codename"`
+					Status  string `json:"status"`
+				} `json:"statuses"`
+			} `json:"packages"`
+		} `json:"cves"`
+	}
+	if err := json.Unmarshal(b, &doc); err != nil {
+		return nil, fmt.Errorf("Ubuntu CVE tracker: %w", err)
+	}
+	var out []UbuntuCVE
+	for _, c := range doc.CVEs {
+		if c.Status == "rejected" {
+			continue
+		}
+		r := UbuntuCVE{ID: c.ID, Priority: strings.ToLower(c.Priority), Score: c.CVSS3, Desc: first(c.UbuntuDesc, c.Description)}
+		for _, l := range []string{time.RFC3339, "2006-01-02T15:04:05", "2006-01-02T15:04:05.000000", "2006-01-02"} {
+			if t, err := time.Parse(l, c.Published); err == nil {
+				r.Published = t.UTC()
+				break
+			}
+		}
+		un, fx := map[string]bool{}, map[string]bool{}
+		for _, p := range c.Packages {
+			r.Packages = append(r.Packages, p.Name)
+			for _, s := range p.Statuses {
+				v, ok := ubuntuReleases[s.Release]
+				if !ok {
+					continue
+				}
+				switch s.Status {
+				case "needed", "pending", "deferred", "needs-triage":
+					un[v] = true
+				case "released":
+					fx[v] = true
+				}
+			}
+		}
+		for v := range un {
+			if !fx[v] {
+				r.Unfixed = append(r.Unfixed, v)
+			}
+		}
+		for v := range fx {
+			r.Fixed = append(r.Fixed, v)
+		}
+		sort.Sort(sort.Reverse(sort.StringSlice(r.Unfixed)))
+		sort.Sort(sort.Reverse(sort.StringSlice(r.Fixed)))
 		out = append(out, r)
 	}
 	return out, nil

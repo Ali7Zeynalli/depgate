@@ -48,6 +48,9 @@ func runNews(ctx context.Context, s *Server, args map[string]any) (string, error
 		if it.ZeroDay {
 			tags = append(tags, "zero-day")
 		}
+		if it.NoFix {
+			tags = append(tags, "no fix yet")
+		}
 		if len(it.Also) > 0 {
 			tags = append(tags, fmt.Sprintf("%d sources", len(it.Also)+1))
 		}

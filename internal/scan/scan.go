@@ -152,7 +152,7 @@ func One(ctx context.Context, d *decide.Data, dir string, opt Options) report.Pr
 	p.Errors = append(p.Errors, errs...)
 	p.Hygiene = project.Hygiene(abs, root, lr.Manager, lr.Kind, mismatch, opt.CooldownDays)
 	p.Docker, p.DockerFiles = docker.Scan(abs, root)
-	p.Images = docker.Stack(abs, root)
+	p.Images = images.ResolveOS(ctx, d.F, docker.Stack(abs, root), 20)
 	refs := docker.ImageRefs(abs, root)
 	p.Docker = append(p.Docker, images.Check(ctx, d.F, refs, opt.Now)...)
 	docker.SortIssues(p.Docker)

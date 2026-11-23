@@ -108,6 +108,7 @@ type ImageItem struct {
 	OS        string   `json:"os,omitempty"`        // debian | ubuntu | alpine ("" unknown)
 	OSVersion string   `json:"osVersion,omitempty"` // 12, 24.04, 3.19 ("" unknown)
 	OSGuess   bool     `json:"osGuess,omitempty"`   // the OS is the image's default, not written in the tag
+	OSFrom    string   `json:"osFrom,omitempty"`    // "registry": read from the image's config on Docker Hub
 	Packages  []string `json:"packages,omitempty"`  // apt-get install / apk add in this stage
 	Unpinned  bool     `json:"unpinned,omitempty"`  // no tag or :latest
 }

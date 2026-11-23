@@ -57,6 +57,7 @@ type Item struct {
 
 	Topics  []string `json:"topics,omitempty"`  // general news: zeroday, security, cve, linux, containers, devops, code, ai, cloud, hot, tools
 	ZeroDay bool     `json:"zeroDay,omitempty"` // a zero-day, exploited or not fixed yet
+	NoFix   bool     `json:"noFix,omitempty"`   // disclosed, no fixed package yet
 	Also    []Ref    `json:"also,omitempty"`    // the same story told by other sources
 	Alias   []string `json:"alias,omitempty"`   // the ids of the merged items (read marks)
 	Score   int      `json:"score"`             // importance, before age is counted

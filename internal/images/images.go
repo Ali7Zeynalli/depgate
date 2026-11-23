@@ -35,7 +35,7 @@ var products = map[string][]string{
 // os variants carried in tags
 var codenames = map[string][2]string{
 	"stretch": {"debian", "9"}, "buster": {"debian", "10"}, "bullseye": {"debian", "11"}, "bookworm": {"debian", "12"}, "trixie": {"debian", "13"},
-	"bionic": {"ubuntu", "18.04"}, "focal": {"ubuntu", "20.04"}, "jammy": {"ubuntu", "22.04"}, "noble": {"ubuntu", "24.04"},
+	"bionic": {"ubuntu", "18.04"}, "focal": {"ubuntu", "20.04"}, "jammy": {"ubuntu", "22.04"}, "noble": {"ubuntu", "24.04"}, "oracular": {"ubuntu", "24.10"}, "plucky": {"ubuntu", "25.04"}, "questing": {"ubuntu", "25.10"}, "resolute": {"ubuntu", "26.04"},
 }
 
 // Check returns issues for the image references. Lookups that fail are skipped.

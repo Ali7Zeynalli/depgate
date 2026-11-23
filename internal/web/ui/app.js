@@ -472,6 +472,7 @@
     newsTabGen: ["Ümumi xəbərlər", "General news"],
     newsTabSrc: ["Mənbələr", "Sources"],
     newsZero: ["Zero-day", "Zero-day"],
+    newsNoFix: ["DÜZƏLİŞ YOXDUR", "NO FIX YET"],
     newsMaybe: ["Səndə ola bilər", "May concern you"],
     newsSortImp: ["Ən vacib əvvəl", "Most important first"],
     newsSortNew: ["Ən yeni əvvəl", "Newest first"],
@@ -546,6 +547,7 @@
     stImage: ["Image", "Image"],
     stOS: ["Əməliyyat sistemi", "Operating system"],
     stPkgs: ["Sistem paketləri", "System packages"],
+    stReg: ["Docker Hub-dakı image-dən oxundu", "read from the image on Docker Hub"],
     stGuess: ["image-in standartı, tag-də yazılmayıb", "the image's default, not in the tag"],
     stOk: ["qaydasında", "fine"],
     stOld: ["yenilə", "update"],
@@ -2058,6 +2060,7 @@
         el("span", { class: "chip " + sv[1] }, t(sv[0])),
         it.kev ? el("span", { class: "chip sev-critical" }, t("tagKev")) : null,
         it.zeroDay && !it.kev ? el("span", { class: "chip sev-high" }, "ZERO-DAY") : null,
+        it.noFix ? el("span", { class: "chip warn" }, t("newsNoFix")) : null,
         it.mine ? el("span", { class: "chip ai" }, t("newsMineChip")) : it.maybe ? el("span", { class: "chip ai" }, t("newsMaybeChip")) : null,
         it.product ? el("span", { class: "chip" }, it.product) : null,
         el("span", { class: "grow" }),
@@ -2130,7 +2133,7 @@
           el("tbody", null, rows.map((r) => el("tr", { class: "clickable", onclick: () => { current = r.p.dir; goTab("docker"); } },
             el("td", { title: r.abs }, el("div", null, r.p.name), el("div", { class: "quiet small" }, r.im.file + (r.im.service ? " · " + r.im.service : ""))),
             el("td", { class: "mono" }, r.im.image),
-            el("td", null, r.im.os ? osName(r.im) : "—", r.im.osGuess ? el("div", { class: "quiet small" }, t("stGuess")) : null),
+            el("td", null, r.im.os ? osName(r.im) : "—", r.im.osGuess ? el("div", { class: "quiet small" }, t("stGuess")) : r.im.osFrom === "registry" ? el("div", { class: "quiet small" }, t("stReg")) : null),
             el("td", { class: "small" }, (r.im.packages || []).join(", ") || "—"),
             el("td", null, el("span", { class: "chip " + STK[r.state][1] }, t(STK[r.state][0]))),
             el("td", { class: "num" }, r.news ? el("button", { class: "link", onclick: (e) => { e.stopPropagation(); state.ntab = "mine"; render(); } }, String(r.news)) : "0")))))),
@@ -2154,7 +2157,7 @@
     const items = v.items.filter((it) => mine === !!it.mine);
     const inTopic = (it, tp) => tp === "all" || (it.topics || []).includes(tp);
     const keep = (it) => f === "all" || (f === "crit" && (it.severity === "critical" || it.severity === "high")) || (f === "kev" && it.kev)
-      || (f === "zero" && (it.zeroDay || it.kev)) || (f === "maybe" && (it.maybe || it.mine)) || (f === "unread" && !nIsRead(it, v.read));
+      || (f === "zero" && (it.zeroDay || it.kev || it.noFix)) || (f === "maybe" && (it.maybe || it.mine)) || (f === "unread" && !nIsRead(it, v.read));
     const words = () => (state.nq || "").toLowerCase().split(/\s+/).filter(Boolean);
     const match = (it) => {
       const ws = words();
@@ -2193,7 +2196,7 @@
           el("span", { class: "grow" },
             el("span", { class: "nt" }, tr(it.title)),
             el("span", { class: "nm2" },
-              el("span", { class: "tg" + (bad ? " bad" : "") }, it.kev ? t("tagKev") : it.zeroDay ? "ZERO-DAY" : t(sv[0])),
+              el("span", { class: "tg" + (bad ? " bad" : "") }, it.kev ? t("tagKev") : it.zeroDay ? "ZERO-DAY" : it.noFix ? t("newsNoFix") : t(sv[0])),
               el("span", null, it.source + ((it.also || []).length ? " +" + it.also.length : "")),
               el("span", null, fmtTime(it.at).slice(0, 10)))));
       });
