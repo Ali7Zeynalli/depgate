@@ -279,3 +279,17 @@ func TestHTTPTransportAndProjectQuery(t *testing.T) {
 		t.Fatalf("batch %d %s", code, body)
 	}
 }
+
+func TestReadOnly(t *testing.T) {
+	x, _ := newSession(t, t.TempDir())
+	x.s.ReadOnly = true
+	got := x.call(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`, callTool("scan_project", 2, nil))
+	for _, v := range got["1"]["result"].(map[string]any)["tools"].([]any) {
+		if n := v.(map[string]any)["name"]; n == "scan_project" || n == "start_tasks" || n == "complete_task" {
+			t.Fatalf("%v offered in read-only mode", n)
+		}
+	}
+	if e, ok := got["2"]["error"].(map[string]any); !ok || !strings.Contains(e["message"].(string), "read-only") {
+		t.Fatalf("scan_project in read-only mode: %v", got["2"])
+	}
+}

@@ -107,9 +107,12 @@ var tools = map[string]tool{
 // needProjectProp is the project property when the server cannot tell the project itself.
 var needProjectProp = map[string]any{"type": "string", "description": "The absolute path of your current working directory (the project you are working on), or a project name from list_projects."}
 
-func toolList(needProject bool) []any {
+func toolList(needProject, readOnly bool) []any {
 	names := make([]string, 0, len(tools))
-	for n := range tools {
+	for n, t := range tools {
+		if readOnly && !t.readOK {
+			continue
+		}
 		names = append(names, n)
 	}
 	sort.Strings(names)

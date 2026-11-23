@@ -41,6 +41,8 @@ type Server struct {
 
 	// Roots limits the folders a call may name (empty: no limit; the HTTP server sets the UI roots).
 	Roots []string
+	// ReadOnly offers only the tools that read (--mcp-read-only): no scans, no task changes.
+	ReadOnly bool
 	// Hint is shown when the local data has no projects (e.g. "a DepGate server runs at …").
 	Hint string
 
@@ -221,7 +223,7 @@ func (s *Server) dispatch(ctx context.Context, req request) (any, *rpcError) {
 	case "ping":
 		return map[string]any{}, nil
 	case "tools/list":
-		return map[string]any{"tools": toolList(s.needProject(ctx))}, nil
+		return map[string]any{"tools": toolList(s.needProject(ctx), s.ReadOnly)}, nil
 	case "tools/call":
 		var p struct {
 			Name      string          `json:"name"`
@@ -233,6 +235,9 @@ func (s *Server) dispatch(ctx context.Context, req request) (any, *rpcError) {
 		t, ok := tools[p.Name]
 		if !ok {
 			return nil, &rpcError{-32602, "unknown tool: " + p.Name}
+		}
+		if s.ReadOnly && !t.readOK {
+			return nil, &rpcError{-32602, "DepGate runs with --mcp-read-only: " + p.Name + " is off"}
 		}
 		var args map[string]any
 		if len(p.Arguments) > 0 && string(p.Arguments) != "null" {
