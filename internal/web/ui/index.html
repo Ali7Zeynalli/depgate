@@ -5,16 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>DepGate</title>
 <link rel="stylesheet" href="style.css">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232563eb'/%3E%3Cpath d='M9 16l5 5 9-10' stroke='white' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2318181b'/%3E%3Cpath d='M9 16l5 5 9-10' stroke='white' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
 </head>
 <body>
 <header class="top">
-  <div class="brand"><span class="logo" aria-hidden="true"></span>DepGate</div>
+  <div class="brand"><span class="logo" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg></span>DepGate</div>
+  <label class="qsearch" id="qsearchwrap" hidden><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="qsearch" type="search" autocomplete="off" aria-label="Search projects"><kbd>Ctrl K</kbd></label>
   <div class="meta" id="meta">…</div>
   <div class="actions">
     <button id="lang" class="ghost lang" title="Language">AZ</button>
     <button id="addproj" hidden>+ Add project</button>
     <button id="refresh" class="ghost refresh" hidden title="Refresh" aria-label="Refresh"><svg class="ricon" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M13.6 1.8v3.1h-3.1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <button id="themebtn" class="ghost iconbtn" aria-label="Theme" title="Theme"></button>
     <button id="scanall" class="primary" hidden>Scan all</button>
     <div class="menuwrap">
       <button id="more" class="ghost more" aria-haspopup="true" aria-expanded="false" aria-label="More"><span class="dots" aria-hidden="true"></span></button>
@@ -30,13 +32,15 @@
     </div>
   </div>
 </header>
-<div id="banner" class="banner" hidden></div>
-<div id="update" class="updbar" hidden></div>
 <div class="layout">
   <nav id="projects" class="projects" aria-label="Projects" hidden></nav>
-  <main id="main" class="main">
-    <div class="empty">…</div>
-  </main>
+  <div class="content">
+    <div id="banner" class="banner" hidden></div>
+    <div id="update" class="updbar" hidden></div>
+    <main id="main" class="main">
+      <div class="empty">…</div>
+    </main>
+  </div>
 </div>
 <footer id="appfoot" class="appfoot"></footer>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
