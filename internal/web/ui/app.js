@@ -24,6 +24,7 @@
     copied: ["Kopyalandı", "Copied"],
     copy: ["Kopyala", "Copy"],
     theme: ["Tema", "Theme"],
+    qsearch: ["Layihə axtar…", "Find a project…"],
     scanAll: ["Hamısını skan et", "Scan all"],
     scanning: ["Skan olunur…", "Scanning…"],
     addProject: ["+ Layihə əlavə et", "+ Add project"],
@@ -717,6 +718,9 @@
   function applyStatic() {
     document.documentElement.lang = lang;
     $("#themelbl").textContent = t("theme");
+    $("#themebtn").setAttribute("aria-label", t("theme")); $("#themebtn").title = t("theme");
+    $("#qsearch").placeholder = t("qsearch");
+    $("#qsearch").setAttribute("aria-label", t("qsearch"));
     $("#refresh").title = t("refresh"); $("#refresh").setAttribute("aria-label", t("refresh"));
     $("#more").setAttribute("aria-label", t("more")); $("#more").title = t("more");
     $("#rescanlbl").textContent = t("rescanLbl");
@@ -747,6 +751,34 @@
     return e;
   }
   const safeURL = (u) => /^https:\/\//.test(u || "") ? u : null;
+  // stroke icons (static markup only, never data)
+  const SVGP = {
+    dash: '<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
+    news: '<path d="M4 5h13v14a2 2 0 0 0 2 2H6a2 2 0 0 1-2-2z"/><path d="M17 9h3v10a2 2 0 0 1-2 2"/><path d="M8 9h5M8 13h5M8 17h3"/>',
+    zeroday: '<path d="M12 3c1 3 4 4.5 4 8.5a4 4 0 0 1-8 0c0-1.5.6-2.6 1.5-3.5.2 1.5 1 2.3 2 2.5-.6-2.5-.3-5 .5-7.5z"/>',
+    security: '<path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/>',
+    cve: '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h7M9 17h5"/>',
+    linux: '<path d="M4 6l4 4-4 4M11 18h9"/>',
+    containers: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/>',
+    devops: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/>',
+    code: '<path d="M8 8l-4 4 4 4M16 8l4 4-4 4M14 5l-4 14"/>',
+    ai: '<rect x="5" y="7" width="14" height="12" rx="3"/><path d="M12 3v4M9 12v2M15 12v2M2 12h3M19 12h3"/>',
+    cloud: '<path d="M7 18h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 9.5 4.3 4.3 0 0 0 7 18z"/>',
+    hot: '<path d="M3 17l6-6 4 4 8-8M15 7h6v6"/>',
+    tools: '<path d="M12 3l2.6 5.5 6 .8-4.4 4.2 1.1 6-5.3-2.9-5.3 2.9 1.1-6L3.4 9.3l6-.8z"/>',
+    sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+    moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
+    refresh: '<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>',
+    alert: '<path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/>',
+    star: '<path d="M12 3l2.6 5.5 6 .8-4.4 4.2 1.1 6-5.3-2.9-5.3 2.9 1.1-6L3.4 9.3l6-.8z"/>',
+  };
+  function icon(name, size) {
+    const sp = document.createElement("span");
+    sp.className = "ic"; sp.setAttribute("aria-hidden", "true");
+    const z = size || 16;
+    sp.innerHTML = '<svg width="' + z + '" height="' + z + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + (SVGP[name] || "") + "</svg>";
+    return sp;
+  }
 
   function toast(msg) {
     const x = $("#toast"); x.textContent = msg; x.classList.add("on");
@@ -761,10 +793,36 @@
   // ---------- theme & language ----------
   const root = document.documentElement;
   try { const th = localStorage.getItem("depgate-theme"); if (th) root.dataset.theme = th; } catch {}
-  $("#theme").addEventListener("click", () => {
-    const dark = root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
-    root.dataset.theme = dark ? "light" : "dark";
+  const isDark = () => root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  const themeIcon = () => $("#themebtn").replaceChildren(icon(isDark() ? "sun" : "moon", 16));
+  const flipTheme = () => {
+    root.dataset.theme = isDark() ? "light" : "dark";
     try { localStorage.setItem("depgate-theme", root.dataset.theme); } catch {}
+    themeIcon();
+  };
+  $("#theme").addEventListener("click", flipTheme);
+  $("#themebtn").addEventListener("click", flipTheme);
+  themeIcon();
+  // quick search: filters the projects in the sidebar; Enter opens the first one
+  const qs = $("#qsearch");
+  const qmatch = () => {
+    const q = qs.value.trim().toLowerCase();
+    for (const b of document.querySelectorAll("#projects .proj:not(.dashbtn), #projects .fgroup")) {
+      b.hidden = !!q && !b.textContent.toLowerCase().includes(q) && !(b.title || "").toLowerCase().includes(q);
+    }
+    if (q) for (const k of document.querySelectorAll("#projects .fgroup .proj")) k.hidden = !k.textContent.toLowerCase().includes(q) && !(k.title || "").toLowerCase().includes(q);
+  };
+  qs.addEventListener("input", qmatch);
+  qs.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") { qs.value = ""; qmatch(); qs.blur(); }
+    if (e.key === "Enter") {
+      const q = qs.value.trim().toLowerCase();
+      const p = (st && st.projects || []).find((x) => (x.name + " " + x.dir).toLowerCase().includes(q));
+      if (p) { qs.value = ""; select(p.dir); }
+    }
+  });
+  document.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k" && !$("#qsearchwrap").hidden) { e.preventDefault(); qs.focus(); qs.select(); }
   });
   $("#lang").addEventListener("click", () => {
     lang = lang === "az" ? "en" : "az";
@@ -894,14 +952,16 @@
 
     const nav = $("#projects");
     nav.hidden = ps.length === 0;
+    $("#qsearchwrap").hidden = ps.length < 2;
     nav.setAttribute("aria-label", t("projects", ps.length));
     nav.replaceChildren(
       ps.length > 1 ? el("button", { class: "proj dashbtn" + (current === DASH ? " active" : ""), onclick: () => select(DASH) },
-        el("span", { class: "nm" }, el("span", { class: "lbl" }, "📊 " + t("dashTitle")), el("span", { class: "pkg" }, t("dashSub"))), countsEl(ps)) : null,
+        icon("dash", 17), el("span", { class: "nm" }, el("span", { class: "lbl" }, t("dashTitle"))), countsEl(ps)) : null,
       ps.length ? el("button", { class: "proj dashbtn" + (current === NEWS ? " active" : ""), onclick: () => select(NEWS) },
-        el("span", { class: "nm" }, el("span", { class: "lbl" }, "📰 " + t("newsTitle")), el("span", { class: "pkg" }, t("newsSub"))),
-        st.newsUnread ? el("span", { class: "cnt" }, el("b", { class: st.newsAlert ? "nbad" : "" }, st.newsUnread)) : el("span", { class: "cnt" }, "0")) : null,
+        icon("news", 17), el("span", { class: "nm" }, el("span", { class: "lbl" }, t("newsTitle"))),
+        st.newsUnread ? el("span", { class: "nbadge" + (st.newsAlert ? " bad" : "") }, st.newsUnread) : null) : null,
       el("h2", null, t("projects", ps.length)), ...groupsOf(ps).map(groupNav));
+    if (qs.value) qmatch();
 
     const mals = ps.flatMap((p) => ((p.report && p.report.findings) || []).filter((f) => f.kind === "malware").map((f) => ({ p, f })));
     const ban = $("#banner");
@@ -910,7 +970,7 @@
       const first = mals[0], names = [...new Set(mals.map((m) => m.f.pkg + " " + m.f.current))];
       const open = () => { current = first.p.dir; state.grp = first.f.group; goTab("packages", { grp: first.f.group, open: keyOf(first.f) }); };
       ban.replaceChildren(
-        el("span", { class: "bicon", "aria-hidden": "true" }, "!"),
+        el("span", { class: "bicon" }, icon("alert", 17)),
         el("b", null, t(names.length === 1 ? "malOne" : "malMany", names.slice(0, 3).join(", ") + (names.length > 3 ? " …" : ""))),
         el("span", { class: "bsub" }, ps.length > 1 ? t("malWhere", [...new Set(mals.map((m) => m.p.name))].join(", ")) + " · " : "", t("malDo")),
         el("span", { class: "grow" }),
@@ -920,7 +980,7 @@
       const a = st.newsAlert;
       ban.hidden = false; ban.className = "banner";
       ban.replaceChildren(
-        el("span", { class: "bicon", "aria-hidden": "true" }, "!"),
+        el("span", { class: "bicon" }, icon("alert", 17)),
         el("b", null, t("newsAlert", tr(a.title))),
         el("span", { class: "bsub" }, a.where),
         el("span", { class: "grow" }),
@@ -975,9 +1035,16 @@
     const c = items.reduce((a, p) => { const x = counts(p.report); return { urgent: a.urgent + x.urgent, plan: a.plan + x.plan, mal: a.mal + x.mal }; }, { urgent: 0, plan: 0, mal: 0 });
     return el("span", { class: "cnt" }, c.mal ? el("b", null, "!" + c.mal + " ") : null, c.urgent ? el("b", null, c.urgent) : "0", " · ", c.plan);
   }
+  // the state of projects as one colour: malware or do now, plan, all good, not scanned
+  function dotOf(items) {
+    if (!items.some((p) => p.report)) return "none";
+    const c = items.reduce((a, p) => { const x = counts(p.report); return { urgent: a.urgent + x.urgent + x.mal, plan: a.plan + x.plan }; }, { urgent: 0, plan: 0 });
+    return c.urgent ? "bad" : c.plan ? "warn" : "good";
+  }
   function projButton(p, label, child) {
     const pkg = p.name && p.name !== baseName(p.dir) ? p.name : "";
     return el("button", { class: "proj" + (child ? " child" : "") + (p.dir === current ? " active" : ""), title: p.dir + (pkg ? "\n" + pkg : ""), onclick: () => select(p.dir) },
+      el("span", { class: "pdot " + dotOf([p]), "aria-hidden": "true" }),
       el("span", { class: "nm" }, el("span", { class: "lbl" }, label), pkg && pkg !== label ? el("span", { class: "pkg" }, pkg) : null),
       countsEl([p]));
   }
@@ -987,6 +1054,7 @@
     const head = el("div", { class: "fgrp" + (FOLDER + g.dir === current ? " active" : "") + (g.items.some((p) => p.dir === current) ? " has-active" : "") },
       el("button", { class: "caret", "aria-expanded": String(open), "aria-label": t("expand"), title: t("expand"), onclick: () => toggleGroup(g.dir) }, open ? "▾" : "▸"),
       el("button", { class: "gname", title: g.dir, onclick: () => select(FOLDER + g.dir) },
+        el("span", { class: "pdot " + dotOf(g.items), "aria-hidden": "true" }),
         el("span", { class: "nm" }, el("span", { class: "lbl" }, baseName(g.dir)), el("span", { class: "pkg" }, t("nProjects", g.items.length))),
         countsEl(g.items)));
     return el("div", { class: "fgroup" }, head,
@@ -998,8 +1066,8 @@
     const groups = groupsOf(st.projects || []);
     if ((st.projects || []).length < 2) return null;
     const opts = [];
-    opts.push(el("option", { value: DASH, selected: current === DASH || undefined }, "📊 " + t("dashTitle")));
-    opts.push(el("option", { value: NEWS, selected: current === NEWS || undefined }, "📰 " + t("newsTitle") + (st.newsUnread ? " · " + st.newsUnread : "")));
+    opts.push(el("option", { value: DASH, selected: current === DASH || undefined }, t("dashTitle")));
+    opts.push(el("option", { value: NEWS, selected: current === NEWS || undefined }, t("newsTitle") + (st.newsUnread ? " · " + st.newsUnread : "")));
     for (const g of groups) {
       if (g.items.length > 1) opts.push(el("option", { value: FOLDER + g.dir, selected: current === FOLDER + g.dir || undefined }, baseName(g.dir) + " — " + t("nProjects", g.items.length)));
       for (const p of g.items) {
@@ -1970,7 +2038,7 @@
   const NSEV = { critical: ["sevCritical", "sev-critical"], high: ["sevHigh", "sev-high"], medium: ["sevModerate", "sev-moderate"], low: ["sevLow", "sev-low"],
     eol: ["nEol", "warn"], release: ["nRelease", "ok"], update: ["nUpdate", ""], news: ["nNews", ""] };
   const TOPICS = ["zeroday", "security", "cve", "linux", "containers", "devops", "code", "ai", "cloud", "hot", "tools"];
-  const TICON = { zeroday: "🔥", security: "🛡️", cve: "🧾", linux: "🐧", containers: "📦", devops: "⚙️", code: "💻", ai: "🤖", cloud: "☁️", hot: "📈", tools: "⭐" };
+  const TICON = Object.fromEntries(TOPICS.map((x) => [x, x]));
   const nIsRead = (it, read) => !!read[it.id] || (it.alias || []).some((a) => read[a]);
   const nIds = (it) => [it.id, ...(it.alias || [])];
   // importance: the score DepGate gave the item, less 40 a day of age
@@ -1993,7 +2061,7 @@
         it.mine ? el("span", { class: "chip ai" }, t("newsMineChip")) : it.maybe ? el("span", { class: "chip ai" }, t("newsMaybeChip")) : null,
         it.product ? el("span", { class: "chip" }, it.product) : null,
         el("span", { class: "grow" }),
-        (it.topics || []).filter((x) => TICON[x]).slice(0, 3).map((x) => el("span", { class: "ntopic", title: t("tp_" + x) }, TICON[x])),
+        (it.topics || []).filter((x) => TICON[x]).slice(0, 3).map((x) => el("span", { class: "ntopic", title: t("tp_" + x) }, icon(x, 14))),
         el("span", { class: "quiet small" }, it.source)),
       el("div", { class: "ntitle" }, tr(it.title)),
       tr(it.desc) ? el("div", { class: "ndesc" }, tr(it.desc)) : null,
@@ -2042,7 +2110,7 @@
         el("div", { class: "pchips" }, el("span", { class: "pc" }, st.newsAt ? t("newsBuilt", fmtTime(st.newsAt)) : t("newsNever")), el("span", { class: "pc" }, t("newsEvery")))),
       st.readOnly ? null : el("button", { class: "small", onclick: async () => {
         try { await api("POST", "api/news/refresh"); toast(t("newsRefreshing")); } catch (e) { toast(t("error", e.message)); }
-      } }, "⟳ " + t("newsRefresh")));
+      } }, icon("refresh", 14), t("newsRefresh")));
     const body = el("div", { class: "nbody" }, el("div", { class: "quiet small" }, t("loading")));
     const fail = (e) => body.replaceChildren(el("div", { class: "empty" }, t("error", e.message)));
     if (tab === "stack") {
@@ -2095,17 +2163,43 @@
       return ws.every((w) => hay.includes(w));
     };
     const base = items.filter((it) => keep(it) && (!src || it.source === src || (it.also || []).some((r) => r.source === src)));
-    const listBox = el("div", { class: "nlist" });
+    const listBox = el("div", { class: "nlistbox" });
     const countBox = el("span", { class: "quiet small" });
+    const wide = matchMedia("(min-width: 1100px)").matches;
     const drawList = () => {
       const shown = base.filter((it) => inTopic(it, topic) && match(it))
         .sort(sortBy === "new" ? (a, b) => new Date(b.at) - new Date(a.at) : (a, b) => nWeight(b) - nWeight(a));
       const lim = state.nlimit || 40;
       countBox.textContent = t("newsCount", shown.length);
-      listBox.replaceChildren(...(shown.length ? [
-        ...shown.slice(0, lim).map((it) => newsItem(it, v.read)),
-        shown.length > lim ? el("button", { class: "small nmore", onclick: () => { state.nlimit = lim + 40; drawList(); } }, t("newsMore", Math.min(40, shown.length - lim))) : null,
-      ].filter(Boolean) : [mine && !items.length ? mineWhy(v) : el("div", { class: "empty" }, !v.updated || v.updated.startsWith("0001") ? t("newsNever") : t("newsNone"))]));
+      if (!shown.length) {
+        listBox.replaceChildren(mine && !items.length ? mineWhy(v) : el("div", { class: "empty" }, !v.updated || v.updated.startsWith("0001") ? t("newsNever") : t("newsNone")));
+        return;
+      }
+      const more = shown.length > lim ? el("button", { class: "small nmore", onclick: () => { state.nlimit = lim + 40; drawList(); } }, t("newsMore", Math.min(40, shown.length - lim))) : null;
+      if (!wide) { // a phone or a narrow window: the cards one under another
+        listBox.replaceChildren(...[...shown.slice(0, lim).map((it) => newsItem(it, v.read)), more].filter(Boolean));
+        return;
+      }
+      // wide: a compact list, and the chosen item beside it
+      if (state.nopen && shown.some((it) => it.id === state.nopen)) { state.nsel = state.nopen; state.nopen = ""; }
+      let sel = shown.find((it) => it.id === state.nsel) || shown[0];
+      state.nsel = sel.id;
+      const rows = shown.slice(0, lim).map((it) => {
+        const sv = NSEV[it.severity] || NSEV.update;
+        const bad = it.kev || it.zeroDay || it.severity === "critical";
+        return el("button", { class: "nrow2" + (it.id === sel.id ? " on" : "") + (nIsRead(it, v.read) ? "" : " unread") + (bad && !nIsRead(it, v.read) ? " sevbad" : ""),
+          "aria-pressed": String(it.id === sel.id), onclick: () => { state.nsel = it.id; drawList(); } },
+          el("span", { class: "ndot2", "aria-hidden": "true" }),
+          el("span", { class: "grow" },
+            el("span", { class: "nt" }, tr(it.title)),
+            el("span", { class: "nm2" },
+              el("span", { class: "tg" + (bad ? " bad" : "") }, it.kev ? t("tagKev") : it.zeroDay ? "ZERO-DAY" : t(sv[0])),
+              el("span", null, it.source + ((it.also || []).length ? " +" + it.also.length : "")),
+              el("span", null, fmtTime(it.at).slice(0, 10)))));
+      });
+      listBox.replaceChildren(el("div", { class: "nsplit" },
+        el("div", { class: "nlist" }, ...rows, more),
+        el("div", { class: "ndetail" }, newsItem(sel, v.read))));
     };
     const unreadIds = items.filter((it) => inTopic(it, topic) && !nIsRead(it, v.read)).flatMap(nIds);
     const topics = mine ? null : el("div", { class: "row ntopics" },
@@ -2113,7 +2207,7 @@
         const n = base.filter((it) => inTopic(it, k)).length;
         if (k !== "all" && !n && k !== topic) return null;
         return el("button", { class: "fchip" + (topic === k ? " on" : ""), "aria-pressed": String(topic === k),
-          onclick: () => { state.ntopic = k; state.nlimit = 0; render(); } }, (TICON[k] ? TICON[k] + " " : "") + t(k === "all" ? "tpAll" : "tp_" + k), el("span", { class: "fn" }, n));
+          onclick: () => { state.ntopic = k; state.nlimit = 0; render(); } }, TICON[k] ? icon(k, 14) : null, t(k === "all" ? "tpAll" : "tp_" + k), el("span", { class: "fn" }, n));
       }));
     const sources = [...new Set(items.flatMap((it) => [it.source, ...(it.also || []).map((r) => r.source)]))].sort();
     const search = el("input", { type: "search", class: "nsearch", placeholder: t("newsSearch"), value: state.nq || "", "aria-label": t("newsSearch"),
@@ -2180,7 +2274,7 @@
       const tOff = isOff("topic:" + tp);
       return el("div", { class: "card nsrc" },
         el("label", { class: "row nsrch" }, el("input", { type: "checkbox", checked: !tOff || undefined, disabled: ro || undefined, onchange: (e) => toggle("topic:" + tp, e.target.checked) }),
-          el("b", null, TICON[tp] + " " + t("tp_" + tp)), tOff ? el("span", { class: "quiet small" }, t("srcTopicOff")) : null),
+          el("b", { class: "row" }, icon(tp), t("tp_" + tp)), tOff ? el("span", { class: "quiet small" }, t("srcTopicOff")) : null),
         el("div", { class: "nsrclist" + (tOff ? " off" : "") }, srcs.map((s) => el("div", { class: "row nsrow" },
           el("label", { class: "row" }, el("input", { type: "checkbox", checked: !isOff(s.id) || undefined, disabled: ro || tOff || undefined, onchange: (e) => toggle(s.id, e.target.checked) }),
             el("span", null, s.name)),
@@ -2199,7 +2293,7 @@
       el("div", { class: "card" }, el("div", { class: "h3" }, t("srcCustom")), el("div", { class: "quiet small" }, t("srcCustomHelp")),
         el("form", { class: "row nform", onsubmit: (e) => { e.preventDefault(); if (url.value.trim()) save({ ...set, feeds: [...set.feeds, { name: name.value, url: url.value, topic: topicSel.value }] }); } },
           name, url, topicSel, el("button", { type: "submit", class: "small" }, t("srcAdd")))),
-      el("div", { class: "card" }, el("div", { class: "h3" }, "⭐ " + t("srcWatch")), el("div", { class: "quiet small" }, t("srcWatchHelp")),
+      el("div", { class: "card" }, el("div", { class: "h3" }, icon("star"), t("srcWatch")), el("div", { class: "quiet small" }, t("srcWatchHelp")),
         el("form", { class: "row nform", onsubmit: (e) => { e.preventDefault(); if (repo.value.trim()) save({ ...set, watch: [...set.watch, repo.value] }); } },
           repo, el("button", { type: "submit", class: "small" }, t("srcAdd"))))];
     return el("div", { class: "nbody" }, el("div", { class: "quiet small" }, t("srcHelp")), ...forms, ...groups);
@@ -2250,7 +2344,7 @@
       card(x.hits ? "code" : "zero", t("tileCode"), x.hits, x.hits ? tn("tileCodeSub", x.pkgsNow) : t("tileNone")),
       card(dsHigh ? "warn" : "zero", t("dashDs"), dsHigh, t("tileDsSub", x.high, x.medium, x.low)),
       card(nodeNow ? "hi" : "zero", "Node.js", nodeNow, nodeNow ? t("dashNodeSub", nodeNow) : t("dashNodeOk")),
-      card(st.newsAlert ? "bad" : st.newsMine ? "hi" : "zero", "📰 " + t("newsTitle"), st.newsMine, st.newsAlert ? t("newsTileKev") : t("newsTileSub", st.newsUnread), () => select(NEWS)));
+      card(st.newsAlert ? "bad" : st.newsMine ? "hi" : "zero", t("newsTitle"), st.newsMine, st.newsAlert ? t("newsTileKev") : t("newsTileSub", st.newsUnread), () => select(NEWS)));
 
     // 2. how the projects are doing
     const byLvl = { bad: [], hi: [], warn: [], good: [] };
