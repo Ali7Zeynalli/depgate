@@ -3,6 +3,7 @@ package news
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -133,6 +134,9 @@ func TestGeneral(t *testing.T) {
 {"cve":{"id":"CVE-2026-55555","published":"2026-10-28T10:00:00.000","descriptions":[{"lang":"en","value":"The Foo Gallery plugin for WordPress allows SQL injection"}],"metrics":{}}}]}`
 	f.Feeds["https://api.github.com/advisories*"] = `[{"ghsa_id":"GHSA-aaaa-bbbb-cccc","cve_id":"CVE-2026-77777","html_url":"https://github.com/advisories/GHSA-aaaa-bbbb-cccc","summary":"RCE in langchain-core","severity":"critical","published_at":"2026-10-27T10:00:00Z","vulnerabilities":[{"package":{"ecosystem":"pip","name":"langchain-core"},"first_patched_version":"0.3.80"}]}]`
 
+	f.Feeds[sources.UbuntuCVEs] = `{"cves":[
+{"id":"CVE-2026-98432","published":"2026-10-15T10:00:00","priority":"high","cvss3":9.8,"description":"tcp use-after-free","status":"active","packages":[{"name":"linux","statuses":[{"release_codename":"noble","status":"needed"},{"release_codename":"jammy","status":"pending"},{"release_codename":"focal","status":"not-affected"}]}]},
+{"id":"CVE-2026-11111","published":"2026-10-20T10:00:00","priority":"high","description":"fixed one","status":"active","packages":[{"name":"curl","statuses":[{"release_codename":"noble","status":"released"}]}]}]}`
 	set := Settings{Off: []string{"topic:hot", "lwn"}, Feeds: []CustomFeed{{Name: "Mine", URL: "https://example.org/feed.xml", Topic: "ai"}}, Watch: []string{"https://github.com/caddyserver/caddy"}}.Clean()
 	if len(set.Watch) != 1 || set.Watch[0] != "caddyserver/caddy" {
 		t.Fatalf("watch %v", set.Watch)
@@ -158,7 +162,15 @@ func TestGeneral(t *testing.T) {
 		}
 	}
 	// one story, three sources: the NVD record leads, the news sites are «also»
-	if tcp == nil || tcp.Source != "NVD (critical)" || len(tcp.Also) != 2 || tcp.Severity != "critical" || !has(tcp.Topics, "linux") || len(tcp.Alias) != 2 {
+	if tcp == nil || !tcp.NoFix || !strings.Contains(fmt.Sprint(tcp.Also), "Ubuntu CVE tracker") {
+		t.Fatalf("ubuntu tracker not merged: %+v", tcp)
+	}
+	for _, it := range feed.Items {
+		if strings.Contains(it.ID, "CVE-2026-11111") {
+			t.Fatal("a fixed CVE from the tracker is news only as a USN")
+		}
+	}
+	if tcp.Source != "NVD (critical)" || len(tcp.Also) != 3 || tcp.Severity != "critical" || !has(tcp.Topics, "linux") || len(tcp.Alias) != 3 {
 		t.Fatalf("tcp %+v", tcp)
 	}
 	if chrome == nil || !chrome.ZeroDay || len(chrome.Also) != 1 || !has(chrome.Topics, "zeroday") {

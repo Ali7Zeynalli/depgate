@@ -1,5 +1,9 @@
 version: 2
 project_name: depgate
+before:
+  hooks:
+    # version information and icon of depgate.exe (Properties > Details)
+    - go run ./tools/winres -version {{ .Version }}
 builds:
   - env: [CGO_ENABLED=0]
     goos: [linux, darwin, windows]

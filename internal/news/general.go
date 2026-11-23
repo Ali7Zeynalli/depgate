@@ -202,6 +202,24 @@ func readSource(ctx context.Context, f sources.Fetcher, src sources.NewsSource, 
 			out = append(out, finish(it, e.Vendor+" "+e.Product+" "+e.Name))
 		}
 		return out, nil
+	case "ubuntucve":
+		recs, err := sources.UbuntuCVEList(ctx, f, src.URL)
+		if err != nil {
+			return nil, err
+		}
+		for _, r := range recs {
+			if r.Published.IsZero() || now.Sub(r.Published) > window || len(r.Unfixed) == 0 {
+				continue // what is fixed comes as a USN
+			}
+			product := strings.Join(r.Packages, ", ")
+			it := Item{ID: "ubuntu-cve:" + r.ID, Source: src.Name, URL: "https://ubuntu.com/security/" + r.ID, At: r.Published, Severity: sevOf(r.Priority, r.Score),
+				Product: clip(product, 60), CVEs: []string{r.ID}, NoFix: true,
+				Title: i18n.F("%s: %s", "%s: %s", r.ID, clip(r.Desc, 160)),
+				Desc: i18n.F("Ubuntu-da düzəliş hələ yoxdur: %s. Paket: %s. Müvəqqəti tədbirlərə mənbədən bax.", "No fix in Ubuntu yet: %s. Package: %s. See the source for mitigations.",
+					strings.Join(r.Unfixed, ", "), clip(product, 80))}
+			out = append(out, finish(it, r.Desc+" "+product+" ubuntu linux"))
+		}
+		return out, nil
 	case "nvd", "ghsa":
 		var recs []sources.CVERecord
 		var err error
@@ -476,6 +494,7 @@ func merge(items []Item, active []sources.NewsSource) []Item {
 			}
 			it.KEV = it.KEV || x.KEV
 			it.ZeroDay = it.ZeroDay || x.ZeroDay
+			it.NoFix = it.NoFix || x.NoFix
 			it.Maybe = it.Maybe || x.Maybe
 			if sevRank[x.Severity] > sevRank[it.Severity] {
 				it.Severity = x.Severity
@@ -518,6 +537,9 @@ func score(it Item) int {
 	}
 	if it.Maybe {
 		s += 300
+	}
+	if it.NoFix {
+		s += 150
 	}
 	s += map[string]int{"critical": 200, "high": 120, "medium": 40, "eol": 150, "release": 30, "update": 30}[it.Severity]
 	s += 40 * min(len(it.Also), 5)

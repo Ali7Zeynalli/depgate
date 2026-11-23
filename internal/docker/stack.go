@@ -165,7 +165,7 @@ func describe(ref string) report.ImageItem {
 // codenames of Debian and Ubuntu releases in image tags
 var codenames = map[string][2]string{
 	"stretch": {"debian", "9"}, "buster": {"debian", "10"}, "bullseye": {"debian", "11"}, "bookworm": {"debian", "12"}, "trixie": {"debian", "13"},
-	"bionic": {"ubuntu", "18.04"}, "focal": {"ubuntu", "20.04"}, "jammy": {"ubuntu", "22.04"}, "noble": {"ubuntu", "24.04"},
+	"bionic": {"ubuntu", "18.04"}, "focal": {"ubuntu", "20.04"}, "jammy": {"ubuntu", "22.04"}, "noble": {"ubuntu", "24.04"}, "oracular": {"ubuntu", "24.10"}, "plucky": {"ubuntu", "25.04"}, "questing": {"ubuntu", "25.10"}, "resolute": {"ubuntu", "26.04"},
 }
 
 var pkgVersion = regexp.MustCompile(`[=<>].*$`)
